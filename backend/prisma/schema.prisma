@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider   = "postgresql"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  queriesCount  Int            @default(0)
+  docsCount     Int            @default(0)
+  isPro         Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  conversations Conversation[]
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  title     String    @default("New Chat")
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  role           String       // "user" or "assistant"
+  content        String
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+}
+
+// ----------------------------------------
+// LEGAL DATA PIPELINE MODELS
+// ----------------------------------------
+
+model Act {
+  id          String    @id @default(uuid())
+  title       String    @unique
+  shortName   String?   @unique // e.g., "BNS", "Constitution"
+  year        Int?
+  description String?
+  sections    Section[]
+  chunks      LegalChunk[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Section {
+  id          String   @id @default(uuid())
+  actId       String
+  act         Act      @relation(fields: [actId], references: [id], onDelete: Cascade)
+  number      String   // e.g., "1", "124A"
+  title       String?  // e.g., "Sedition"
+  content     String   // Full text of the section
+  clauses     Clause[]
+  chunks      LegalChunk[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([actId, number])
+}
+
+model Clause {
+  id          String   @id @default(uuid())
+  sectionId   String
+  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  number      String   // e.g., "(1)", "(a)", "(i)"
+  content     String
+  chunks      LegalChunk[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([sectionId, number])
+}
+
+model LegalChunk {
+  id          String   @id @default(uuid())
+  actId       String?
+  act         Act?     @relation(fields: [actId], references: [id], onDelete: Cascade)
+  sectionId   String?
+  section     Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  clauseId    String?
+  clause      Clause?  @relation(fields: [clauseId], references: [id], onDelete: Cascade)
+  
+  content     String
+  embedding   Float[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+

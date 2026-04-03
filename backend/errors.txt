@@ -1,0 +1,12 @@
+src/routes/chat.ts(57,16): error TS2322: Type 'string | string[]' is not assignable to type 'string | StringFilter<"Conversation"> | undefined'.
+  Type 'string[]' is not assignable to type 'string | StringFilter<"Conversation"> | undefined'.
+src/routes/chat.ts(71,9): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/chat.ts(79,35): error TS2339: Property 'messages' does not exist on type '{ id: string; createdAt: Date; updatedAt: Date; title: string; userId: string; }'.
+src/routes/chat.ts(106,9): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/chat.ts(111,22): error TS2339: Property 'messages' does not exist on type '{ id: string; createdAt: Date; updatedAt: Date; title: string; userId: string; }'.
+src/routes/chat.ts(115,18): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/chat.ts(120,18): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
