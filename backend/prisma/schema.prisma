@@ -3,30 +3,210 @@ generator client {
 }
 
 datasource db {
-  provider   = "postgresql"
+  provider = "postgresql"
 }
 
-model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  passwordHash  String
-  queriesCount  Int            @default(0)
-  docsCount     Int            @default(0)
-  isPro         Boolean        @default(false)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  conversations Conversation[]
-  refreshTokens RefreshToken[]
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum UserRole {
+  CITIZEN
+  LAWYER
+  JUDGE
+  ADMIN
 }
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum OtpType {
+  EMAIL_VERIFY
+  LOGIN
+  PASSWORD_RESET
+  AADHAAR_LINK
+}
+
+// ─────────────────────────────────────────
+// CORE USER MODEL
+// ─────────────────────────────────────────
+
+model User {
+  id             String             @id @default(uuid())
+  email          String             @unique
+  phone          String?            @unique
+  passwordHash   String?            // Optional: OTP-only login supported
+  role           UserRole           @default(CITIZEN)
+  isEmailVerified Boolean           @default(false)
+  isPhoneVerified Boolean           @default(false)
+  isActive       Boolean            @default(true)
+  isBiometricEnabled Boolean        @default(false)
+  queriesCount   Int                @default(0)
+  docsCount      Int                @default(0)
+  isPro          Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  // Relations
+  conversations  Conversation[]
+  refreshTokens  RefreshToken[]
+  otps           Otp[]
+  citizenProfile  CitizenProfile?
+  lawyerProfile   LawyerProfile?
+  judgeProfile    JudgeProfile?
+  adminProfile    AdminProfile?
+  notifications   Notification[]
+  marketplaceListings MarketplaceListing[]
+}
+
+// ─────────────────────────────────────────
+// REFRESH TOKENS
+// ─────────────────────────────────────────
 
 model RefreshToken {
   id        String   @id @default(uuid())
   token     String   @unique
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent String?
+  ipAddress String?
   createdAt DateTime @default(now())
   expiresAt DateTime
+  revokedAt DateTime?
 }
+
+// ─────────────────────────────────────────
+// OTP TABLE
+// ─────────────────────────────────────────
+
+model Otp {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  target    String   // email or phone number
+  code      String
+  type      OtpType
+  attempts  Int      @default(0)
+  used      Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([target, type])
+}
+
+// ─────────────────────────────────────────
+// CITIZEN PROFILE
+// ─────────────────────────────────────────
+
+model CitizenProfile {
+  id               String             @id @default(uuid())
+  userId           String             @unique
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName         String?
+  aadhaarNumber    String?            // Masked: last 4 digits only after eKYC
+  aadhaarVerified  Boolean            @default(false)
+  dateOfBirth      DateTime?
+  address          String?
+  state            String?
+  pincode          String?
+  verificationStatus VerificationStatus @default(PENDING)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+// ─────────────────────────────────────────
+// LAWYER PROFILE
+// ─────────────────────────────────────────
+
+model LawyerProfile {
+  id                  String             @id @default(uuid())
+  userId              String             @unique
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName            String?
+  barCouncilNumber    String?            @unique
+  barCouncilState     String?
+  enrollmentYear      Int?
+  specializations     String[]
+  practiceAreas       String[]
+  yearsOfExperience   Int?
+  firmName            String?
+  officeAddress       String?
+  bio                 String?
+  // Document verification
+  barCertificateUrl   String?            // Uploaded to cloud storage
+  degreeCertificateUrl String?
+  governmentIdUrl     String?
+  profilePhotoUrl     String?
+  verificationStatus  VerificationStatus @default(PENDING)
+  verificationNote    String?            // Admin note on rejection
+  verifiedAt          DateTime?
+  verifiedBy          String?            // Admin userId
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+}
+
+// ─────────────────────────────────────────
+// JUDGE PROFILE
+// ─────────────────────────────────────────
+
+model JudgeProfile {
+  id                 String             @id @default(uuid())
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName           String?
+  governmentId       String?            @unique    // Employee ID / judicial ID
+  court              String?
+  courtLevel         String?            // District / High / Supreme
+  jurisdiction       String?
+  departmentCode     String?
+  governmentIdDocUrl String?
+  verificationStatus VerificationStatus @default(PENDING)
+  verificationNote   String?
+  verifiedAt         DateTime?
+  verifiedBy         String?            // Admin userId
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+// ─────────────────────────────────────────
+// ADMIN PROFILE
+// ─────────────────────────────────────────
+
+model AdminProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName    String?
+  department  String?
+  permissions String[]  // Granular permissions e.g. ["verify_lawyers", "manage_judges"]
+  invitedBy   String?   // Admin userId who invited
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────
+// ADMIN INVITE TOKENS
+// ─────────────────────────────────────────
+
+model AdminInvite {
+  id          String    @id @default(uuid())
+  token       String    @unique @default(uuid())
+  email       String
+  role        UserRole  @default(ADMIN)
+  invitedBy   String    // Admin userId
+  used        Boolean   @default(false)
+  usedAt      DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+}
+
+// ─────────────────────────────────────────
+// LEGAL DATA PIPELINE MODELS
+// ─────────────────────────────────────────
 
 model Conversation {
   id        String    @id @default(uuid())
@@ -47,63 +227,88 @@ model Message {
   createdAt      DateTime     @default(now())
 }
 
-// ----------------------------------------
-// LEGAL DATA PIPELINE MODELS
-// ----------------------------------------
-
 model Act {
-  id          String    @id @default(uuid())
-  title       String    @unique
-  shortName   String?   @unique // e.g., "BNS", "Constitution"
+  id          String       @id @default(uuid())
+  title       String       @unique
+  shortName   String?      @unique
   year        Int?
   description String?
   sections    Section[]
   chunks      LegalChunk[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model Section {
-  id          String   @id @default(uuid())
-  actId       String
-  act         Act      @relation(fields: [actId], references: [id], onDelete: Cascade)
-  number      String   // e.g., "1", "124A"
-  title       String?  // e.g., "Sedition"
-  content     String   // Full text of the section
-  clauses     Clause[]
-  chunks      LegalChunk[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String       @id @default(uuid())
+  actId     String
+  act       Act          @relation(fields: [actId], references: [id], onDelete: Cascade)
+  number    String
+  title     String?
+  content   String
+  clauses   Clause[]
+  chunks    LegalChunk[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   @@unique([actId, number])
 }
 
 model Clause {
-  id          String   @id @default(uuid())
-  sectionId   String
-  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  number      String   // e.g., "(1)", "(a)", "(i)"
-  content     String
-  chunks      LegalChunk[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String       @id @default(uuid())
+  sectionId String
+  section   Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  number    String
+  content   String
+  chunks    LegalChunk[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   @@unique([sectionId, number])
 }
 
 model LegalChunk {
-  id          String   @id @default(uuid())
-  actId       String?
-  act         Act?     @relation(fields: [actId], references: [id], onDelete: Cascade)
-  sectionId   String?
-  section     Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  clauseId    String?
-  clause      Clause?  @relation(fields: [clauseId], references: [id], onDelete: Cascade)
-  
-  content     String
-  embedding   Float[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  actId     String?
+  act       Act?     @relation(fields: [actId], references: [id], onDelete: Cascade)
+  sectionId String?
+  section   Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  clauseId  String?
+  clause    Clause?  @relation(fields: [clauseId], references: [id], onDelete: Cascade)
+  content   String
+  embedding Float[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
+// ─────────────────────────────────────────
+// NOTIFICATIONS (existing system)
+// ─────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("info")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ─────────────────────────────────────────
+// MARKETPLACE (existing system)
+// ─────────────────────────────────────────
+
+model MarketplaceListing {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  specialization String?
+  hourlyRate   Float?
+  isAvailable  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
