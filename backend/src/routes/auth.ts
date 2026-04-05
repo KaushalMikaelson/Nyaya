@@ -50,8 +50,8 @@ const upload = multer({
 function setRefreshCookie(res: Response, token: string): void {
   res.cookie('refreshToken', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: true, // Secure must be true for SameSite=None to work. Localhost allows Secure cookies over HTTP.
+    sameSite: 'none',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 }
@@ -151,6 +151,7 @@ router.post('/citizen/verify-email', otpVerifyLimiter, async (req: Request, res:
     res.json({
       message: 'Email verified successfully.',
       accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -336,6 +337,7 @@ router.post('/lawyer/verify-email', otpVerifyLimiter, async (req: Request, res: 
     res.json({
       message: 'Email verified. Please complete your lawyer profile and upload documents.',
       accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -503,6 +505,7 @@ router.post('/judge/verify-email', otpVerifyLimiter, async (req: Request, res: R
     res.json({
       message: 'Email verified. Your account is pending admin approval. We will notify you by email.',
       accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -651,6 +654,7 @@ router.post('/admin/verify-email', otpVerifyLimiter, async (req: Request, res: R
     res.json({
       message: 'Admin account verified and active.',
       accessToken,
+      refreshToken,
       user: { id: user.id, email: user.email, role: user.role },
     });
   } catch (err: any) {
@@ -705,6 +709,7 @@ router.post('/login', loginLimiter, async (req: Request, res: Response): Promise
 
     res.json({
       accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -788,6 +793,7 @@ router.post('/login/otp/verify', otpVerifyLimiter, loginLimiter, async (req: Req
 
     res.json({
       accessToken,
+      refreshToken,
       user: { id: user.id, email: user.email, role: user.role, isPro: user.isPro },
     });
   } catch (err: any) {
@@ -834,7 +840,7 @@ router.post('/refresh', refreshLimiter, async (req: Request, res: Response): Pro
   try {
     const { accessToken, refreshToken } = await rotateRefreshToken(oldToken, getMeta(req));
     setRefreshCookie(res, refreshToken);
-    res.json({ accessToken });
+    res.json({ accessToken, refreshToken });
   } catch (err: any) {
     res.clearCookie('refreshToken');
     res.status(401).json({ error: err.message || 'Session expired. Please log in again.' });

@@ -44,11 +44,12 @@ export const notificationQueue = {
   });
 
   try {
+    // Silence unhandled connection errors to prevent node crashes
+    connection.on('error', () => {}); 
+
     // Check if Redis is actually running
     await connection.ping();
-    
-    // Silence subsequent unhandled connection errors to prevent node crashes
-    connection.on('error', () => {}); 
+
     
     realQueue = new Queue('notifications', { connection });
 
