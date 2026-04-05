@@ -81,7 +81,17 @@ export async function verifyOtp(
     orderBy: { createdAt: 'desc' },
   });
 
+  // ── DEBUG: log OTP lookup result ──
+  console.log(`[OTP Debug] target="${target}" type="${type}" submitted="${code}"`);
+  console.log(`[OTP Debug] DB record:`, otp ? { code: otp.code, used: otp.used, expiresAt: otp.expiresAt, attempts: otp.attempts } : 'NOT FOUND');
+
   if (!otp) {
+    // Check if there's an expired or used one to give a better error
+    const anyOtp = await prisma.otp.findFirst({
+      where: { target, type },
+      orderBy: { createdAt: 'desc' },
+    });
+    console.log(`[OTP Debug] Most recent (any state):`, anyOtp ? { code: anyOtp.code, used: anyOtp.used, expiresAt: anyOtp.expiresAt } : 'NONE IN DB');
     throw new Error('OTP not found or expired. Please request a new one.');
   }
 
@@ -96,6 +106,7 @@ export async function verifyOtp(
       data: { attempts: { increment: 1 } },
     });
     const remaining = OTP_MAX_ATTEMPTS - (otp.attempts + 1);
+    console.log(`[OTP Debug] MISMATCH: expected="${otp.code}" got="${code}"`);
     throw new Error(`Invalid OTP. ${remaining} attempt(s) remaining.`);
   }
 

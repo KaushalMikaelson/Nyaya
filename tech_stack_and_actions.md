@@ -1,102 +1,270 @@
 # Nyaay – AI Legal Assistant for Indian Law
+# Tech Stack & Development Log
+
+---
 
 ## 1. Project Overview
-**Nyaay** is a cutting-edge, AI-powered legal technology platform designed to make Indian law accessible. It serves citizens by answering legal queries and analyzing documents, while also providing a marketplace connecting users with verified legal professionals (lawyers and judges).
+
+**Nyaay** is a full-stack, production-ready AI-powered legal technology platform built to democratize access to Indian law. It serves four distinct user classes:
+
+| Role | Description |
+|------|-------------|
+| **Citizen** | Asks legal questions, uploads documents for analysis, connects with lawyers |
+| **Lawyer** | Gets verified via Bar Council credentials, lists services on the marketplace |
+| **Judge** | Accesses judicial tools after government ID verification by admins |
+| **Admin** | Manages verifications, invites new admins, oversees the platform |
 
 ---
 
 ## 2. Platform Features
-- **AI Chat & Intelligence**: Users can ask legal questions and receive answers sourced from a massive database of Indian Acts, Sections, and Clauses using a Retrieval-Augmented Generation (RAG) pipeline.
-- **Document Analysis**: Users can upload legal documents for automated AI analysis and summarization.
-- **Role-Based Profiles & Workflows**: Dedicated interfaces and verification flows for Citizens, Lawyers, Judges, and Admins.
-- **Lawyer Marketplace**: A platform for citizens to find and connect with specialized, verified lawyers.
-- **Authentication**: Supports standard password authentication, secure JWT generation, and passwordless OTP login (Email/WhatsApp).
-- **Automated Notifications**: Scheduled reminders and legal alerts handled through background job queues.
-- **Subscriptions & Monetization**: Built-in limits for free users with upgrade paths to "Nyaya PRO" via Razorpay.
+
+### 🧠 AI & Legal Intelligence
+- **RAG-powered Legal Chat** — Citizens ask natural-language legal questions. The system retrieves relevant Indian Acts/Sections via vector similarity search, reranks them with Cohere, and generates grounded answers via Groq LLaMA 3.3 70B.
+- **Document Analyzer** — Upload PDF legal documents; the backend extracts text via `pdf-parse`, chunks it, embeds it via Voyage AI, and provides AI-powered analysis and summaries.
+- **Case Intelligence Engine** — Dedicated `/intelligence` route providing case strategy, risk analysis, and next-step recommendations grounded in Indian law.
+- **Legal Document Generator** — `/generate` route that produces structured legal documents (FIRs, notices, affidavits) from user inputs using Groq.
+
+### 🔐 Authentication & Security
+- **Multi-role JWT auth** — separate `access_token` (15 min) + `refresh_token` (7 days, rotation-based, stored in DB).
+- **Passwordless OTP login** — 6-digit cryptographically secure codes sent via Gmail SMTP.
+- **Aadhaar eKYC** — Stub integration with `aadhaar.service.ts` for future DigiLocker linking.
+- **Biometric placeholders** — WebAuthn/FIDO2 credential storage hooks ready for mobile.
+- **Rate limiting** — per-endpoint throttling via `express-rate-limit` (login: 10/hr, OTP send: 5/hr, etc.)
+- **Security headers** — Helmet.js enforcing CSP, HSTS, X-Frame-Options, etc.
+- **Admin invite-only** — Admins can only register via one-time invite tokens issued by existing admins.
+
+### 🏛️ Lawyer Marketplace
+- Verified lawyers create public listings with specialization, hourly rate, bio.
+- Citizens browse, filter by specialization/state, and initiate contact.
+- Admin team verifies lawyers by reviewing uploaded Bar Certificate, Degree, and Government ID documents.
+
+### 💳 Monetization
+- Free tier: 10 AI queries, 3 document analyses.
+- **Nyaya PRO** upgrade via Razorpay: webhook updates `isPro = true` in database.
+
+### 🔔 Notifications
+- **BullMQ + Redis** queue for async email/WhatsApp job scheduling.
+- Graceful fallback: if Redis is not running locally, jobs are mocked without crashing the server.
+- Twilio WhatsApp sandbox for case follow-up reminders.
 
 ---
 
 ## 3. Technology Stack
 
-### **Frontend Architecture**
-- **Framework**: Next.js (App Router, React)
-- **Styling**: Tailwind CSS for rapid UI development, custom CSS for dynamic glowing aesthetics and glassmorphism.
-- **Animations**: `framer-motion` for complex page transitions, modal reveals, and smooth micro-interactions.
-- **Icons**: `lucide-react`
-- **State & Routing**: React Context API (`AuthContext`), standard hooks, and Next Navigation.
+### Frontend
 
-### **Backend Architecture**
-- **Runtime & Framework**: Node.js, Express.js, TypeScript.
-- **Database & ORM**: PostgreSQL paired with Prisma ORM.
-- **Authentication**: `jsonwebtoken` for access/refresh routines, `bcrypt` for password hashing.
-- **Queue System**: BullMQ backed by `ioredis` for asynchronous tasks (e.g., email dispatch, WhatsApp alerts).
-- **File Uploads**: `multer` middleware for processing and securely storing document verification files.
-- **Integrations**:
-  - **Groq API**: High-speed LLaMA-based generation models for conversing with users.
-  - **Voyage AI**: Employed for generating sophisticated embedding vectors of Indian law components.
-  - **Cohere AI**: Utilized for the Reranking phase to surface the most relevant legal context out of search results.
-  - **Nodemailer / Twilio**: Email and WhatsApp notification dispatching.
+| Technology | Purpose |
+|------------|---------|
+| **Next.js 14** (App Router) | SSR/CSR hybrid framework, file-based routing |
+| **React 18** | Component model, hooks, context |
+| **Tailwind CSS** | Utility-first styling |
+| **Framer Motion** | Page transitions, modal animations, micro-interactions |
+| **Lucide React** | Icon library |
+| **Axios** | HTTP client with request/response interceptors for auto token refresh |
+| **AuthContext** | Global auth state: login, logout, refresh, role checks, auto-session restore |
+
+**Key Pages:**
+
+| Route | Description |
+|-------|-------------|
+| `/login` | Password + passwordless OTP login with mode toggle |
+| `/signup` | Multi-step registration (Role → Details → OTP → Done) for Citizen/Lawyer/Judge |
+| `/` (dashboard) | Chat interface, analytics, quick actions |
+| `/intelligence` | Case strategy analysis terminal |
+| `/search` | Semantic legal database search |
+| `/generate` | Legal document generator |
+| `/marketplace` | Browse and filter verified lawyers |
+| `/notifications` | In-app notification centre |
+| `/forgot-password` | OTP-based password reset flow |
+| `/auth/admin/register` | Admin invite-token registration page |
+
+### Backend
+
+| Technology | Purpose |
+|------------|---------|
+| **Node.js + Express 5** | HTTP server, REST API |
+| **TypeScript** | Type-safe backend via `ts-node` + `nodemon` in dev |
+| **Prisma ORM** | Type-safe DB access, migrations, schema management |
+| **PostgreSQL** (Neon serverless) | Primary relational database |
+| **`@prisma/adapter-pg`** | Driver adapter connecting Prisma to pg Pool |
+| **jsonwebtoken** | JWT signing/verification for access + refresh tokens |
+| **bcrypt** | Password hashing (cost factor 12 for citizens, 14 for admins) |
+| **Nodemailer** | SMTP email delivery (Gmail App Password configured) |
+| **Twilio** | WhatsApp/SMS OTP and notification delivery |
+| **Multer** | Multipart file uploads (lawyer/judge verification docs) |
+| **pdf-parse** | Text extraction from uploaded PDF legal documents |
+| **Helmet.js** | Security headers middleware |
+| **express-rate-limit** | Per-endpoint rate limiting |
+| **cookie-parser** | HTTP-only refresh token cookie parsing |
+| **BullMQ + ioredis** | Background job queues for notifications |
+| **Groq SDK** | LLaMA 3.3 70B inference for chat, generation, intelligence |
+| **Voyage AI** | Legal text → embedding vectors (1024-dim) |
+| **Cohere AI** | Reranking retrieved legal chunks for relevance |
+| **Razorpay** | Payment gateway for PRO subscriptions |
+
+**API Routes:**
+
+| Route | Description |
+|-------|-------------|
+| `POST /api/auth/citizen/register` | Register citizen, send email OTP |
+| `POST /api/auth/citizen/verify-email` | Verify OTP, issue JWT pair |
+| `POST /api/auth/lawyer/register` | Lawyer registration with Bar Council number |
+| `POST /api/auth/lawyer/submit-profile` | Upload verification documents |
+| `POST /api/auth/judge/register` | Judge registration with Government ID |
+| `POST /api/auth/login` | Universal password login (all roles) |
+| `POST /api/auth/login/otp/request` | Send passwordless OTP |
+| `POST /api/auth/login/otp/verify` | Verify OTP, issue tokens |
+| `POST /api/auth/refresh` | Rotate refresh token, issue new access token |
+| `POST /api/auth/logout` | Revoke current device token |
+| `POST /api/auth/logout-all` | Revoke all sessions |
+| `POST /api/auth/forgot-password` | Send password reset OTP |
+| `POST /api/auth/reset-password` | Verify OTP + set new password |
+| `GET /api/auth/me` | Get full authenticated user profile |
+| `POST /api/admin/invite` | Admin issues invite token |
+| `GET /api/admin/pending-lawyers` | List lawyers awaiting verification |
+| `POST /api/admin/verify-lawyer` | Approve/reject lawyer |
+| `POST /api/admin/verify-judge` | Approve/reject judge |
+| `GET /api/chat` | List conversations |
+| `POST /api/chat` | Send message, get RAG-grounded AI response |
+| `GET /api/search` | Semantic search across Indian legal database |
+| `POST /api/documents` | Upload + analyze PDF legal document |
+| `POST /api/generate` | Generate structured legal document |
+| `POST /api/intelligence` | Case intelligence & strategy analysis |
+| `GET /api/marketplace` | Browse lawyer marketplace listings |
+| `POST /api/payment/create-order` | Create Razorpay order |
+| `POST /api/payment/verify` | Verify payment, set isPro flag |
+| `POST /api/notifications/trigger` | Manually trigger notification |
+| `POST /api/notifications/schedule` | Schedule follow-up notifications |
+| `POST /api/uploads` | Upload verification files (lawyers/judges) |
+
+### Services
+
+| File | Responsibility |
+|------|---------------|
+| `src/services/token.service.ts` | JWT signing, refresh token rotation, revocation |
+| `src/services/otp.service.ts` | OTP generation (crypto), DB storage, email + SMS dispatch |
+| `src/services/aadhaar.service.ts` | Aadhaar eKYC stub (DigiLocker-ready) |
+
+### Middleware
+
+| File | Responsibility |
+|------|---------------|
+| `src/middleware/auth.ts` | JWT Bearer token verification, `AuthRequest` type injection |
+| `src/middleware/rateLimiter.ts` | Per-endpoint express-rate-limit configurations |
+| `src/middleware/requirePermission.ts` | Granular admin permission checks |
+
+### Workers
+
+| File | Responsibility |
+|------|---------------|
+| `src/workers/notifications.ts` | BullMQ worker: email + WhatsApp job processing; graceful Redis fallback |
 
 ---
 
 ## 4. Database Schema (Prisma)
-- **Users & Profiles**: `User`, `CitizenProfile`, `LawyerProfile`, `JudgeProfile`, `AdminProfile`.
-- **Security**: `RefreshToken`, `Otp`, `AdminInvite`.
-- **AI Interactions**: `Conversation`, `Message`.
-- **Legal Knowledge Base**: `Act`, `Section`, `Clause`, `LegalChunk` (contains pgvector embeddings for similarity search).
-- **System**: `Notification`, `MarketplaceListing`.
+
+### Enums
+- `UserRole`: `CITIZEN | LAWYER | JUDGE | ADMIN`
+- `VerificationStatus`: `PENDING | VERIFIED | REJECTED | SUSPENDED`
+- `OtpType`: `EMAIL_VERIFY | LOGIN | PASSWORD_RESET | AADHAAR_LINK`
+
+### Models
+
+| Model | Key Fields |
+|-------|-----------|
+| `User` | id, email, phone, passwordHash, role, isEmailVerified, isPro, queriesCount, docsCount |
+| `CitizenProfile` | fullName, aadhaarNumber (masked), aadhaarVerified, dateOfBirth, address, state, pincode |
+| `LawyerProfile` | barCouncilNumber, barCouncilState, specializations[], practiceAreas[], verificationStatus, barCertificateUrl, degreeCertificateUrl |
+| `JudgeProfile` | governmentId, court, courtLevel, jurisdiction, departmentCode, verificationStatus |
+| `AdminProfile` | fullName, department, permissions[], invitedBy |
+| `RefreshToken` | token, userId, userAgent, ipAddress, expiresAt, revokedAt |
+| `Otp` | target (email/phone), code, type, attempts, used, expiresAt |
+| `AdminInvite` | token, email, invitedBy, used, expiresAt |
+| `Conversation` | userId, title, messages[] |
+| `Message` | role (user/assistant), content, conversationId |
+| `Act` | title, shortName, year, sections[], chunks[] |
+| `Section` | actId, number, title, content, clauses[], chunks[] |
+| `Clause` | sectionId, number, content, chunks[] |
+| `LegalChunk` | content, embedding (Float[]), actId, sectionId, clauseId |
+| `Notification` | userId, title, message, type, read |
+| `MarketplaceListing` | userId, title, description, specialization, hourlyRate, isAvailable |
 
 ---
 
-## 5. Development Log & Actions
-*This log records troubleshooting actions performed to stabilize the application infrastructure.*
+## 5. Environment Configuration (`.env`)
 
-1. **Frontend Rendering Loop Fix**: Addressed a severe redirect loop on the frontend caused by backend connection refusals (`ERR_CONNECTION_REFUSED`).
-2. **Prisma Type Synchronization**: The backend crashed due to a missing `UserRole` export. Executed `npx prisma generate` to sync Prisma Client types with the latest schema.
-3. **Nodemailer Type Definitions**: Addressed TypeScript module resolution errors by installing `@types/nodemailer`.
-4. **BullMQ Queue Parameters Fix**: Corrected a bug in `src/workers/notifications.ts` where the queued `opts` parameter threw errors; safely typed it as optional.
-5. **Express Handler Crash Resolution**: Discovered that `src/routes/uploads.ts` was importing undefined non-existent middleware roles (`requireLawyer` and `requireJudge`). Updated the routing to correctly use `requireRole(UserRole.LAWYER)` and `requireRole(UserRole.JUDGE)`.
-### **6. Recent Problem & Solution: User Signup Failure**
-- **Problem**: The frontend displayed a "Registration failed. Please try again." error when attempting to sign up a new citizen or lawyer. The backend was crashing during the `.create` call in Prisma because the PostgreSQL database tables did not match the latest `schema.prisma` definitions (missing columns/relations like the Profiles and OTPs).
-- **Solution**: Executed `npx prisma db push` in the backend to synchronize the schema state directly into the PostgreSQL database. This generated all the missing database tables and resolved the registration blockage.
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Neon PostgreSQL connection string |
+| `JWT_ACCESS_SECRET` | Signs 15-minute access tokens |
+| `JWT_REFRESH_SECRET` | Signs 7-day refresh tokens |
+| `PORT` | Backend port (default 3001) |
+| `NODE_ENV` | `development` or `production` |
+| `FRONTEND_URL` | CORS origin (default `http://localhost:3000`) |
+| `SMTP_HOST` | Gmail: `smtp.gmail.com` |
+| `SMTP_PORT` | `587` (STARTTLS) |
+| `SMTP_USER` | Gmail address for sending OTPs |
+| `SMTP_PASS` | Gmail App Password (16 chars, 2FA required) |
+| `TWILIO_ACCOUNT_SID` | Twilio account for SMS/WhatsApp |
+| `TWILIO_AUTH_TOKEN` | Twilio auth token |
+| `TWILIO_PHONE_NUMBER` | Twilio sender number |
+| `GROQ_API_KEY` | Groq Cloud API key for LLaMA inference |
+| `VOYAGE_API_KEY` | Voyage AI key for text embeddings |
+| `COHERE_API_KEY` | Cohere key for reranking |
+| `RAZORPAY_KEY_ID` | Razorpay public key |
+| `RAZORPAY_KEY_SECRET` | Razorpay secret key |
+| `REDIS_HOST` | Redis host (default `127.0.0.1`) |
+| `REDIS_PORT` | Redis port (default `6379`) |
 
 ---
 
-## 6. Step-by-Step Project Build History
-*The chronological roadmap detailing exactly how the Nyaay platform was constructed from the ground up.*
+## 6. Development Log & Bug Fixes
 
-### **Phase 1: Project Initialization & Infrastructure Structuring**
-1. **Monorepo Setup**: Initialized separate directories for `frontend/` and `backend/`. Bootstrapped the frontend utilizing Next.js (App router enabled) and configured the backend using Node.js, Express, and standard TypeScript transpilation setup (`tsc`).
-2. **Database Engine**: Handpicked PostgreSQL for data integrity and mapped it deeply with Prisma ORM. Designed `schema.prisma` mapping out enums and models defining the structural integrity of the legal hub.
+| # | Issue | Root Cause | Fix |
+|---|-------|-----------|-----|
+| 1 | Frontend redirect loop | Backend `ERR_CONNECTION_REFUSED` caused `router.push('/login')` to loop | Fixed backend startup; added public route guards in `AuthContext` |
+| 2 | Prisma type sync crash | `UserRole` not exported after schema change | Ran `npx prisma generate` |
+| 3 | Nodemailer TS errors | Missing `@types/nodemailer` | Installed type definitions |
+| 4 | BullMQ opts parameter crash | `opts` typed incorrectly in worker | Made parameter optional |
+| 5 | Upload route crash | `requireLawyer` / `requireJudge` imports didn't exist | Replaced with `requireRole(UserRole.LAWYER)` |
+| 6 | Backend clean exit on start | `ioredis` emitting unhandled `error` event before `.ping()` when Redis not running | Moved `connection.on('error', () => {})` before `await connection.ping()` |
+| 7 | Login 500 error | New database URL had no tables — Prisma schema not synced | Ran `npx prisma db push` to create all tables |
+| 8 | Refresh token 401 | Cookie `SameSite=Strict` blocked cross-port cookies between `:3000` and `:3001` | Changed to `SameSite=None; Secure=true` + included `refreshToken` in JSON responses |
+| 9 | OTP sent to console not email | `SMTP_USER` was blank in `.env` | Filled in Gmail credentials + App Password |
+| 10 | Registration fails | Account already existed with same email from test runs | Register with a fresh email |
+| 11 | OTP invalid despite correct code | Multiple registrations → older OTP invalidated; user had stale email | Added debug logging to `verifyOtp`; use freshest OTP email received |
 
-### **Phase 2: Defining the Security & Identity Architecture**
-3. **Multi-Role User Auth**: Implemented highly granular roles (`CITIZEN`, `LAWYER`, `JUDGE`, `ADMIN`). Formulated individualized schema profile models corresponding to these access levels.
-4. **JWT Flow & Middleware**: Established robust secure token exchanges employing `jsonwebtoken`. Programmed an `access_token` and HTTP-only cookie-based `refresh_token` framework.
-5. **Passwordless OTP Logic**: Designed the passwordless/OTP framework via `otp.service.ts` routing one-time codes using Nodemailer (for emails) or Twilio (for WhatsApp/SMS).
-6. **Rate Limiting Hooks**: Placed robust middleware guardrails ensuring the endpoints protecting logins, resets, and registrations are actively throttled preventing Brute Force attacks.
+---
 
-### **Phase 3: Deep AI & Legal Intelligence Engineering**
-7. **Integrating the LLM (Groq)**: Wired the platform's chat assistant with the Groq API utilizing dynamic mapping to fast models like `llama-3.3-70b-versatile` ensuring lightning-fast advice processing.
-8. **Developing the RAG Context Ecosystem**: To make the intelligence purely Indian law-centric, built a chunking data pipeline parsing Acts, Clauses, and Sections.
-9. **Vector Databases & Embeddings**: Injected Voyage AI to convert legal syntax into semantic numerical vectors, allowing context-aware search functionalities via cosine similarity across PostgreSQL.
-10. **Refined Cohere Reranking**: Processed initial Vector similarity queries via Cohere, reranking matching candidate passages contextually, passing only precise paragraphs up to the Groq Chat model to avoid hallucinations.
+## 7. Build History
 
-### **Phase 4: Constructing the User Interfaces (Frontend Design)**
-11. **Modern Layout Integration**: Outfitted the Next.js frontend with Tailwind CSS employing dark aesthetics ("#07070d"), glassmorphism, glowing auras, and gradient texts to wow users.
-12. **Complex Motion Graphics**: Set up advanced user experiences implementing `framer-motion` for sidebar overlays, seamless page transitions, and responsive loading carousels.
-13. **Building the Dashboards**: Constructed distinct page routing segments:
-    - **Authentication Portals**: Clean `login`, `signup`, and `forgot-password` pages.
-    - **Intelligence Command Center**: Live chat terminal with contextual references and deep search engines.
-    - **Marketplace Hub**: Interfaces allowing citizens to scroll, read bios, and filter verified legal counsel profiles.
-    - **Alerts Hub (`/notifications`)**: A dedicated interface highlighting case updates or verification status changes.
-14. **React Context Engineering**: Centralized the user lifecycle securely across the entire frontend app tree using `AuthContext.tsx`.
+### Phase 1 — Infrastructure
+- Monorepo: `frontend/` (Next.js App Router) + `backend/` (Node/Express/TypeScript)
+- PostgreSQL via Neon serverless; Prisma ORM with full schema design
 
-### **Phase 5: Scaling Verified Environments & Jobs**
-15. **Background Workers Setup (BullMQ)**: Installed Redis locally acting as the store. Wired up `BullMQ` inside `src/workers` establishing reliable delayed jobs formatting automated case follow-ups and notifications.
-16. **Document Upload Routing Pipelines**: Implemented `multer` for physical disk storage formatting verification uploads (such as High Court IDs, graduation degrees, and Lawyer Bar Council scripts). Configured routing handlers enabling the subsequent Admin verification flows.
-17. **Tier Limitations & Monetization Gates**: Embedded logic constraining `CITIZEN` queries on a free tier maxing at 10 runs. Bootstrapped Razorpay scripting mapping UI 'Upgrade Checkouts' bridging successful payments to database `isPro` flags.
+### Phase 2 — Auth & Security
+- Multi-role JWT system with token rotation, `bcrypt` hashing
+- OTP service with Nodemailer (email) + Twilio (SMS/WhatsApp)
+- Rate limiting, Helmet security headers, admin invite-only system
 
-### **Phase 6: Quality Assurance & Bug Triage (The Final Pass)**
-18. **Eliminating Infinite React Rerenders**: Rectified deep Next.js development server clashes by isolating backend outages originally triggering Next `router.push('/login')` loops.
-19. **Strict Typescript Compilations**: Resolved missing parameter inputs across `notifications.ts`, and updated `express` endpoints targeting bad exported handles (`requireLawyer` replaced securely with `requireRole(UserRole.LAWYER)`).
-20. **Final Database Synchronization**: Overcame standard local development misalignments running `prisma generate` and `prisma db push` finalizing column relationships allowing the Nyaay platform to run perfectly.
+### Phase 3 — AI & RAG Pipeline
+- Groq LLaMA 3.3 70B for chat generation
+- Voyage AI for 1024-dim legal text embeddings
+- Cohere reranking for retrieval quality
+- Vector similarity search over `LegalChunk` table
+
+### Phase 4 — Frontend UI
+- Dark theme (`#07070d`), glassmorphism, gradient text, Framer Motion animations
+- Auth pages: login (password + OTP modes), multi-step signup, forgot password
+- Dashboard: chat, search, intelligence, generate, marketplace, notifications
+
+### Phase 5 — Jobs & Payments
+- BullMQ workers for async email/WhatsApp notifications with Redis fallback
+- Multer for verification document uploads (PDFs, images ≤10MB)
+- Razorpay integration for PRO tier upgrades
+
+### Phase 6 — QA & Stabilization
+- Resolved ioredis crash on Redis-less environments
+- Fixed cross-origin cookie policy for local dev
+- Synced Prisma schema to new Neon database
+- SMTP health-test script (`scripts/test-smtp.ts`)
