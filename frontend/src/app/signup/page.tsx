@@ -709,16 +709,37 @@ export default function Register() {
                 <CheckCircle2 size={36} style={{ color: "#4ade80" }} />
               </motion.div>
               <h2 className="text-2xl font-bold text-white mb-3">You&apos;re verified!</h2>
-              <p className="text-sm mb-8" style={{ color: "#6a6a80" }}>
+              <p className="text-sm mb-2" style={{ color: "#6a6a80" }}>
                 {role === "CITIZEN" && "Your account is ready. Welcome to Nyaya!"}
-                {role === "LAWYER" && "Email verified! Complete your profile to get approved."}
-                {role === "JUDGE" && "Email verified! Your account is pending admin approval."}
+                {role === "LAWYER" && "Email verified! Now submit your Bar Council documents for admin approval."}
+                {role === "JUDGE" && "Email verified! Your account is pending admin approval — you can upload your government ID to speed up the process."}
               </p>
-              <Link href={role === "LAWYER" ? "/profile/lawyer" : "/"}>
+
+              {/* Next-step hint */}
+              {role !== "CITIZEN" && (
+                <div className="rounded-xl p-3.5 mb-6 text-left"
+                  style={{
+                    background: role === "LAWYER" ? "rgba(139,92,246,0.07)" : "rgba(168,85,247,0.07)",
+                    border: `1px solid ${role === "LAWYER" ? "rgba(139,92,246,0.2)" : "rgba(168,85,247,0.2)"}`,
+                  }}>
+                  <p className="text-xs" style={{ color: role === "LAWYER" ? "#c4b5fd" : "#d8b4fe" }}>
+                    {role === "LAWYER" && "📋 Next step: Upload your Bar Certificate, Degree, and Government ID for verification. Approval takes 2-3 business days."}
+                    {role === "JUDGE" && "🔐 Next step: Check your verification status and optionally upload your Government ID document to support the review process."}
+                  </p>
+                </div>
+              )}
+
+              <Link href={
+                role === "LAWYER" ? "/profile/lawyer"
+                : role === "JUDGE" ? "/profile/judge"
+                : "/"
+              }>
                 <motion.button whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.975 }}
                   className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2"
                   style={{ background: "linear-gradient(135deg,#7c6ef7,#a855f7)" }}>
-                  {role === "LAWYER" ? "Complete Lawyer Profile" : "Go to Dashboard"}
+                  {role === "LAWYER" ? "Complete Lawyer Profile →"
+                    : role === "JUDGE" ? "View Account Status →"
+                    : "Go to Dashboard →"}
                   <ArrowRight size={16} />
                 </motion.button>
               </Link>

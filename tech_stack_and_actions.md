@@ -268,3 +268,39 @@
 - Fixed cross-origin cookie policy for local dev
 - Synced Prisma schema to new Neon database
 - SMTP health-test script (`scripts/test-smtp.ts`)
+
+
+Auth Flow Audit — Complete
+What I found & fixed
+Backend — all implemented correctly: All 4 role flows, OTP service, Aadhaar eKYC mock, Bar Council upload, biometric stubs, admin invite were already built and working.
+
+Frontend — 4 pages were missing, 3 files needed fixes:
+
+Item	What I built
+/profile/lawyer	Full profile submission form: bio, specializations, practice areas, 4 document uploads (Bar Certificate, Degree, Gov ID, Photo) with status banner (PENDING/VERIFIED/REJECTED)
+/profile/citizen/aadhaar	4-step eKYC flow: intro → 12-digit Aadhaar input → mobile OTP → verified state
+/profile/judge	Account status page: PENDING/VERIFIED/REJECTED card, registration details, gov ID doc upload, access panel when verified
+/admin	Full admin dashboard: platform stats, pending lawyers/judges queue with Approve/Reject buttons, role-aware header
+Wiring fixes
+AuthContext.tsx — Login now routes smartly:
+
+LAWYER (not verified) → /profile/lawyer
+LAWYER (verified) → /
+JUDGE → /profile/judge (always, to check status)
+ADMIN → /admin
+CITIZEN → /
+signup/page.tsx — Done step now routes:
+
+Judge → /profile/judge with "Check Status →"
+Lawyer → /profile/lawyer with "Complete Profile →"
+page.tsx (dashboard) — Added:
+
+🔵 Citizen: "Complete eKYC" banner + sidebar button
+🟡 Lawyer pending: "Submit docs" banner; 🔴 Rejected: "Resubmit" banner
+🟣 Judge pending: "Account pending approval" banner
+Role-specific sidebar shortcuts (Aadhaar eKYC / Lawyer Profile / Account Status)
+Complete flow in one line per role
+Citizen: Register → Email OTP → Dashboard → eKYC banner → Aadhaar entry → Mobile OTP → Verified
+Lawyer: Register → Email OTP → /profile/lawyer → Upload docs → Admin approves → Full dashboard access
+Judge: Register → Email OTP → /profile/judge → Upload gov ID → Admin approves → Verified status
+Admin: Receive invite email → /auth/admin/register?token=… → Register (12-char password) → Email OTP → /admin dashboard → Approve Lawyers/Judges

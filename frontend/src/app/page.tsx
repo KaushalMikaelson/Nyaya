@@ -5,7 +5,8 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   LogOut, Plus, MessageSquare, Send, Menu, X, Scale,
-  Sparkles, Trash2, Copy, Check, ChevronDown, Bot, Search, Paperclip, Zap, Crosshair, Briefcase
+  Sparkles, Trash2, Copy, Check, ChevronDown, Bot, Search, Paperclip, Zap, Crosshair, Briefcase,
+  ShieldCheck, Clock, AlertTriangle, Fingerprint, ArrowRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
@@ -450,6 +451,44 @@ export default function Home() {
             <Briefcase size={16} />
             Find Lawyer
           </button>
+
+          {/* ── Role-specific action buttons ── */}
+          {user.role === 'CITIZEN' && (
+            <button
+              onClick={() => router.push('/profile/citizen/aadhaar')}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-200"
+              style={{ background: "transparent", color: "#a0a0bd", border: "1px solid rgba(255,255,255,0.05)" }}
+              onMouseOver={e => { e.currentTarget.style.background = "rgba(99,102,241,0.08)"; e.currentTarget.style.color = "#818cf8"; e.currentTarget.style.borderColor = "rgba(99,102,241,0.2)"; }}
+              onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#a0a0bd"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"; }}
+            >
+              <Fingerprint size={16} />
+              Aadhaar eKYC
+            </button>
+          )}
+          {user.role === 'LAWYER' && (
+            <button
+              onClick={() => router.push('/profile/lawyer')}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-200"
+              style={{ background: "transparent", color: "#a0a0bd", border: "1px solid rgba(255,255,255,0.05)" }}
+              onMouseOver={e => { e.currentTarget.style.background = "rgba(139,92,246,0.08)"; e.currentTarget.style.color = "#c4b5fd"; e.currentTarget.style.borderColor = "rgba(139,92,246,0.2)"; }}
+              onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#a0a0bd"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"; }}
+            >
+              <ShieldCheck size={16} />
+              Lawyer Profile
+            </button>
+          )}
+          {user.role === 'JUDGE' && (
+            <button
+              onClick={() => router.push('/profile/judge')}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-200"
+              style={{ background: "transparent", color: "#a0a0bd", border: "1px solid rgba(255,255,255,0.05)" }}
+              onMouseOver={e => { e.currentTarget.style.background = "rgba(168,85,247,0.08)"; e.currentTarget.style.color = "#d8b4fe"; e.currentTarget.style.borderColor = "rgba(168,85,247,0.2)"; }}
+              onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#a0a0bd"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"; }}
+            >
+              <Clock size={16} />
+              Account Status
+            </button>
+          )}
         </div>
 
         {/* Conversations */}
@@ -611,6 +650,75 @@ export default function Home() {
             </div>
           </div>
         </header>
+
+        {/* ── Role-specific verification banners ── */}
+        {user.role === 'CITIZEN' && (
+          <div className="px-4 pt-3 shrink-0">
+            <div className="mx-auto max-w-2xl">
+              <button
+                onClick={() => router.push('/profile/citizen/aadhaar')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all group"
+                style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.18)" }}
+                onMouseOver={e => { e.currentTarget.style.background = "rgba(99,102,241,0.12)"; }}
+                onMouseOut={e => { e.currentTarget.style.background = "rgba(99,102,241,0.07)"; }}
+              >
+                <Fingerprint size={16} style={{ color: "#818cf8", flexShrink: 0 }} />
+                <p className="text-xs flex-1" style={{ color: "#818cf8" }}>
+                  <strong>Complete eKYC</strong> — Verify your Aadhaar to unlock all legal services.
+                </p>
+                <ArrowRight size={14} style={{ color: "#818cf8" }} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {user.role === 'LAWYER' && user.verificationStatus !== 'VERIFIED' && (
+          <div className="px-4 pt-3 shrink-0">
+            <div className="mx-auto max-w-2xl">
+              <button
+                onClick={() => router.push('/profile/lawyer')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all group"
+                style={{
+                  background: user.verificationStatus === 'REJECTED' ? "rgba(239,68,68,0.07)" : "rgba(245,158,11,0.07)",
+                  border: `1px solid ${user.verificationStatus === 'REJECTED' ? "rgba(239,68,68,0.2)" : "rgba(245,158,11,0.2)"}`,
+                }}
+                onMouseOver={e => { e.currentTarget.style.opacity = "0.85"; }}
+                onMouseOut={e => { e.currentTarget.style.opacity = "1"; }}
+              >
+                {user.verificationStatus === 'REJECTED'
+                  ? <AlertTriangle size={16} style={{ color: "#f87171", flexShrink: 0 }} />
+                  : <Clock size={16} style={{ color: "#fbbf24", flexShrink: 0 }} />
+                }
+                <p className="text-xs flex-1" style={{ color: user.verificationStatus === 'REJECTED' ? "#f87171" : "#fbbf24" }}>
+                  {user.verificationStatus === 'REJECTED'
+                    ? <><strong>Profile rejected</strong> — Update your documents and resubmit.</>  
+                    : <><strong>Verification pending</strong> — Submit your Bar Council docs to get approved.</>}
+                </p>
+                <ArrowRight size={14} style={{ color: user.verificationStatus === 'REJECTED' ? "#f87171" : "#fbbf24" }} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {user.role === 'JUDGE' && user.verificationStatus !== 'VERIFIED' && (
+          <div className="px-4 pt-3 shrink-0">
+            <div className="mx-auto max-w-2xl">
+              <button
+                onClick={() => router.push('/profile/judge')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all group"
+                style={{ background: "rgba(168,85,247,0.07)", border: "1px solid rgba(168,85,247,0.2)" }}
+                onMouseOver={e => { e.currentTarget.style.background = "rgba(168,85,247,0.12)"; }}
+                onMouseOut={e => { e.currentTarget.style.background = "rgba(168,85,247,0.07)"; }}
+              >
+                <Clock size={16} style={{ color: "#d8b4fe", flexShrink: 0 }} />
+                <p className="text-xs flex-1" style={{ color: "#d8b4fe" }}>
+                  <strong>Account pending approval</strong> — Your judge account is awaiting admin verification.
+                </p>
+                <ArrowRight size={14} style={{ color: "#d8b4fe" }} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Messages */}
         <div

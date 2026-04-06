@@ -41,7 +41,12 @@ const PUBLIC_ROUTES = [
   '/auth/admin/register',
   '/auth/judge/register',
   '/auth/lawyer/register',
+  '/forgot-password',
 ];
+
+// Note: /admin, /profile/lawyer, /profile/judge, /profile/citizen
+// each enforce their own role checks internally via useEffect.
+
 
 // ─────────────────────────────────────────
 // CONTEXT
@@ -125,8 +130,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Role-based redirect
     if (userData.role === 'ADMIN') {
       router.push('/admin');
+    } else if (userData.role === 'LAWYER') {
+      // Lawyers who are not yet verified should complete their profile
+      if (userData.verificationStatus !== 'VERIFIED') {
+        router.push('/profile/lawyer');
+      } else {
+        router.push('/');
+      }
     } else if (userData.role === 'JUDGE') {
-      router.push('/');
+      // Judges must wait for admin approval — show status page
+      router.push('/profile/judge');
     } else {
       router.push('/');
     }
