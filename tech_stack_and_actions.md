@@ -250,8 +250,10 @@
 ### Phase 3 — AI & RAG Pipeline
 - Groq LLaMA 3.3 70B for chat generation
 - Voyage AI for 1024-dim legal text embeddings
-- Cohere reranking for retrieval quality
-- Vector similarity search over `LegalChunk` table
+- Ingestion scripts (`seed_legal_data.ts`, `generate_embeddings.ts`) to chunk Acts into Sections and Clauses
+- Hybrid Legal Search Engine: custom BM25 + Vector Semantic Search with unified normalization
+- Cohere API for re-ranking hybrid results (topN)
+- Contextual search filters (Act, Category, Court)
 
 ### Phase 4 — Frontend UI
 - Dark theme (`#07070d`), glassmorphism, gradient text, Framer Motion animations
@@ -299,8 +301,18 @@ page.tsx (dashboard) — Added:
 🟡 Lawyer pending: "Submit docs" banner; 🔴 Rejected: "Resubmit" banner
 🟣 Judge pending: "Account pending approval" banner
 Role-specific sidebar shortcuts (Aadhaar eKYC / Lawyer Profile / Account Status)
-Complete flow in one line per role
-Citizen: Register → Email OTP → Dashboard → eKYC banner → Aadhaar entry → Mobile OTP → Verified
-Lawyer: Register → Email OTP → /profile/lawyer → Upload docs → Admin approves → Full dashboard access
 Judge: Register → Email OTP → /profile/judge → Upload gov ID → Admin approves → Verified status
 Admin: Receive invite email → /auth/admin/register?token=… → Register (12-char password) → Email OTP → /admin dashboard → Approve Lawyers/Judges
+
+Search Engine Implementation — Complete
+Architecture:
+- Text normalization and tokenization for BM25 term frequencies
+- Custom inverse document frequency (IDF) calculation spanning the entire `LegalChunk` space
+- Voyage AI contextual legal embeddings yielding 1024-dimensional vectors
+- Scoring formula: `HybridScore = (norm(Vector) * 0.6) + (norm(BM25) * 0.4)`
+- Cohere Re-ranking: Processes the Top-20 hybrid items and collapses into Top-10 highly relevant chunks
+Query Flow:
+- User submits natural language query via `/search` (e.g. "Penalty for sedition")
+- Selects contextual filters (Act: BNS, Category: Criminal Law)
+- System reranks, responds with top acts/sections/clauses
+- User clicks "Ask AI", appending context to local context-window on dashboard chat for natural language explanation
