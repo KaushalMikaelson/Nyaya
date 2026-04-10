@@ -316,3 +316,11 @@ Query Flow:
 - Selects contextual filters (Act: BNS, Category: Criminal Law)
 - System reranks, responds with top acts/sections/clauses
 - User clicks "Ask AI", appending context to local context-window on dashboard chat for natural language explanation
+
+AI Chatbot Implementation (RAG) — Complete
+Features Implemented:
+- LangChain Pipeline Integration: Replaced the raw Groq SDK pipeline with modular LangChain tools (`@langchain/groq`, `@langchain/core`) for cleaner chaining and maintainability.
+- Multi-language Routing: Added an LLM Router (`llama-3.1-8b-instant`) that determines the user's language and decides whether the query requires lawyer escalation.
+- Prompt Construction & Escalation Handling: Enhanced the RAG system prompt. If the router flags the query as highly critical/urgent, it injects an `escalation_context` to steer the generated response towards strongly advising the user to use the marketplace to find a lawyer.
+- Hallucination Guard: Validates the AI response against the provided `context_string` using a secondary LLM chain. If it fails, the response is overridden safely.
+- Monetization Checks: Pre-generation check validates free tier usage (10 queries max) versus Pro subscription status limits.

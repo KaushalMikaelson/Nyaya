@@ -1,14 +1,17 @@
-// @ts-nocheck
 import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../prisma';
-import Groq from 'groq-sdk';
 import { VoyageAIClient } from 'voyageai';
 import { CohereClient } from 'cohere-ai';
 
+import { ChatGroq } from '@langchain/groq';
+import { ChatPromptTemplate, MessagesPlaceholder, PromptTemplate } from '@langchain/core/prompts';
+import { z } from 'zod';
+import { StringOutputParser } from '@langchain/core/output_parsers';
+import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
+
 const router = Router();
 
-const getGroq = () => new Groq({ apiKey: process.env.GROQ_API_KEY });
 const voyageKey = process.env.VOYAGE_API_KEY;
 const cohereKey = process.env.COHERE_API_KEY;
 
@@ -105,9 +108,12 @@ router.post('/conversations/:id/messages', async (req: AuthRequest, res): Promis
   }
 
   try {
-    // 0. Monetization Check
+    // 0. Monetization Check - Free vs Pro limits
     const dbUser = await prisma.user.findUnique({ where: { id: req.user!.userId } });
-    if (!dbUser) return res.status(404).json({ error: 'User not found' });
+    if (!dbUser) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
     
     if (!dbUser.isPro && dbUser.queriesCount >= 10) {
       res.status(403).json({ error: 'FREE_LIMIT_REACHED', message: 'You have exhausted your 10 free AI queries.' });
@@ -131,37 +137,34 @@ router.post('/conversations/:id/messages', async (req: AuthRequest, res): Promis
     });
 
     // -------------------------------------------------------------
-    // PHASE 1B: RAG HYBRID PIPELINE
+    // RAG HYBRID PIPELINE
     // -------------------------------------------------------------
     
     // Step A: Embed Query (Voyage)
     let queryEmbedding: number[] = [];
     if (voyageClient) {
       const response = await voyageClient.embed({ input: [content], model: "voyage-law-2" });
-      queryEmbedding = response.data[0].embedding;
+      queryEmbedding = response.data?.[0]?.embedding || generateMockEmbedding(content);
     } else {
       queryEmbedding = generateMockEmbedding(content);
     }
 
     // Step B: Hybrid Retrieval (Vector + Keyword search)
     const allChunks = await prisma.legalChunk.findMany();
-    const queryWords = content.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    const queryWords = content.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
     
     let scoredChunks = allChunks.map(chunk => {
-      // 1. Vector Score
       let vectorScore = 0;
       if (chunk.embedding && chunk.embedding.length > 0) {
         vectorScore = cosineSimilarity(queryEmbedding, chunk.embedding as number[]);
       }
       
-      // 2. Keyword Match (FTS Mock)
       let keywordScore = 0;
       const lowerContent = chunk.content.toLowerCase();
-      queryWords.forEach(w => {
+      queryWords.forEach((w: string) => {
         if (lowerContent.includes(w)) keywordScore += 0.2;
       });
 
-      // 3. Merge Result
       const hybridScore = (vectorScore * 0.7) + (keywordScore * 0.3);
       return { chunk, score: hybridScore };
     });
@@ -170,7 +173,7 @@ router.post('/conversations/:id/messages', async (req: AuthRequest, res): Promis
     let topCandidates = scoredChunks.slice(0, 15).map(c => c.chunk.content);
 
     // Step C: Reranking (Cohere)
-    let finalDocuments = [];
+    let finalDocuments: string[] = [];
     if (cohereClient && topCandidates.length > 0) {
       try {
         const rerankResponse = await cohereClient.rerank({
@@ -187,46 +190,126 @@ router.post('/conversations/:id/messages', async (req: AuthRequest, res): Promis
         finalDocuments = topCandidates.slice(0, 5);
       }
     } else {
-      // Custom mocked rerank limitation
       finalDocuments = topCandidates.slice(0, 5);
     }
 
     // Step D: Context Builder
     const contextString = finalDocuments.length > 0 
-      ? `\n\n--- LEGAL CONTEXT (from verified databases) ---\n` + finalDocuments.map((doc, idx) => `[Source ${idx + 1}]: ${doc}`).join('\n\n')
+      ? finalDocuments.map((doc, idx) => `[Source ${idx + 1}]: ${doc}`).join('\n\n')
       : '';
 
     // -------------------------------------------------------------
-    // AI INTEGRATION WITH CONTEXT
+    // LANGCHAIN PIPELINES INIT
     // -------------------------------------------------------------
+    const groqGeneral = new ChatGroq({
+      apiKey: process.env.GROQ_API_KEY,
+      model: "llama-3.1-8b-instant",
+      temperature: 0,
+    });
 
-    const groq = getGroq();
-    const systemPrompt =
-      'You are Nyaay, an elite AI legal assistant specializing in Indian law. Use the provided LEGAL CONTEXT to answer the user accurately. If the context contains the answer, explicitly cite the [Source X]. If the context is insufficient, state that clearly but provide general information regarding Indian law. Always insert a disclaimer that your advice does not substitute for a licensed legal professional.'
-      + contextString;
+    const groqRAG = new ChatGroq({
+      apiKey: process.env.GROQ_API_KEY,
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.2,
+    });
 
-    type GroqRole = 'system' | 'user' | 'assistant';
-    const groqMessages: Array<{ role: GroqRole; content: string }> = [
-      { role: 'system', content: systemPrompt },
-      ...conversation.messages.map((m) => ({
-        role: m.role as GroqRole,
-        content: m.content
-      })),
-      { role: 'user', content }
-    ];
+    // STEP 1: ROUTER - Multi-language routing & Lawyer escalation
+    const routerSchema = z.object({
+      detected_language: z.string().describe("The primary language of the user's latest query (e.g., 'English', 'Hindi', 'Bengali')."),
+      needs_escalation: z.boolean().describe("True if the query involves a highly complex, critical, or urgent legal scenario requiring a human lawyer immediately (e.g., arrest, serious crime, high stakes)."),
+      escalation_reason: z.string().describe("A brief explanation of why escalation is needed if needs_escalation is true, else empty string.")
+    });
+    
+    let routerDecision = { detected_language: "English", needs_escalation: false, escalation_reason: "" };
+    try {
+      const routerPrompt = ChatPromptTemplate.fromMessages([
+        ["system", "You are an intelligent legal query router. Analyze the user's query and provide the required structure. If you cannot parse, default to English and no escalation."],
+        ["human", "{query}"]
+      ]);
+      const routerChain = routerPrompt.pipe(groqGeneral.withStructuredOutput(routerSchema));
+      routerDecision = await routerChain.invoke({ query: content });
+    } catch (e) {
+      console.warn("Router execution failed, falling back to defaults.", e);
+    }
+
+    // STEP 2: RAG GENERATION - Core Prompt Construction
+    let escalationContext = "";
+    if (routerDecision.needs_escalation) {
+      escalationContext = "\n\nCRITICAL INSTRUCTION: The query has been flagged as requiring human lawyer escalation. You must firmly advise the user to consult a lawyer immediately! Use the Nyaya marketplace feature. Reason: " + routerDecision.escalation_reason;
+    }
+
+    const ragSystemPromptTemplate = `You are Nyaay, an elite AI legal assistant specializing in Indian law. 
+Use the provided LEGAL CONTEXT to answer the user accurately. 
+If the context contains the answer, explicitly cite the [Source X]. 
+If the context is insufficient, state that clearly but provide general information regarding Indian law. 
+Always insert a disclaimer that your advice does not substitute for a licensed legal professional.
+You MUST reply in the user's detected language: {detected_language}.{escalation_context}
+
+--- LEGAL CONTEXT (from verified databases) ---
+{context_string}`;
+
+    const ragPrompt = ChatPromptTemplate.fromMessages([
+      ["system", ragSystemPromptTemplate],
+      new MessagesPlaceholder("history"),
+      ["human", "{query}"]
+    ]);
+
+    const ragChain = ragPrompt.pipe(groqRAG).pipe(new StringOutputParser());
+
+    const history = conversation.messages.map(m => 
+      m.role === 'user' ? new HumanMessage(m.content) : new AIMessage(m.content)
+    );
 
     let aiResponseContent = 'Sorry, I am unable to process your request at this moment.';
     try {
-      const response = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: 1024,
-        messages: groqMessages
+      aiResponseContent = await ragChain.invoke({
+        detected_language: routerDecision.detected_language,
+        escalation_context: escalationContext,
+        context_string: contextString || "No specific legal context found.",
+        history: history,
+        query: content
       });
-      aiResponseContent = response.choices[0]?.message?.content || aiResponseContent;
-    } catch (groqError) {
-      console.error('Groq API Error:', groqError);
-      aiResponseContent = 'Error communicating with AI. Please check your API key.';
+    } catch (e) {
+      console.error('Groq/Langchain Context Builder Error:', e);
+      aiResponseContent = 'Error communicating with AI. Please check your system logs.';
     }
+
+    // STEP 3: HALLUCINATION GUARD
+    // Only guard if we have an actual response and we found some legal context
+    if (aiResponseContent && !aiResponseContent.includes('Error') && finalDocuments.length > 0) {
+      try {
+        const guardPromptTemplate = `You are an AI Hallucination Guard for a Legal Chatbot.
+Given the following LEGAL CONTEXT and the AI RESPONSE, determine if the response makes up laws, sections, or claims not supported by the context or general basic legal knowledge. 
+Output "PASS" if the response is safe and grounded. Output "FAIL" if the response is hallucinated or dangerous.
+
+LEGAL CONTEXT:
+{context}
+
+AI RESPONSE:
+{response}
+
+Only output "PASS" or "FAIL". Do not output anything else.`;
+
+        const guardPrompt = PromptTemplate.fromTemplate(guardPromptTemplate);
+        const guardChain = guardPrompt.pipe(groqGeneral).pipe(new StringOutputParser());
+        
+        const guardResult = await guardChain.invoke({
+          context: contextString,
+          response: aiResponseContent
+        });
+
+        if (guardResult.trim().toUpperCase().includes("FAIL")) {
+          console.warn("Hallucination guard triggered a FAIL. Overriding response.");
+          aiResponseContent = "I apologize, but my hallucination guard detected that I could not securely verify the legality of my planned answer against my verified Indian Law context. As an AI, I avoid providing potentially ungrounded legal advice. Please rephrase or consult a licensed professional on the marketplace.";
+        }
+      } catch (e) {
+        console.error("Hallucination guard error:", e);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // FINALIZATION
+    // -------------------------------------------------------------
 
     // Save assistant message
     const assistantMessage = await prisma.message.create({
@@ -250,7 +333,7 @@ router.post('/conversations/:id/messages', async (req: AuthRequest, res): Promis
       });
     }
 
-    // Increment usage
+    // Increment usage limits for Free Users
     if (dbUser && !dbUser.isPro) {
       await prisma.user.update({
         where: { id: dbUser.id },

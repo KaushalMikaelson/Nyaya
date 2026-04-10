@@ -52,7 +52,7 @@ function calculateBM25Scores(query: string, chunks: any[]) {
       const L = words.length || 1;
       let score = 0;
       terms.forEach(t => {
-          const tf = words.filter(w => w === t).length;
+          const tf = words.filter((w: string) => w === t).length;
           if (tf > 0) {
             score += idf(t) * ((tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (L / avgdl))));
           }
