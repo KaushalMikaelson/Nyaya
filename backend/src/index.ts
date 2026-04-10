@@ -13,6 +13,7 @@ import paymentRoutes from './routes/payment';
 import generateRoutes from './routes/generate';
 import intelligenceRoutes from './routes/intelligence';
 import uploadRoutes from './routes/uploads';
+import caseRoutes from './routes/cases'; // Case Management
 
 // Initialize Background Workers
 import './workers/notifications';
@@ -55,6 +56,7 @@ app.use('/api/intelligence', intelligenceRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/cases', caseRoutes); // Expose Case Management
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

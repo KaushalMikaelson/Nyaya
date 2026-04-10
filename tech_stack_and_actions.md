@@ -331,3 +331,14 @@ Features Implemented:
 - Intelligent Auto-Classification: Uses LangChain + Groq (`llama-3.1-8b-instant`) with `zod` schema to enforce structured extraction. It classifies standard documents into [Contract, Notice, FIR, Judgment, KYC, Other].
 - Type-Specific Analysis Engine: Post-classification, the analysis instruction adapts (e.g., Contracts look for liabilities and termination clauses, while FIRs look for penal codes and bailability).
 - 7 Master Document Generation Templates (`/api/generate`): The `generate.ts` module was heavily restructured with a hybrid template engine, actively enforcing specific formatting and required structures for: Legal Notice, FIR, Rent/Lease Agreement, NDA, Employment Contract, Bail Application, and Judicial Affidavit. Each explicitly integrates RAG retrieval references within its scaffolding.
+
+Case Management — Complete
+Features Implemented:
+- Comprehensive Database Schema (`schema.prisma`): Designed relational models for `Case`, `Hearing`, `CaseTimeline`, `CaseDocument`, `Firm`, and `FirmMember`. Supports tracking official case numbers, court instances, and judges.
+- Multi-Lawyer Firm Support: Designed `Firm` models where `FirmMember` assigns lawyers diverse roles (OWNER, PARTNER, ASSOCIATE). Cases can be owned by an individual lawyer or broadly assigned to a Firm ID.
+- Advanced REST API (`/api/cases`):
+  - `POST /` — Case creation. Intelligently routes case ownership: if requested by a Lawyer it attaches them as `primaryCounsel` (and defaults to their Firm if applicable); for a Citizen, it attaches them as `client`.
+  - `GET /` — Fetches dynamic dashboards bridging cross-role case assignments.
+  - `POST /:id/hearings` — Dedicated endpoint to log upcoming hearings (`Hearing`), which synchronously triggers an automatic log onto the `CaseTimeline`.
+  - `POST /:id/timeline` — Appends localized context into the case's chronological history.
+  - `POST /firms` — Instantiates a fresh firm platform and seamlessly onboards the creator as OWNER.
