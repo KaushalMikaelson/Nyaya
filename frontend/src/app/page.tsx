@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   LogOut, Plus, MessageSquare, Send, Menu, X, Scale,
   Sparkles, Trash2, Copy, Check, ChevronDown, Bot, Search, Paperclip, Zap, Crosshair, Briefcase,
-  ShieldCheck, Clock, AlertTriangle, Fingerprint, ArrowRight
+  ShieldCheck, Clock, AlertTriangle, Fingerprint, ArrowRight, LayoutDashboard
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
@@ -352,7 +352,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden" style={{ background: "#07070d" }}>
+    <div className="flex h-screen w-full overflow-hidden bg-[#0a0a0a] text-[#ededed] font-sans">
 
       {/* Mobile overlay */}
       <AnimatePresence>
@@ -361,8 +361,7 @@ export default function Home() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 md:hidden"
-            style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
+            className="fixed inset-0 z-40 md:hidden bg-black/50 backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -370,241 +369,98 @@ export default function Home() {
 
       {/* ─── SIDEBAR ─── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 md:static w-72 flex flex-col transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
-        style={{ background: "#0b0b14", borderRight: "1px solid rgba(255,255,255,0.05)" }}
+        className={`fixed inset-y-0 left-0 z-50 md:static w-[260px] flex flex-col transition-transform duration-300 ease-in-out bg-[#171717] ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between px-4 h-16 shrink-0"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 relative"
-              style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 20px rgba(124,110,247,0.45)" }}>
-              <Scale size={15} className="text-white" />
+        <div className="flex items-center gap-1.5 px-3 h-[60px] shrink-0">
+          <button
+            onClick={() => { setActiveChat(null); setMessages([]); if(window.innerWidth < 768) setSidebarOpen(false); }}
+            className={`flex items-center justify-center w-10 h-10 shrink-0 rounded-lg transition-colors ${!activeChat && messages.length === 0 ? 'bg-[#212121] text-[#ededed]' : 'text-[#a1a1aa] hover:bg-[#212121] hover:text-[#ededed]'}`}
+            title="Dashboard Workspace"
+          >
+            <LayoutDashboard size={18} />
+          </button>
+          <button
+            onClick={createNewChat}
+            className="flex-1 flex items-center justify-between px-3 h-10 text-sm font-medium text-[#ededed] hover:bg-[#212121] transition-colors rounded-lg group"
+          >
+            <div className="flex items-center gap-2">
+              <Scale size={16} className="text-[#a1a1aa]" />
+              <span>New chat</span>
             </div>
-            <span className="text-base font-bold tracking-tight text-white">Nyaay</span>
-            <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold"
-              style={{ background: "rgba(124,110,247,0.15)", color: "#9d8fff", border: "1px solid rgba(124,110,247,0.25)", fontSize: "0.65rem", letterSpacing: "0.05em" }}>
-              AI
-            </span>
-          </div>
-          <button className="md:hidden p-1.5 rounded-lg transition-colors" style={{ color: "#4a4a60" }}
-            onMouseOver={e => (e.currentTarget.style.color = "#fff")}
-            onMouseOut={e => (e.currentTarget.style.color = "#4a4a60")}
+            <Plus size={16} className="text-[#a1a1aa] group-hover:text-[#ededed]" />
+          </button>
+          <button className="md:hidden w-10 h-10 flex items-center justify-center shrink-0 rounded-lg text-[#a1a1aa] hover:bg-[#212121] hover:text-[#ededed] transition-colors"
             onClick={() => setSidebarOpen(false)}>
             <X size={18} />
           </button>
         </div>
 
-        {/* New Chat Button */}
-        <div className="px-3 pt-4 pb-2 shrink-0 space-y-2">
-          <button
-            onClick={createNewChat}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200"
-            style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 24px rgba(124,110,247,0.25)" }}
-            onMouseOver={e => (e.currentTarget.style.boxShadow = "0 0 32px rgba(124,110,247,0.45)")}
-            onMouseOut={e => (e.currentTarget.style.boxShadow = "0 0 24px rgba(124,110,247,0.25)")}
-          >
-            <Plus size={16} />
-            New conversation
-          </button>
-          
-          <button
-            onClick={() => router.push('/search')}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-200"
-            style={{ background: "rgba(255,255,255,0.03)", color: "#a855f7", border: "1px solid rgba(124,110,247,0.2)" }}
-            onMouseOver={e => { e.currentTarget.style.background = "rgba(124,110,247,0.1)"; }}
-            onMouseOut={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
-          >
-            <Search size={16} />
-            Search Database
-          </button>
 
-          <button
-            onClick={() => router.push('/intelligence')}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-200"
-            style={{ background: "transparent", color: "#a0a0bd", border: "1px solid rgba(255,255,255,0.05)" }}
-            onMouseOver={e => { e.currentTarget.style.background = "rgba(124,110,247,0.08)"; e.currentTarget.style.color = "#9d8fff"; e.currentTarget.style.borderColor = "rgba(124,110,247,0.2)"; }}
-            onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#a0a0bd"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"; }}
-          >
-            <Crosshair size={16} />
-            Case Strategy
-          </button>
-
-          <button
-            onClick={() => router.push('/notifications')}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-200"
-            style={{ background: "transparent", color: "#a0a0bd", border: "1px solid rgba(255,255,255,0.05)" }}
-            onMouseOver={e => { e.currentTarget.style.background = "rgba(124,110,247,0.08)"; e.currentTarget.style.color = "#9d8fff"; e.currentTarget.style.borderColor = "rgba(124,110,247,0.2)"; }}
-            onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#a0a0bd"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"; }}
-          >
-            <Zap size={16} />
-            Alerts
-          </button>
-
-          <button
-            onClick={() => router.push('/marketplace')}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-200"
-            style={{ background: "transparent", color: "#a0a0bd", border: "1px solid rgba(255,255,255,0.05)" }}
-            onMouseOver={e => { e.currentTarget.style.background = "rgba(245,158,11,0.08)"; e.currentTarget.style.color = "#f59e0b"; e.currentTarget.style.borderColor = "rgba(245,158,11,0.2)"; }}
-            onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#a0a0bd"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"; }}
-          >
-            <Briefcase size={16} />
-            Find Lawyer
-          </button>
-
-          {/* ── Role-specific action buttons ── */}
-          {user.role === 'CITIZEN' && (
-            <button
-              onClick={() => router.push('/profile/citizen/aadhaar')}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-200"
-              style={{ background: "transparent", color: "#a0a0bd", border: "1px solid rgba(255,255,255,0.05)" }}
-              onMouseOver={e => { e.currentTarget.style.background = "rgba(99,102,241,0.08)"; e.currentTarget.style.color = "#818cf8"; e.currentTarget.style.borderColor = "rgba(99,102,241,0.2)"; }}
-              onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#a0a0bd"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"; }}
-            >
-              <Fingerprint size={16} />
-              Aadhaar eKYC
-            </button>
-          )}
-          {user.role === 'LAWYER' && (
-            <button
-              onClick={() => router.push('/profile/lawyer')}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-200"
-              style={{ background: "transparent", color: "#a0a0bd", border: "1px solid rgba(255,255,255,0.05)" }}
-              onMouseOver={e => { e.currentTarget.style.background = "rgba(139,92,246,0.08)"; e.currentTarget.style.color = "#c4b5fd"; e.currentTarget.style.borderColor = "rgba(139,92,246,0.2)"; }}
-              onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#a0a0bd"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"; }}
-            >
-              <ShieldCheck size={16} />
-              Lawyer Profile
-            </button>
-          )}
-          {user.role === 'JUDGE' && (
-            <button
-              onClick={() => router.push('/profile/judge')}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-200"
-              style={{ background: "transparent", color: "#a0a0bd", border: "1px solid rgba(255,255,255,0.05)" }}
-              onMouseOver={e => { e.currentTarget.style.background = "rgba(168,85,247,0.08)"; e.currentTarget.style.color = "#d8b4fe"; e.currentTarget.style.borderColor = "rgba(168,85,247,0.2)"; }}
-              onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#a0a0bd"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"; }}
-            >
-              <Clock size={16} />
-              Account Status
-            </button>
-          )}
-        </div>
 
         {/* Conversations */}
-        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5">
+        <div className="flex-1 overflow-y-auto px-3 py-2 mt-2">
           {conversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <MessageSquare size={20} style={{ color: "#3a3a4e" }} />
-              </div>
-              <p className="text-sm leading-relaxed" style={{ color: "#4a4a60" }}>
-                No conversations yet.<br />Start chatting above.
-              </p>
+            <div className="flex flex-col items-center justify-center py-10 text-center px-4">
+              <MessageSquare size={20} className="text-[#3f3f46] mb-3" />
+              <p className="text-xs text-[#71717a]">No chats found.</p>
             </div>
           ) : (
-            conversations.map((conv) => {
-              const isActive = activeChat === conv.id;
-              return (
-                <motion.div
-                  key={conv.id}
-                  layout
-                  className="relative group"
-                >
-                  <button
-                    onClick={() => selectConversation(conv)}
-                    className="sidebar-item flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left"
-                    style={{
-                      background: isActive ? "rgba(124,110,247,0.1)" : "transparent",
-                      border: isActive ? "1px solid rgba(124,110,247,0.2)" : "1px solid transparent",
-                    }}
-                    onMouseOver={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
-                    onMouseOut={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
-                  >
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                      style={{ background: isActive ? "rgba(124,110,247,0.2)" : "rgba(255,255,255,0.04)" }}>
-                      <MessageSquare size={13} style={{ color: isActive ? "#9d8fff" : "#4a4a60" }} />
-                    </div>
-                    <div className="flex-1 min-w-0 pr-6">
-                      <div className="truncate text-sm font-medium"
-                        style={{ color: isActive ? "#e8e8f8" : "#7a7a90" }}>
-                        {conv.title}
+            <div className="space-y-0.5">
+              <div className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider px-2 pb-2 mt-4 ml-1">Previous 7 Days</div>
+              {conversations.map((conv) => {
+                const isActive = activeChat === conv.id;
+                return (
+                  <motion.div key={conv.id} layout className="relative group">
+                    <button
+                      onClick={() => selectConversation(conv)}
+                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${
+                        isActive ? "bg-[#212121]" : "hover:bg-[#212121]/50"
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0 pr-6">
+                        <div className={`truncate text-sm ${isActive ? "text-[#ededed] font-medium" : "text-[#a1a1aa]"}`}>
+                          {conv.title}
+                        </div>
                       </div>
-                      <div className="text-xs mt-0.5" style={{ color: "#3a3a50" }}>
-                        {formatDate(conv.updatedAt)}
-                      </div>
-                    </div>
-                  </button>
-                  <button
-                    onClick={(e) => deleteConversation(e, conv.id)}
-                    disabled={deletingId === conv.id}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 rounded-lg"
-                    style={{ color: "#4a4a60", background: "rgba(239,68,68,0.0)" }}
-                    onMouseOver={e => {
-                      e.currentTarget.style.color = "#ef4444";
-                      e.currentTarget.style.background = "rgba(239,68,68,0.1)";
-                    }}
-                    onMouseOut={e => {
-                      e.currentTarget.style.color = "#4a4a60";
-                      e.currentTarget.style.background = "transparent";
-                    }}
-                    title="Delete conversation"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </motion.div>
-              );
-            })
+                    </button>
+                    <button
+                      onClick={(e) => deleteConversation(e, conv.id)}
+                      disabled={deletingId === conv.id}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-md text-[#71717a] hover:text-[#ededed] hover:bg-[#3f3f46]"
+                      title="Delete conversation"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </motion.div>
+                );
+              })}
+            </div>
           )}
         </div>
 
         {/* Monetization Upgrade Banner */}
-        <div className="px-3 pb-2 pt-1 mx-2 mb-2 rounded-2xl relative overflow-hidden group" style={{ background: "rgba(124,110,247,0.08)", border: "1px solid rgba(124,110,247,0.2)"}}>
-          <div className="absolute top-0 right-0 p-2 opacity-20"><Zap size={40} color="#a855f7" /></div>
-          <h4 className="text-sm font-bold text-white mb-1 tracking-tight flex items-center gap-1.5"><Zap size={14} color="#a855f7" fill="#a855f7"/> Nyaay PRO</h4>
-          <p className="text-xs mb-3" style={{ color: "#a0a0bd" }}>Unlock unlimited queries and document analyses.</p>
+        <div className="px-3 pb-3">
           <button 
             onClick={handleRazorpayUpgrade}
             disabled={isUpgrading}
-            className="w-full py-2 rounded-xl text-xs font-bold text-white transition-all hover:scale-[1.02]"
-            style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 15px rgba(124,110,247,0.3)"}}
+            className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-medium transition-all bg-[#0a0a0a] text-[#d4d4d8] border border-[#27272a] hover:bg-[#27272a] hover:text-white group"
           >
+             <Sparkles size={14} className="text-[#a855f7] group-hover:text-[#c084fc] transition-colors" />
              {isUpgrading ? "Loading..." : "Upgrade to PRO"}
           </button>
         </div>
 
         {/* User Profile */}
-        <div className="shrink-0 p-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-          <div className="flex items-center gap-3 rounded-2xl px-3 py-2.5"
-            style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm text-white"
-              style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)" }}>
+        <div className="shrink-0 p-3">
+          <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-[#212121] transition-colors cursor-pointer group" onClick={logout} title="Click to Sign out">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-medium text-xs text-black bg-[#ededed]">
               {user.email[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="truncate text-xs font-medium" style={{ color: "#9090a8" }}>{user.email}</div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#22c55e" }} />
-                <span className="text-xs" style={{ color: "#4a4a60" }}>Active</span>
-              </div>
+              <div className="truncate text-sm font-medium text-[#ededed] group-hover:text-white transition-colors">{user.email.split('@')[0]}</div>
             </div>
-            <button
-              onClick={logout}
-              className="transition-all duration-200 p-1.5 rounded-lg"
-              style={{ color: "#4a4a60" }}
-              onMouseOver={e => {
-                e.currentTarget.style.color = "#ef4444";
-                e.currentTarget.style.background = "rgba(239,68,68,0.1)";
-              }}
-              onMouseOut={e => {
-                e.currentTarget.style.color = "#4a4a60";
-                e.currentTarget.style.background = "transparent";
-              }}
-              title="Sign out"
-            >
-              <LogOut size={15} />
-            </button>
+            <LogOut size={15} className="text-[#71717a] group-hover:text-[#a1a1aa] opacity-0 group-hover:opacity-100 transition-all" />
           </div>
         </div>
       </aside>
@@ -613,255 +469,165 @@ export default function Home() {
       <main className="flex flex-1 flex-col min-w-0 relative">
 
         {/* Top Bar */}
-        <header className="flex items-center h-14 px-4 md:px-5 shrink-0"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(7,7,13,0.9)", backdropFilter: "blur(16px)" }}>
-          <button className="md:hidden mr-3 p-1.5 rounded-lg transition-colors" style={{ color: "#4a4a60" }}
-            onMouseOver={e => (e.currentTarget.style.color = "#fff")}
-            onMouseOut={e => (e.currentTarget.style.color = "#4a4a60")}
+        <header className="flex items-center h-14 px-4 shrink-0 bg-[#0a0a0a]/90 backdrop-blur-md sticky top-0 z-30">
+          <button className="md:hidden mr-3 p-2 rounded-lg transition-colors text-[#a1a1aa] hover:text-white"
             onClick={() => setSidebarOpen(true)}>
             <Menu size={20} />
           </button>
 
           <div className="flex items-center gap-2.5 min-w-0">
-            {activeConv ? (
-              <>
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: "rgba(124,110,247,0.15)" }}>
-                  <MessageSquare size={13} style={{ color: "#9d8fff" }} />
-                </div>
-                <span className="text-sm font-medium truncate" style={{ color: "#c8c8e0" }}>{activeConv.title}</span>
-              </>
-            ) : (
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: "rgba(124,110,247,0.15)" }}>
-                  <Scale size={13} style={{ color: "#9d8fff" }} />
-                </div>
-                <span className="text-sm font-semibold" style={{ color: "#c8c8e0" }}>Nyaay Legal AI</span>
-              </div>
-            )}
-          </div>
-
-          <div className="ml-auto flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 text-xs px-3 py-1.5 rounded-full font-medium"
-              style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.18)", color: "#4ade80" }}>
-              <span className="ping-dot w-2 h-2 rounded-full" style={{ background: "#22c55e" }} />
-              AI Online
-            </div>
+             <span className="text-[15px] font-medium text-[#ededed] truncate">
+               {activeConv ? activeConv.title : "Nyaay Legal AI  v3.0"}
+             </span>
           </div>
         </header>
 
-        {/* ── Role-specific verification banners ── */}
-        {user.role === 'CITIZEN' && (
-          <div className="px-4 pt-3 shrink-0">
-            <div className="mx-auto max-w-2xl">
-              <button
-                onClick={() => router.push('/profile/citizen/aadhaar')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all group"
-                style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.18)" }}
-                onMouseOver={e => { e.currentTarget.style.background = "rgba(99,102,241,0.12)"; }}
-                onMouseOut={e => { e.currentTarget.style.background = "rgba(99,102,241,0.07)"; }}
-              >
-                <Fingerprint size={16} style={{ color: "#818cf8", flexShrink: 0 }} />
-                <p className="text-xs flex-1" style={{ color: "#818cf8" }}>
-                  <strong>Complete eKYC</strong> — Verify your Aadhaar to unlock all legal services.
-                </p>
-                <ArrowRight size={14} style={{ color: "#818cf8" }} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
-            </div>
-          </div>
-        )}
 
-        {user.role === 'LAWYER' && user.verificationStatus !== 'VERIFIED' && (
-          <div className="px-4 pt-3 shrink-0">
-            <div className="mx-auto max-w-2xl">
-              <button
-                onClick={() => router.push('/profile/lawyer')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all group"
-                style={{
-                  background: user.verificationStatus === 'REJECTED' ? "rgba(239,68,68,0.07)" : "rgba(245,158,11,0.07)",
-                  border: `1px solid ${user.verificationStatus === 'REJECTED' ? "rgba(239,68,68,0.2)" : "rgba(245,158,11,0.2)"}`,
-                }}
-                onMouseOver={e => { e.currentTarget.style.opacity = "0.85"; }}
-                onMouseOut={e => { e.currentTarget.style.opacity = "1"; }}
-              >
-                {user.verificationStatus === 'REJECTED'
-                  ? <AlertTriangle size={16} style={{ color: "#f87171", flexShrink: 0 }} />
-                  : <Clock size={16} style={{ color: "#fbbf24", flexShrink: 0 }} />
-                }
-                <p className="text-xs flex-1" style={{ color: user.verificationStatus === 'REJECTED' ? "#f87171" : "#fbbf24" }}>
-                  {user.verificationStatus === 'REJECTED'
-                    ? <><strong>Profile rejected</strong> — Update your documents and resubmit.</>  
-                    : <><strong>Verification pending</strong> — Submit your Bar Council docs to get approved.</>}
-                </p>
-                <ArrowRight size={14} style={{ color: user.verificationStatus === 'REJECTED' ? "#f87171" : "#fbbf24" }} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {user.role === 'JUDGE' && user.verificationStatus !== 'VERIFIED' && (
-          <div className="px-4 pt-3 shrink-0">
-            <div className="mx-auto max-w-2xl">
-              <button
-                onClick={() => router.push('/profile/judge')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all group"
-                style={{ background: "rgba(168,85,247,0.07)", border: "1px solid rgba(168,85,247,0.2)" }}
-                onMouseOver={e => { e.currentTarget.style.background = "rgba(168,85,247,0.12)"; }}
-                onMouseOut={e => { e.currentTarget.style.background = "rgba(168,85,247,0.07)"; }}
-              >
-                <Clock size={16} style={{ color: "#d8b4fe", flexShrink: 0 }} />
-                <p className="text-xs flex-1" style={{ color: "#d8b4fe" }}>
-                  <strong>Account pending approval</strong> — Your judge account is awaiting admin verification.
-                </p>
-                <ArrowRight size={14} style={{ color: "#d8b4fe" }} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Messages */}
-        <div
-          ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto"
-          onScroll={handleScroll}
-        >
-          <div className="mx-auto max-w-2xl px-4 py-6 pb-44">
-
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
+          <div className="mx-auto max-w-3xl px-4 py-6 pb-44">
             {messages.length === 0 ? (
-              /* Empty state */
-              <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="flex flex-col items-center justify-center pt-12 text-center"
-              >
-                <motion.div
-                  animate={{ y: [0, -10, 0] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  className="relative mb-8"
-                >
-                  <div className="w-24 h-24 rounded-[28px] flex items-center justify-center relative"
-                    style={{
-                      background: "linear-gradient(135deg, rgba(124,110,247,0.15), rgba(168,85,247,0.15))",
-                      border: "1px solid rgba(124,110,247,0.2)",
-                      boxShadow: "0 0 80px rgba(124,110,247,0.12), inset 0 1px 0 rgba(255,255,255,0.06)"
-                    }}>
-                    <Scale size={40} style={{ color: "#9d8fff" }} />
+              <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex flex-col pt-8 pb-20 w-full">
+                
+                <div className="flex flex-col items-center mb-12">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[#ededed] text-[#0a0a0a] mb-5 shadow-[0_0_30px_rgba(255,255,255,0.06)]">
+                    <Scale size={28} />
                   </div>
-                  {/* Orbiting sparkles */}
-                  <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center"
-                    style={{ background: "rgba(124,110,247,0.2)", border: "1px solid rgba(124,110,247,0.3)" }}>
-                    <Sparkles size={12} style={{ color: "#9d8fff" }} />
-                  </div>
-                </motion.div>
+                  <h2 className="text-3xl font-semibold text-[#ededed] mb-2 text-center tracking-tight">Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {user.email.split('@')[0]}</h2>
+                  <p className="text-[#a1a1aa] text-[15px] text-center">Welcome to your Nyaay AI Workspace.</p>
+                </div>
 
-                <h2 className="text-3xl font-bold text-white mb-3 tracking-tight">
-                  How can I help you?
-                </h2>
-                <p className="max-w-xs text-sm leading-relaxed mb-10" style={{ color: "#6a6a80" }}>
-                  Ask anything about Indian law — from your fundamental rights to civil and criminal matters.
-                </p>
+                <div className="space-y-10 w-full max-w-3xl mx-auto">
+                  
+                  {/* Action Required Logic */}
+                  {(user.role === 'CITIZEN' || (user.role === 'LAWYER' && user.verificationStatus !== 'VERIFIED') || (user.role === 'JUDGE' && user.verificationStatus !== 'VERIFIED')) && (
+                    <section>
+                      <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Action Required
+                      </h3>
+                      <div className="flex flex-col gap-3">
+                        {user.role === 'CITIZEN' && (
+                           <button onClick={() => router.push('/profile/citizen/aadhaar')} className="w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all group bg-[#111827] border border-[#1f2937] hover:bg-[#1f2937]/50 shadow-sm">
+                             <div className="flex items-center gap-4">
+                               <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center"><Fingerprint size={20} className="text-indigo-400" /></div>
+                               <div className="text-left">
+                                 <p className="text-sm font-medium text-indigo-300">Complete Aadhaar eKYC</p>
+                                 <p className="text-xs text-indigo-400/70 mt-0.5">Verify your identity to unlock core legal services.</p>
+                               </div>
+                             </div>
+                             <ArrowRight size={18} className="text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                           </button>
+                        )}
+                        {user.role === 'LAWYER' && user.verificationStatus !== 'VERIFIED' && (
+                           <button onClick={() => router.push('/profile/lawyer')} className="w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all group bg-[#1c1917] border border-[#292524] hover:bg-[#292524]/50 shadow-sm">
+                             <div className="flex items-center gap-4">
+                               <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center"><ShieldCheck size={20} className="text-amber-400" /></div>
+                               <div className="text-left">
+                                 <p className="text-sm font-medium text-amber-300">Submit Bar Council Verification</p>
+                                 <p className="text-xs text-amber-400/70 mt-0.5">Your lawyer profile is awaiting credential verification.</p>
+                               </div>
+                             </div>
+                             <ArrowRight size={18} className="text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                           </button>
+                        )}
+                        {user.role === 'JUDGE' && user.verificationStatus !== 'VERIFIED' && (
+                           <button onClick={() => router.push('/profile/judge')} className="w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all group bg-[#2e1065]/40 border border-[#4c1d95]/40 hover:bg-[#4c1d95]/30 shadow-sm">
+                             <div className="flex items-center gap-4">
+                               <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center"><Clock size={20} className="text-purple-400" /></div>
+                               <div className="text-left">
+                                 <p className="text-sm font-medium text-purple-300">Account Pending Admin Approval</p>
+                                 <p className="text-xs text-purple-400/70 mt-0.5">Check your account status and required steps.</p>
+                               </div>
+                             </div>
+                             <ArrowRight size={18} className="text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                           </button>
+                        )}
+                      </div>
+                    </section>
+                  )}
 
-                {/* Suggestions */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-lg">
-                  {SUGGESTED.map((s, i) => (
-                    <motion.button
-                      key={i}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1 + i * 0.07 }}
-                      onClick={() => handleSuggestedClick(s.text)}
-                      className="flex items-start gap-3 rounded-2xl p-4 text-left transition-all duration-200"
-                      style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}
-                      onMouseOver={e => {
-                        e.currentTarget.style.background = "rgba(124,110,247,0.07)";
-                        e.currentTarget.style.borderColor = "rgba(124,110,247,0.22)";
-                      }}
-                      onMouseOut={e => {
-                        e.currentTarget.style.background = "rgba(255,255,255,0.025)";
-                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
-                      }}
-                    >
-                      <span className="text-lg shrink-0">{s.icon}</span>
-                      <span className="text-sm leading-relaxed" style={{ color: "#7a7a90" }}>{s.text}</span>
-                    </motion.button>
-                  ))}
+                  <section>
+                    <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-3 px-1">Core Applications</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <button onClick={() => router.push('/search')} className="flex flex-col items-start gap-4 p-5 rounded-2xl bg-[#141414] border border-[#2a2a2a] hover:bg-[#1a1a1a] hover:border-[#3a3a3a] transition-all group">
+                        <div className="w-10 h-10 rounded-xl bg-[#212121] flex items-center justify-center group-hover:bg-[#2a2a2a] transition-colors"><Search size={20} className="text-[#a1a1aa] group-hover:text-[#ededed]" /></div>
+                        <span className="text-sm font-medium text-[#ededed]">Database</span>
+                      </button>
+                      <button onClick={() => router.push('/intelligence')} className="flex flex-col items-start gap-4 p-5 rounded-2xl bg-[#141414] border border-[#2a2a2a] hover:bg-[#1a1a1a] hover:border-[#3a3a3a] transition-all group">
+                        <div className="w-10 h-10 rounded-xl bg-[#212121] flex items-center justify-center group-hover:bg-[#2a2a2a] transition-colors"><Crosshair size={20} className="text-[#a1a1aa] group-hover:text-[#ededed]" /></div>
+                        <span className="text-sm font-medium text-[#ededed]">Strategy</span>
+                      </button>
+                      <button onClick={() => router.push('/marketplace')} className="flex flex-col items-start gap-4 p-5 rounded-2xl bg-[#141414] border border-[#2a2a2a] hover:bg-[#1a1a1a] hover:border-[#3a3a3a] transition-all group">
+                        <div className="w-10 h-10 rounded-xl bg-[#212121] flex items-center justify-center group-hover:bg-[#2a2a2a] transition-colors"><Briefcase size={20} className="text-[#a1a1aa] group-hover:text-[#ededed]" /></div>
+                        <span className="text-sm font-medium text-[#ededed]">Lawyers</span>
+                      </button>
+                      <button onClick={() => router.push('/notifications')} className="flex flex-col items-start gap-4 p-5 rounded-2xl bg-[#141414] border border-[#2a2a2a] hover:bg-[#1a1a1a] hover:border-[#3a3a3a] transition-all group">
+                        <div className="w-10 h-10 rounded-xl bg-[#212121] flex items-center justify-center group-hover:bg-[#2a2a2a] transition-colors"><Zap size={20} className="text-[#a1a1aa] group-hover:text-[#ededed]" /></div>
+                        <span className="text-sm font-medium text-[#ededed]">Alerts</span>
+                      </button>
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-3 px-1">Start a Conversation</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {SUGGESTED.map((s, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSuggestedClick(s.text)}
+                          className="flex items-center gap-3 p-4 rounded-2xl border border-[rgba(255,255,255,0.03)] bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.05)] transition-all text-left"
+                        >
+                          <span className="text-lg shrink-0 opacity-80">{s.icon}</span>
+                          <span className="text-sm font-medium text-[#d4d4d8] leading-tight">{s.text}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
                 </div>
               </motion.div>
             ) : (
-              <div className="space-y-5">
+              <div className="space-y-6">
                 {messages.map((msg, i) => (
-                  <motion.div
-                    key={msg.id || i}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} items-end gap-2.5`}
-                  >
+                  <motion.div key={msg.id || i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-4`}>
                     {msg.role === "assistant" && (
-                      <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mb-1"
-                        style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 14px rgba(124,110,247,0.35)" }}>
-                        <Bot size={13} className="text-white" />
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-[#ededed] text-black border border-[#2a2a2a] mt-1">
+                        <Scale size={16} />
                       </div>
                     )}
-                    <div className={`max-w-[80%] flex flex-col group ${msg.role === "user" ? "items-end" : "items-start"}`}>
-                      <div
-                        className="rounded-2xl px-4 py-3 text-sm leading-relaxed"
-                        style={msg.role === "user" ? {
-                          background: "linear-gradient(135deg, #6d5fee, #9333ea)",
-                          color: "#fff",
-                          borderBottomRightRadius: "6px",
-                          boxShadow: "0 4px 20px rgba(124,110,247,0.2)"
-                        } : {
-                          background: "#13131e",
-                          border: "1px solid rgba(255,255,255,0.06)",
-                          color: "#d0d0e4",
-                          borderBottomLeftRadius: "6px",
-                        }}
-                      >
-                        <p className="whitespace-pre-wrap message-content">{msg.content}</p>
+                    <div className={`flex flex-col group ${msg.role === "user" ? "items-end max-w-[70%]" : "items-start max-w-[85%]"}`}>
+                      <div className={`px-5 py-3.5 text-[15px] leading-relaxed ${
+                          msg.role === "user" 
+                            ? "bg-[#2f2f2f] text-[#ededed] rounded-3xl rounded-tr-sm" 
+                            : "bg-transparent text-[#ededed] rounded-lg"
+                        }`}>
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
                       </div>
-                      <div className="flex items-center gap-1.5 mt-1.5 px-1">
-                        <span className="text-xs" style={{ color: "#3a3a52" }}>
-                          {formatTime(msg.createdAt)}
-                        </span>
+                      <div className="flex items-center gap-2 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-[11px] text-[#52525b]">{formatTime(msg.createdAt)}</span>
                         {msg.role === "assistant" && <CopyButton text={msg.content} />}
                       </div>
                     </div>
-                    {msg.role === "user" && (
-                      <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mb-1 font-bold text-xs text-white"
-                        style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)" }}>
-                        {user.email[0].toUpperCase()}
-                      </div>
-                    )}
                   </motion.div>
                 ))}
 
                 {/* Typing indicator */}
                 {loadingChat && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex justify-start items-end gap-2.5"
-                  >
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)" }}>
-                      <Bot size={13} className="text-white" />
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start gap-4">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-[#ededed] text-black mt-1">
+                      <Scale size={16} />
                     </div>
-                    <div className="rounded-2xl px-4 py-3.5"
-                      style={{ background: "#13131e", border: "1px solid rgba(255,255,255,0.06)", borderBottomLeftRadius: "6px" }}>
+                    <div className="px-5 py-4">
                       <div className="flex gap-1.5 items-center">
-                        <div className="typing-dot" />
-                        <div className="typing-dot" />
-                        <div className="typing-dot" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#52525b] animate-bounce" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#52525b] animate-bounce" style={{ animationDelay: "0.15s" }} />
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#52525b] animate-bounce" style={{ animationDelay: "0.3s" }} />
                       </div>
                     </div>
                   </motion.div>
                 )}
               </div>
             )}
-
             <div ref={messagesEndRef} />
           </div>
         </div>
@@ -884,75 +650,46 @@ export default function Home() {
         </AnimatePresence>
 
         {/* ─── INPUT BAR ─── */}
-        <div className="absolute inset-x-0 bottom-0 px-4 md:px-5 pb-5 pt-12"
-          style={{ background: "linear-gradient(to top, #07070d 65%, transparent)" }}>
-          <div className="mx-auto max-w-2xl">
-            <div
-              className="flex items-end gap-3 rounded-2xl p-3 transition-all duration-300"
-              style={{ background: "#0e0e18", border: "1px solid rgba(255,255,255,0.07)", boxShadow: "0 0 0 0 rgba(124,110,247,0)" }}
-              onFocusCapture={e => {
-                e.currentTarget.style.borderColor = "rgba(124,110,247,0.35)";
-                e.currentTarget.style.boxShadow = "0 0 0 3px rgba(124,110,247,0.07)";
-              }}
-              onBlurCapture={e => {
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
-                e.currentTarget.style.boxShadow = "0 0 0 0 rgba(124,110,247,0)";
-              }}
-            >
+        <div className="absolute inset-x-0 bottom-0 pb-6 pt-12 pointer-events-none bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/90 to-transparent z-10 lg:pl-[260px]">
+          <div className="mx-auto max-w-3xl px-4 pointer-events-auto">
+            <div className="relative flex items-end gap-2 rounded-2xl p-2.5 bg-[#2f2f2f] text-[#ededed] shadow-sm ring-1 ring-white/10 focus-within:ring-white/25 transition-all">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingDoc}
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-[#a1a1aa] hover:text-[#ededed] hover:bg-[#3f3f46] transition-colors"
+                title="Upload Document"
+              >
+                {uploadingDoc ? <div className="animate-spin w-4 h-4 border-2 border-t-transparent border-[#ededed] rounded-full" /> : <Paperclip size={20} />}
+              </button>
+              
               <textarea
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={activeChat ? "Ask a legal question… (⏎ to send)" : "Message Nyaay…"}
+                placeholder={activeChat ? "Message Nyaay..." : "Ask anything about Indian law..."}
                 rows={1}
-                className="flex-1 resize-none bg-transparent text-sm outline-none"
-                style={{ color: "#e0e0f4", maxHeight: "160px", lineHeight: "1.65", caretColor: "#9d8fff" }}
+                className="flex-1 resize-none bg-transparent text-[15px] outline-none placeholder:text-[#a1a1aa] py-2.5 px-1"
+                style={{ maxHeight: "200px", lineHeight: "1.5" }}
               />
 
-              <div className="flex items-center gap-2 shrink-0">
-                <input type="file" ref={fileInputRef} hidden accept=".pdf,.txt" onChange={handleFileUpload} />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingDoc}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200"
-                  style={{ color: "#7a7a90", background: "rgba(255,255,255,0.02)" }}
-                  title="Upload Document"
-                  onMouseOver={e=>e.currentTarget.style.color="#9d8fff"}
-                  onMouseOut={e=>e.currentTarget.style.color="#7a7a90"}
-                >
-                  {uploadingDoc ? <div className="animate-spin w-4 h-4 border-2 border-t-transparent border-[#9d8fff] rounded-full" /> : <Paperclip size={16} />}
-                </button>
-                
-                {input.trim() && (
-                  <span className="text-xs hidden sm:block" style={{ color: "#3a3a52" }}>⏎ send</span>
-                )}
-                <motion.button
-                  onClick={() => {
-                    if (!activeChat && input.trim()) {
-                      createNewChat().then(() => sendMessage());
-                    } else {
-                      sendMessage();
-                    }
-                  }}
-                  disabled={!input.trim() || loadingChat}
-                  whileHover={{ scale: input.trim() && !loadingChat ? 1.08 : 1 }}
-                  whileTap={{ scale: input.trim() && !loadingChat ? 0.92 : 1 }}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200 disabled:opacity-25"
-                  style={{
-                    background: input.trim() && !loadingChat
-                      ? "linear-gradient(135deg, #7c6ef7, #a855f7)"
-                      : "rgba(255,255,255,0.05)",
-                    boxShadow: input.trim() && !loadingChat ? "0 0 16px rgba(124,110,247,0.4)" : "none"
-                  }}
-                >
-                  <Send size={14} className="text-white ml-px" />
-                </motion.button>
-              </div>
+              <button
+                onClick={() => {
+                  if (!activeChat && input.trim()) {
+                    createNewChat().then(() => sendMessage());
+                  } else {
+                    sendMessage();
+                  }
+                }}
+                disabled={!input.trim() || loadingChat}
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[#ededed] text-[#0a0a0a] disabled:opacity-30 disabled:bg-[#3f3f46] disabled:text-[#a1a1aa] transition-colors"
+              >
+                <ArrowRight size={20} />
+              </button>
             </div>
-            <p className="mt-2 text-center text-xs" style={{ color: "#2f2f44" }}>
-              Nyaay provides legal information, not legal advice. Always consult a qualified lawyer.
+            <p className="mt-3 text-center text-xs text-[#71717a]">
+              Nyaay can make mistakes. Always consult a qualified lawyer for serious matters.
             </p>
           </div>
         </div>
