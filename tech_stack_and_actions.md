@@ -324,3 +324,10 @@ Features Implemented:
 - Prompt Construction & Escalation Handling: Enhanced the RAG system prompt. If the router flags the query as highly critical/urgent, it injects an `escalation_context` to steer the generated response towards strongly advising the user to use the marketplace to find a lawyer.
 - Hallucination Guard: Validates the AI response against the provided `context_string` using a secondary LLM chain. If it fails, the response is overridden safely.
 - Monetization Checks: Pre-generation check validates free tier usage (10 queries max) versus Pro subscription status limits.
+
+Document Intelligence & Generation — Complete
+Features Implemented:
+- Enhanced Upload & OCR Pipeline (`/api/documents/analyze`): Multi-format support, now checking mimetypes. If the file is an image (`image/*`), it runs through `tesseract.js` for full OCR text extraction before chunking.
+- Intelligent Auto-Classification: Uses LangChain + Groq (`llama-3.1-8b-instant`) with `zod` schema to enforce structured extraction. It classifies standard documents into [Contract, Notice, FIR, Judgment, KYC, Other].
+- Type-Specific Analysis Engine: Post-classification, the analysis instruction adapts (e.g., Contracts look for liabilities and termination clauses, while FIRs look for penal codes and bailability).
+- 7 Master Document Generation Templates (`/api/generate`): The `generate.ts` module was heavily restructured with a hybrid template engine, actively enforcing specific formatting and required structures for: Legal Notice, FIR, Rent/Lease Agreement, NDA, Employment Contract, Bail Application, and Judicial Affidavit. Each explicitly integrates RAG retrieval references within its scaffolding.

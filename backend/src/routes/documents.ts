@@ -1,14 +1,17 @@
-// @ts-nocheck
 import { Router } from 'express';
 import multer from 'multer';
 import pdf from 'pdf-parse';
+import Tesseract from 'tesseract.js';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../prisma';
 import Groq from 'groq-sdk';
 import { VoyageAIClient } from 'voyageai';
+import { ChatGroq } from '@langchain/groq';
+import { z } from 'zod';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
 
 const getGroq = () => new Groq({ apiKey: process.env.GROQ_API_KEY });
 const voyageKey = process.env.VOYAGE_API_KEY;
@@ -63,9 +66,28 @@ router.post('/analyze', upload.single('file'), async (req: AuthRequest, res): Pr
     const fileMime = req.file.mimetype;
     let extractedText = '';
 
+    // Monetization Check
+    const dbUser = await prisma.user.findUnique({ where: { id: req.user!.userId } });
+    if (!dbUser) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    
+    if (!dbUser.isPro && dbUser.docsCount >= 3) {
+      res.status(403).json({ error: 'FREE_LIMIT_REACHED', message: 'You have exhausted your 3 free AI Document Analyses. Please upgrade to Pro.' });
+      return;
+    }
+
+    // ------------------------------------------------------------------
+    // PIPELINE 1: OCR & TEXT EXTRACTION 
+    // ------------------------------------------------------------------
     if (fileMime === 'application/pdf') {
-      const pdfData = await pdf(fileBuf);
+      const pdfFn = pdf as any;
+      const pdfData = await pdfFn(fileBuf);
       extractedText = pdfData.text;
+    } else if (fileMime.startsWith('image/')) {
+      const { data: { text } } = await Tesseract.recognize(fileBuf, 'eng');
+      extractedText = text;
     } else {
       extractedText = fileBuf.toString('utf-8');
     }
@@ -75,30 +97,51 @@ router.post('/analyze', upload.single('file'), async (req: AuthRequest, res): Pr
       return;
     }
 
-    // Monetization Check
-    const dbUser = await prisma.user.findUnique({ where: { id: req.user!.userId } });
-    if (!dbUser) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
-    
-    if (!dbUser.isPro && dbUser.docsCount >= 2) {
-      res.status(403).json({ error: 'FREE_LIMIT_REACHED', message: 'You have exhausted your 2 free AI Document Analyses. Please upgrade to Pro.' });
-      return;
+    // ------------------------------------------------------------------
+    // PIPELINE 2: AUTO-CLASSIFICATION (Langchain + Zod)
+    // ------------------------------------------------------------------
+    const groqClassifier = new ChatGroq({
+      model: 'llama-3.1-8b-instant',
+      temperature: 0,
+      apiKey: process.env.GROQ_API_KEY
+    });
+
+    const classificationSchema = z.object({
+      documentType: z.enum(['Contract/Agreement', 'Legal Notice', 'Court Judgment/Order', 'FIR/Police Report', 'Identity/KYC Document', 'Other']),
+      summary: z.string().describe("A 1-2 sentence high-level summary of the document"),
+      partiesInvolved: z.array(z.string()).describe("Names, roles, or organizations involved in the document")
+    });
+
+    const classificationPrompt = ChatPromptTemplate.fromMessages([
+      ['system', 'Analyze the following document extract and classify its legal nature.'],
+      ['user', '{text}']
+    ]);
+
+    let docClass = {
+      documentType: 'Other',
+      summary: 'Unknown document type',
+      partiesInvolved: [] as string[]
+    };
+
+    try {
+      const classChain = classificationPrompt.pipe(groqClassifier.withStructuredOutput(classificationSchema));
+      // Extract based on the first approx 1500 characters
+      docClass = await classChain.invoke({ text: extractedText.substring(0, 1500) });
+    } catch (e) {
+      console.warn("Classification failed, continuing with default.", e);
     }
 
-    // Pipeline Stage: Chunking
+    // ------------------------------------------------------------------
+    // PIPELINE 3: RAG EMBEDDING & LAW RETRIEVAL
+    // ------------------------------------------------------------------
     const docChunks = chunkText(extractedText);
-    
-    // We'll analyze the document by finding relevant laws across all chunks. 
-    // To save time & API calls, we'll embed up to 5 chunks of the document to find the core topical intent.
-    const chunksToEmbed = docChunks.slice(0, 5); 
+    const chunksToEmbed = docChunks.slice(0, 5); // Just top chunks for context intent
     
     let docEmbeddings: number[][] = [];
     if (voyageClient) {
       try {
         const response = await voyageClient.embed({ input: chunksToEmbed, model: "voyage-law-2" });
-        docEmbeddings = response.data.map((d: any) => d.embedding);
+        docEmbeddings = response.data?.map((d: any) => d.embedding) || chunksToEmbed.map(t => generateMockEmbedding(t));
       } catch (err) {
         docEmbeddings = chunksToEmbed.map(t => generateMockEmbedding(t));
       }
@@ -106,20 +149,13 @@ router.post('/analyze', upload.single('file'), async (req: AuthRequest, res): Pr
       docEmbeddings = chunksToEmbed.map(t => generateMockEmbedding(t));
     }
 
-    // Pipeline Stage: Retrieval (Cross-referencing doc embeddings with legal database)
-    const allLegalChunks = await prisma.legalChunk.findMany({
-      include: {
-        act: true,
-        section: true
-      }
-    });
+    const allLegalChunks = await prisma.legalChunk.findMany({ include: { act: true, section: true } });
 
-    // Score all chunks against the document's top vectors
     let scoredChunks = allLegalChunks.map((lChunk: any) => {
       let maxScore = 0;
       if (lChunk.embedding && lChunk.embedding.length > 0) {
         for (const docEmb of docEmbeddings) {
-          const score = cosineSimilarity(docEmb, lChunk.embedding);
+          const score = cosineSimilarity(docEmb, lChunk.embedding as number[]);
           if (score > maxScore) maxScore = score;
         }
       }
@@ -128,42 +164,64 @@ router.post('/analyze', upload.single('file'), async (req: AuthRequest, res): Pr
 
     scoredChunks.sort((a: any, b: any) => b.score - a.score);
     const topLegalMatches = scoredChunks.slice(0, 5);
-    
     const relevantLawsContext = topLegalMatches.map((c: any) => 
       `[Source: ${c.act?.shortName || ''} Sec ${c.section?.number || ''}] ${c.content}`
     ).join('\n\n');
 
-    // Pipeline Stage: AI Analysis via Groq
+    // ------------------------------------------------------------------
+    // PIPELINE 4: AI ANALYSIS BY DOCUMENT TYPE
+    // ------------------------------------------------------------------
+    let typeSpecificInstructions = "";
+    switch(docClass.documentType) {
+      case 'Contract/Agreement':
+        typeSpecificInstructions = "Focus on termination clauses, liabilities, financial obligations, specific performance, and potential breach consequences."; break;
+      case 'Legal Notice':
+        typeSpecificInstructions = "Focus on the timeline to respond, demanded actions, statutory violations claimed, and the legal weight of the threats made."; break;
+      case 'FIR/Police Report':
+        typeSpecificInstructions = "Focus on the penal sections applied, chronology of events, severity of charges (bailable/non-bailable), and next immediate legal steps."; break;
+      case 'Court Judgment/Order':
+        typeSpecificInstructions = "Focus on the ratio decidendi (the court's reasoning), the final decree/order, and any compliance required by the parties."; break;
+      case 'Identity/KYC Document':
+        typeSpecificInstructions = "This is a KYC document. Briefly summarize its validity and identify if any sensitive PII exposes legal risks."; break;
+      default:
+        typeSpecificInstructions = "Identify the core legal themes, potential risks, and compliance requirements."; break;
+    }
+
     const groq = getGroq();
     const systemPrompt = `You are Nyaay, an elite legal document analyzer. 
-You are provided with a user's document text, and relevant Indian Law provisions drawn from our database.
-Your Goal: Analyze the document strictly in the context of the provided Indian Laws. Highlight potential legal risks, required compliances, clauses that appear anomalous, and formulate a structured summary. Mention the specific cited laws when they relate directly to the document. Do not give binding legal advice.
+You are analyzing a document classified as a **${docClass.documentType}**.
+Document Summary: ${docClass.summary}
+Parties Involved: ${docClass.partiesInvolved.join(", ")}
+
+**Your Goal**: Analyze the user's document text strictly using the provided Indian Laws as context. 
+${typeSpecificInstructions}
+Highlight potential legal risks, required compliances, and clauses that appear anomalous. 
+Formulate a structured legal report (use Markdown). Mention the specific cited laws when they relate directly to the document. 
+Do not give binding legal advice.
+
 --- RELEVANT INDIAN LAWS ---
 ${relevantLawsContext}
 `;
 
-    // Send the first ~2000 words of the extracted document to prevent token limits
     const docSelection = docChunks.slice(0, 6).join("\n\n");
-
     const groqResponse = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       max_tokens: 2048,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Here is the document to analyze: \n\n${docSelection}` }
+        { role: 'user', content: `Here is the document extract to analyze: \n\n${docSelection}` }
       ]
     });
 
     const analysisReport = groqResponse.choices[0]?.message?.content || "Analysis could not be generated.";
 
-    // Option: Automatically create a new conversation thread containing the analysis.
     const conversation = await prisma.conversation.create({
       data: {
         userId: req.user!.userId,
-        title: 'Document Analysis',
+        title: `Analysis: ${docClass.documentType}`,
         messages: {
           create: [
-            { role: 'user', content: 'Uploaded a Document for Analysis.' },
+            { role: 'user', content: `Uploaded a ${docClass.documentType} for Analysis.\nSummary: ${docClass.summary}` },
             { role: 'assistant', content: analysisReport }
           ]
         }
@@ -177,7 +235,12 @@ ${relevantLawsContext}
       });
     }
 
-    res.json({ analysis: analysisReport, conversationId: conversation.id, lawsRetrieved: topLegalMatches.map(m => m.id) });
+    res.json({ 
+      analysis: analysisReport, 
+      classification: docClass,
+      conversationId: conversation.id, 
+      lawsRetrieved: topLegalMatches.map((m: any) => m.id) 
+    });
 
   } catch (error) {
     console.error('Document analysis error:', error);
