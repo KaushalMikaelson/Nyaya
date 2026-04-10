@@ -123,8 +123,8 @@ export default function JudgeProfilePage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#07070d" }}>
-        <Loader2 className="animate-spin" size={32} style={{ color: "#a855f7" }} />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#070b16" }}>
+        <Loader2 className="animate-spin" size={32} style={{ color: "#d4af37" }} />
       </div>
     );
   }
@@ -153,7 +153,7 @@ export default function JudgeProfilePage() {
   const StatusIcon = sc.icon;
 
   return (
-    <div className="min-h-screen" style={{ background: "#07070d" }}>
+    <div className="min-h-screen" style={{ background: "#070b16" }}>
       {/* Ambient */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/3 right-1/4 w-96 h-96 rounded-full"
@@ -165,7 +165,7 @@ export default function JudgeProfilePage() {
         style={{ background: "rgba(7,7,13,0.9)", borderBottom: "1px solid rgba(255,255,255,0.05)", backdropFilter: "blur(16px)" }}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg,#7c6ef7,#a855f7)", boxShadow: "0 0 20px rgba(124,110,247,0.4)" }}>
+            style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", boxShadow: "0 0 20px rgba(124,110,247,0.4)" }}>
             <Scale size={15} className="text-white" />
           </div>
           <span className="text-base font-bold text-white">Nyaya</span>
@@ -222,7 +222,7 @@ export default function JudgeProfilePage() {
         <div className="rounded-2xl p-6 mb-6 space-y-3"
           style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
           <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
-            <User size={16} style={{ color: "#a855f7" }} /> Your Registration Details
+            <User size={16} style={{ color: "#d4af37" }} /> Your Registration Details
           </h3>
           {[
             { icon: User, label: "Full Name", value: profileDetails.fullName },
@@ -246,12 +246,12 @@ export default function JudgeProfilePage() {
           <div className="rounded-2xl p-6"
             style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
             <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
-              <Shield size={16} style={{ color: "#a855f7" }} /> Upload Government ID Document
+              <Shield size={16} style={{ color: "#d4af37" }} /> Upload Government ID Document
             </h3>
 
             <div className="p-3.5 rounded-xl mb-4 flex items-start gap-2.5"
               style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.15)" }}>
-              <Info size={14} style={{ color: "#a855f7", flexShrink: 0, marginTop: 2 }} />
+              <Info size={14} style={{ color: "#d4af37", flexShrink: 0, marginTop: 2 }} />
               <p className="text-xs" style={{ color: "#7a7a90" }}>
                 Upload a clear scan of your judicial appointment letter, court ID card, or government employee ID.
                 This speeds up the verification process.
@@ -280,7 +280,7 @@ export default function JudgeProfilePage() {
                 <motion.button type="submit" disabled={submitting || !govIdFile}
                   whileHover={{ scale: submitting ? 1 : 1.015 }} whileTap={{ scale: submitting ? 1 : 0.975 }}
                   className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: "linear-gradient(135deg,#7c6ef7,#a855f7)", boxShadow: "0 0 24px rgba(124,110,247,0.3)" }}>
+                  style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", boxShadow: "0 0 24px rgba(124,110,247,0.3)" }}>
                   {submitting
                     ? <><Loader2 size={16} className="animate-spin" /><span>Uploading...</span></>
                     : <><Upload size={16} /><span>Upload Document</span></>}
@@ -295,7 +295,7 @@ export default function JudgeProfilePage() {
           <div className="rounded-2xl p-6"
             style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
             <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-              <Gavel size={16} style={{ color: "#a855f7" }} /> Judicial Tools Access
+              <Gavel size={16} style={{ color: "#d4af37" }} /> Judicial Tools Access
             </h3>
             {[
               { icon: Scale, label: "Case Management", desc: "Manage and review assigned cases", href: "/" },

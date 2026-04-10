@@ -129,14 +129,14 @@ export default function AadhaarKycPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#07070d" }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#070b16" }}>
         <Loader2 className="animate-spin" size={32} style={{ color: "#6366f1" }} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#07070d" }}>
+    <div className="min-h-screen" style={{ background: "#070b16" }}>
       {/* Ambient glows */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full"

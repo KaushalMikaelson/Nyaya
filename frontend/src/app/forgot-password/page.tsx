@@ -154,7 +154,7 @@ function ForgotPasswordInner() {
   const currentIdx = STEPS.indexOf(step);
 
   return (
-    <div className="min-h-screen w-full flex" style={{ background: "#07070d" }}>
+    <div className="min-h-screen w-full flex" style={{ background: "#070b16" }}>
 
       {/* ─── Left Panel ─── */}
       <div className="hidden lg:flex lg:w-[45%] relative flex-col justify-between p-14 overflow-hidden">
@@ -173,7 +173,7 @@ function ForgotPasswordInner() {
         {/* Logo */}
         <div className="relative z-10 flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 28px rgba(124,110,247,0.45)" }}>
+            style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 28px rgba(124,110,247,0.45)" }}>
             <Scale size={20} className="text-white" />
           </div>
           <span className="text-xl font-bold tracking-tight text-white">Nyaya</span>
@@ -187,7 +187,7 @@ function ForgotPasswordInner() {
             </p>
             <h1 className="text-4xl font-extrabold leading-tight text-white">
               Reset your<br />
-              <span style={{ background: "linear-gradient(135deg,#818cf8,#c084fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              <span style={{ background: "linear-gradient(135deg,#818cf8,#f2d680)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                 password safely.
               </span>
             </h1>
@@ -246,7 +246,7 @@ function ForgotPasswordInner() {
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-3 mb-10 justify-center">
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 24px rgba(124,110,247,0.4)" }}>
+              style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 24px rgba(124,110,247,0.4)" }}>
               <Scale size={20} className="text-white" />
             </div>
             <span className="text-xl font-bold text-white">Nyaya</span>
@@ -313,7 +313,7 @@ function ForgotPasswordInner() {
                 <motion.button type="submit" disabled={loading}
                   whileHover={{ scale: loading ? 1 : 1.015 }} whileTap={{ scale: loading ? 1 : 0.975 }}
                   className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
-                  style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
+                  style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
                   {loading
                     ? <span className="h-5 w-5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
                     : <><span>Send Reset OTP</span><ArrowRight size={16} /></>
@@ -343,7 +343,7 @@ function ForgotPasswordInner() {
                 <motion.button type="submit" disabled={otp.length < 6}
                   whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.975 }}
                   className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
+                  style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
                   <span>Continue</span><ArrowRight size={16} />
                 </motion.button>
               </form>
@@ -455,7 +455,7 @@ function ForgotPasswordInner() {
                 <motion.button type="submit" disabled={loading || (confirmPassword.length > 0 && confirmPassword !== newPassword)}
                   whileHover={{ scale: loading ? 1 : 1.015 }} whileTap={{ scale: loading ? 1 : 0.975 }}
                   className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
+                  style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
                   {loading
                     ? <span className="h-5 w-5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
                     : <><span>Reset Password</span><ArrowRight size={16} /></>
@@ -482,7 +482,7 @@ function ForgotPasswordInner() {
               <Link href="/login">
                 <motion.button whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.975 }}
                   className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2"
-                  style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)" }}>
+                  style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)" }}>
                   Sign In with New Password
                   <ArrowRight size={16} />
                 </motion.button>
@@ -495,7 +495,7 @@ function ForgotPasswordInner() {
               <p className="text-sm" style={{ color: "#4a4a62" }}>
                 Remember your password?{" "}
                 <Link href="/login" className="font-semibold" style={{ color: "#9d8fff" }}
-                  onMouseOver={e => (e.currentTarget.style.color = "#c084fc")}
+                  onMouseOver={e => (e.currentTarget.style.color = "#f2d680")}
                   onMouseOut={e => (e.currentTarget.style.color = "#9d8fff")}>
                   Sign in
                 </Link>
@@ -511,8 +511,8 @@ function ForgotPasswordInner() {
 export default function ForgotPasswordPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#07070d" }}>
-        <div className="w-8 h-8 rounded-full border-2 border-purple-500/30 border-t-purple-500 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#070b16" }}>
+        <div className="w-8 h-8 rounded-full border-2 border-amber-400/30 border-t-amber-400 animate-spin" />
       </div>
     }>
       <ForgotPasswordInner />

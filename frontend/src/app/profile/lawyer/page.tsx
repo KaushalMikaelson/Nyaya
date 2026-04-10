@@ -245,20 +245,20 @@ export default function LawyerProfilePage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#07070d" }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#070b16" }}>
         <Loader2 className="animate-spin" size={32} style={{ color: "#8b5cf6" }} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#07070d" }}>
+    <div className="min-h-screen" style={{ background: "#070b16" }}>
       {/* Header */}
       <header className="sticky top-0 z-30 px-6 h-14 flex items-center justify-between"
         style={{ background: "rgba(7,7,13,0.92)", borderBottom: "1px solid rgba(255,255,255,0.05)", backdropFilter: "blur(16px)" }}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg,#7c6ef7,#a855f7)", boxShadow: "0 0 20px rgba(124,110,247,0.4)" }}>
+            style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", boxShadow: "0 0 20px rgba(124,110,247,0.4)" }}>
             <Scale size={15} className="text-white" />
           </div>
           <span className="text-base font-bold text-white">Nyaya</span>
@@ -314,7 +314,7 @@ export default function LawyerProfilePage() {
             </p>
             <Link href="/">
               <button className="w-full rounded-xl py-3 font-semibold text-white text-sm"
-                style={{ background: "linear-gradient(135deg,#7c6ef7,#a855f7)" }}>
+                style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)" }}>
                 Go to Dashboard
               </button>
             </Link>
@@ -406,7 +406,7 @@ export default function LawyerProfilePage() {
             <motion.button type="submit" disabled={submitting}
               whileHover={{ scale: submitting ? 1 : 1.015 }} whileTap={{ scale: submitting ? 1 : 0.975 }}
               className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: "linear-gradient(135deg,#7c6ef7,#a855f7)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
+              style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
               {submitting
                 ? <><Loader2 size={16} className="animate-spin" /><span>Submitting...</span></>
                 : <><span>Submit Profile for Review</span><ArrowRight size={16} /></>

@@ -65,16 +65,16 @@ export default function SearchPage() {
     router.push(`/?prompt=${encodeURIComponent(prompt)}`);
   };
 
-  if (authLoading) return <div className="min-h-screen" style={{ background: "#07070d" }} />;
+  if (authLoading) return <div className="min-h-screen" style={{ background: "#070b16" }} />;
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center" style={{ background: "#07070d", color: "#f1f1f5" }}>
+    <div className="min-h-screen w-full flex flex-col items-center" style={{ background: "#070b16", color: "#f1f1f5" }}>
       
       {/* Navbar */}
       <header className="w-full h-16 flex items-center justify-between px-6 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(14,14,24,0.7)', backdropFilter: 'blur(10px)' }}>
         <div className="flex items-center gap-4">
           <button onClick={() => router.push('/')} className="p-2 rounded-xl transition-colors" style={{ background: 'rgba(255,255,255,0.03)' }} onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,0.08)'} onMouseOut={e=>e.currentTarget.style.background='rgba(255,255,255,0.03)'}>
-            <ArrowLeft size={18} style={{ color: '#a855f7' }} />
+            <ArrowLeft size={18} style={{ color: '#d4af37' }} />
           </button>
           <div className="flex items-center gap-2">
             <Gavel size={20} style={{ color: '#7c6ef7' }} />
@@ -115,7 +115,7 @@ export default function SearchPage() {
               type="submit"
               disabled={loading}
               className="absolute right-2 px-5 py-2 rounded-xl text-sm font-semibold transition-all"
-              style={{ background: 'linear-gradient(135deg, #7c6ef7, #a855f7)', color: 'white' }}
+              style={{ background: 'linear-gradient(135deg, #7c6ef7, #d4af37)', color: 'white' }}
             >
               {loading ? <span className="animate-pulse">Searching...</span> : 'Search'}
             </button>
@@ -164,7 +164,7 @@ export default function SearchPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <BookOpen size={14} style={{ color: '#a855f7' }} />
+                      <BookOpen size={14} style={{ color: '#d4af37' }} />
                       <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#7c6ef7' }}>
                         {chunk.act ? `${chunk.act.shortName} ${chunk.act.year}` : 'Legal Text'}
                       </span>
@@ -192,7 +192,7 @@ export default function SearchPage() {
                   <button
                     onClick={() => askAi(chunk)}
                     className="flex shrink-0 items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:scale-105"
-                    style={{ background: 'rgba(124,110,247,0.1)', color: '#a855f7', border: '1px solid rgba(124,110,247,0.2)' }}
+                    style={{ background: 'rgba(124,110,247,0.1)', color: '#d4af37', border: '1px solid rgba(124,110,247,0.2)' }}
                   >
                     <Bot size={14} />
                     <span className="hidden sm:inline">Ask AI</span>

@@ -87,7 +87,7 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 p-8 pt-24 font-sans selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-slate-950 text-slate-200 p-8 pt-24 font-sans selection:bg-yellow-600/30">
       <div className="max-w-6xl mx-auto">
         <button
           onClick={() => router.push('/')}
@@ -128,9 +128,9 @@ export default function NotificationsPage() {
             animate={{ opacity: 1, x: 0 }}
             className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden group"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-              <span className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center mr-3 text-sm">⚡</span>
+              <span className="w-8 h-8 rounded-lg bg-yellow-600/20 text-amber-200 flex items-center justify-center mr-3 text-sm">⚡</span>
               Event-based Trigger
             </h2>
             <form onSubmit={onTrigger} className="space-y-5 relative z-10">
@@ -140,7 +140,7 @@ export default function NotificationsPage() {
                   name="type"
                   value={triggerForm.type}
                   onChange={handleTriggerChange}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-colors"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-600/50 focus:border-yellow-600 transition-colors"
                 >
                   <option value="email">Email</option>
                   <option value="whatsapp">WhatsApp</option>
@@ -157,7 +157,7 @@ export default function NotificationsPage() {
                   value={triggerForm.to}
                   onChange={handleTriggerChange}
                   placeholder={triggerForm.type === 'email' ? "user@example.com" : "+919999999999"}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-colors"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-600/50 focus:border-yellow-600 transition-colors"
                   required
                 />
               </div>
@@ -171,7 +171,7 @@ export default function NotificationsPage() {
                     value={triggerForm.subject}
                     onChange={handleTriggerChange}
                     placeholder="Alert Subject"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-colors"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-600/50 focus:border-yellow-600 transition-colors"
                   />
                 </div>
               )}
@@ -184,7 +184,7 @@ export default function NotificationsPage() {
                   onChange={handleTriggerChange}
                   placeholder="Enter alert message..."
                   rows={4}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-colors resize-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-600/50 focus:border-yellow-600 transition-colors resize-none"
                   required
                 ></textarea>
               </div>
@@ -192,7 +192,7 @@ export default function NotificationsPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-4 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50 flex justify-center items-center"
+                className="w-full bg-indigo-600 hover:bg-yellow-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-600/50 flex justify-center items-center"
               >
                 {loading ? (
                   <svg className="animate-spin h-5 w-5 mr-3 text-white" viewBox="0 0 24 24">

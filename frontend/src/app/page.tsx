@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import {
   LogOut, Plus, MessageSquare, Send, Menu, X, Scale,
   Sparkles, Trash2, Copy, Check, ChevronDown, Bot, Search, Paperclip, Zap, Crosshair, Briefcase,
-  ShieldCheck, Clock, AlertTriangle, Fingerprint, ArrowRight, LayoutDashboard
+  ShieldCheck, Clock, AlertTriangle, Fingerprint, ArrowRight, LayoutDashboard, FileStack, Bell, CreditCard, ShieldAlert,
+  SearchIcon, UserCircle, Settings, Users
 } from "lucide-react";
+import WorkspaceDashboard from "@/components/WorkspaceDashboard";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
 
@@ -86,7 +88,7 @@ export default function Home() {
   const [isUpgrading, setIsUpgrading] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) router.push("/login");
+    if (!authLoading && !user) router.push("/landing");
   }, [authLoading, user, router]);
 
   useEffect(() => {
@@ -306,7 +308,7 @@ export default function Home() {
           contact: "9999999999",
         },
         theme: {
-          color: "#a855f7",
+          color: "#d4af37",
         },
       };
 
@@ -330,11 +332,11 @@ export default function Home() {
 
   if (authLoading || !user) {
     return (
-      <div className="flex h-screen w-full items-center justify-center" style={{ background: "#07070d" }}>
+      <div className="flex h-screen w-full items-center justify-center" style={{ background: "#070b16" }}>
         <div className="flex flex-col items-center gap-5">
           <div className="relative">
             <div className="w-16 h-16 rounded-3xl flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 40px rgba(124,110,247,0.4)" }}>
+              style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 40px rgba(124,110,247,0.4)" }}>
               <Scale size={28} className="text-white" />
             </div>
             <div className="absolute inset-0 rounded-3xl animate-spin-slow"
@@ -352,7 +354,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#0a0a0a] text-[#ededed] font-sans">
+    <div className="flex h-screen w-full overflow-hidden bg-[#070b16] text-[#ededed] font-sans">
 
       {/* Mobile overlay */}
       <AnimatePresence>
@@ -369,20 +371,20 @@ export default function Home() {
 
       {/* ─── SIDEBAR ─── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 md:static w-[260px] flex flex-col transition-transform duration-300 ease-in-out bg-[#171717] ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
+        className={`fixed inset-y-0 left-0 z-50 md:static w-[260px] flex flex-col transition-transform duration-300 ease-in-out bg-[#0a0f1d] ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
         {/* Sidebar Header */}
         <div className="flex items-center gap-1.5 px-3 h-[60px] shrink-0">
           <button
             onClick={() => { setActiveChat(null); setMessages([]); if(window.innerWidth < 768) setSidebarOpen(false); }}
-            className={`flex items-center justify-center w-10 h-10 shrink-0 rounded-lg transition-colors ${!activeChat && messages.length === 0 ? 'bg-[#212121] text-[#ededed]' : 'text-[#a1a1aa] hover:bg-[#212121] hover:text-[#ededed]'}`}
+            className={`flex items-center justify-center w-10 h-10 shrink-0 rounded-lg transition-colors ${!activeChat && messages.length === 0 ? 'bg-[#131b31] text-[#ededed]' : 'text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed]'}`}
             title="Dashboard Workspace"
           >
             <LayoutDashboard size={18} />
           </button>
           <button
             onClick={createNewChat}
-            className="flex-1 flex items-center justify-between px-3 h-10 text-sm font-medium text-[#ededed] hover:bg-[#212121] transition-colors rounded-lg group"
+            className="flex-1 flex items-center justify-between px-3 h-10 text-sm font-medium text-[#ededed] hover:bg-[#131b31] transition-colors rounded-lg group"
           >
             <div className="flex items-center gap-2">
               <Scale size={16} className="text-[#a1a1aa]" />
@@ -390,7 +392,7 @@ export default function Home() {
             </div>
             <Plus size={16} className="text-[#a1a1aa] group-hover:text-[#ededed]" />
           </button>
-          <button className="md:hidden w-10 h-10 flex items-center justify-center shrink-0 rounded-lg text-[#a1a1aa] hover:bg-[#212121] hover:text-[#ededed] transition-colors"
+          <button className="md:hidden w-10 h-10 flex items-center justify-center shrink-0 rounded-lg text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed] transition-colors"
             onClick={() => setSidebarOpen(false)}>
             <X size={18} />
           </button>
@@ -398,38 +400,61 @@ export default function Home() {
 
 
 
-        {/* Conversations */}
-        <div className="flex-1 overflow-y-auto px-3 py-2 mt-2">
+        {/* Main Navigation */}
+        <div className="flex flex-col gap-1 px-3 py-4 border-b border-[#1e2642] mb-2 overflow-y-auto custom-scrollbar">
+          <button onClick={() => { setActiveChat(null); setMessages([]); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${!activeChat && messages.length === 0 ? 'bg-[#131b31] text-white' : 'text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed]'}`}>
+            <LayoutDashboard size={18} /> Dashboard
+          </button>
+          <button onClick={createNewChat} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeChat ? 'bg-[#131b31] text-amber-300' : 'text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed]'}`}>
+            <Zap size={18} /> AI Assistant
+          </button>
+          <button onClick={() => router.push('/search')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed] transition-colors">
+            <Search size={18} /> Legal Search
+          </button>
+          <button onClick={() => router.push('/documents')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed] transition-colors">
+            <FileStack size={18} /> Documents
+          </button>
+          <button onClick={() => router.push('/cases')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed] transition-colors">
+            <Briefcase size={18} /> Case Management
+          </button>
+          <button onClick={() => router.push('/marketplace')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed] transition-colors">
+            <Users size={18} /> Lawyer Marketplace
+          </button>
+          <button onClick={() => router.push('/notifications')} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed] transition-colors">
+            <div className="flex items-center gap-3"><Bell size={18} /> Notifications</div>
+            <div className="w-5 h-5 rounded bg-amber-400/20 text-amber-300 text-[10px] flex items-center justify-center font-bold">3</div>
+          </button>
+          <button onClick={handleRazorpayUpgrade} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed] transition-colors">
+            <CreditCard size={18} /> Billing
+          </button>
+
+          {user.role === 'ADMIN' && (
+            <button onClick={() => router.push('/admin')} className="w-full flex items-center gap-3 px-3 py-2.5 mt-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors">
+              <ShieldAlert size={18} /> Admin Console
+            </button>
+          )}
+        </div>
+
+        {/* Conversations History */}
+        <div className="flex-1 overflow-y-auto px-3 py-2">
           {conversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center px-4">
-              <MessageSquare size={20} className="text-[#3f3f46] mb-3" />
-              <p className="text-xs text-[#71717a]">No chats found.</p>
+            <div className="flex flex-col items-center justify-center py-6 text-center px-4 opacity-50">
+              <MessageSquare size={16} className="text-[#2d3759] mb-2" />
+              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">No Chat History</p>
             </div>
           ) : (
             <div className="space-y-0.5">
-              <div className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider px-2 pb-2 mt-4 ml-1">Previous 7 Days</div>
+              <div className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider px-2 pb-2 ml-1">Recent AI Chats</div>
               {conversations.map((conv) => {
                 const isActive = activeChat === conv.id;
                 return (
                   <motion.div key={conv.id} layout className="relative group">
-                    <button
-                      onClick={() => selectConversation(conv)}
-                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${
-                        isActive ? "bg-[#212121]" : "hover:bg-[#212121]/50"
-                      }`}
-                    >
+                    <button onClick={() => selectConversation(conv)} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${isActive ? "bg-[#131b31]" : "hover:bg-[#131b31]/50"}`}>
                       <div className="flex-1 min-w-0 pr-6">
-                        <div className={`truncate text-sm ${isActive ? "text-[#ededed] font-medium" : "text-[#a1a1aa]"}`}>
-                          {conv.title}
-                        </div>
+                        <div className={`truncate text-[13px] ${isActive ? "text-[#ededed] font-medium" : "text-[#a1a1aa]"}`}>{conv.title}</div>
                       </div>
                     </button>
-                    <button
-                      onClick={(e) => deleteConversation(e, conv.id)}
-                      disabled={deletingId === conv.id}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-md text-[#71717a] hover:text-[#ededed] hover:bg-[#3f3f46]"
-                      title="Delete conversation"
-                    >
+                    <button onClick={(e) => deleteConversation(e, conv.id)} disabled={deletingId === conv.id} className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-md text-[#71717a] hover:text-[#ededed] hover:bg-[#2d3759]" title="Delete chat">
                       <Trash2 size={13} />
                     </button>
                   </motion.div>
@@ -444,16 +469,16 @@ export default function Home() {
           <button 
             onClick={handleRazorpayUpgrade}
             disabled={isUpgrading}
-            className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-medium transition-all bg-[#0a0a0a] text-[#d4d4d8] border border-[#27272a] hover:bg-[#27272a] hover:text-white group"
+            className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-medium transition-all bg-[#070b16] text-[#d4d4d8] border border-[#1e2642] hover:bg-[#1e2642] hover:text-white group"
           >
-             <Sparkles size={14} className="text-[#a855f7] group-hover:text-[#c084fc] transition-colors" />
+             <Sparkles size={14} className="text-[#d4af37] group-hover:text-[#f2d680] transition-colors" />
              {isUpgrading ? "Loading..." : "Upgrade to PRO"}
           </button>
         </div>
 
         {/* User Profile */}
         <div className="shrink-0 p-3">
-          <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-[#212121] transition-colors cursor-pointer group" onClick={logout} title="Click to Sign out">
+          <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-[#131b31] transition-colors cursor-pointer group" onClick={logout} title="Click to Sign out">
             <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-medium text-xs text-black bg-[#ededed]">
               {user.email[0].toUpperCase()}
             </div>
@@ -468,17 +493,40 @@ export default function Home() {
       {/* ─── MAIN CONTENT ─── */}
       <main className="flex flex-1 flex-col min-w-0 relative">
 
-        {/* Top Bar */}
-        <header className="flex items-center h-14 px-4 shrink-0 bg-[#0a0a0a]/90 backdrop-blur-md sticky top-0 z-30">
-          <button className="md:hidden mr-3 p-2 rounded-lg transition-colors text-[#a1a1aa] hover:text-white"
-            onClick={() => setSidebarOpen(true)}>
-            <Menu size={20} />
-          </button>
+        {/* Top Navbar */}
+        <header className="flex items-center justify-between h-14 px-4 md:px-6 shrink-0 bg-[#070b16]/80 backdrop-blur-md sticky top-0 z-30 border-b border-[#1e2642]/50">
+          <div className="flex items-center gap-4 flex-1">
+            <button className="md:hidden p-2 -ml-2 rounded-lg transition-colors text-[#a1a1aa] hover:text-white hover:bg-[#131b31]"
+              onClick={() => setSidebarOpen(true)}>
+              <Menu size={20} />
+            </button>
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-[#0d1224] border border-[#1e2642] hover:border-[#2d3759] transition-all rounded-lg max-w-sm w-full group">
+               <SearchIcon size={14} className="text-[#71717a] group-hover:text-[#a1a1aa]" />
+               <input type="text" placeholder="Global search cases, documents, lawyers..." className="bg-transparent border-none outline-none text-sm text-[#ededed] w-full placeholder:text-[#52525b]" />
+               <div className="px-1.5 py-0.5 rounded border border-[#1e2642] text-[10px] text-[#71717a] bg-[#111827] font-mono">⌘K</div>
+            </div>
+            {activeChat && (
+              <span className="text-[14px] font-medium text-[#ededed] truncate block md:hidden ml-1">
+                AI Assistant
+              </span>
+            )}
+          </div>
 
-          <div className="flex items-center gap-2.5 min-w-0">
-             <span className="text-[15px] font-medium text-[#ededed] truncate">
-               {activeConv ? activeConv.title : "Nyaay Legal AI  v3.0"}
-             </span>
+          <div className="flex items-center gap-3 shrink-0">
+             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-yellow-600/10 border border-yellow-600/20 rounded-full text-amber-200 text-xs font-semibold tracking-wider uppercase">
+               <ShieldCheck size={12} /> {user.role}
+             </div>
+             <button className="p-2 rounded-full text-[#a1a1aa] hover:text-[#ededed] hover:bg-[#131b31] transition-colors relative">
+               <Bell size={18} />
+               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
+             </button>
+             <div className="w-px h-5 bg-[#1e2642] mx-1" />
+             <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+               <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-yellow-500 to-yellow-600 flex items-center justify-center text-white text-xs font-bold border border-[#1e2642]">
+                 {user.email[0].toUpperCase()}
+               </div>
+               <ChevronDown size={14} className="text-[#71717a]" />
+             </button>
           </div>
         </header>
 
@@ -487,103 +535,23 @@ export default function Home() {
         {/* Messages */}
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
           <div className="mx-auto max-w-3xl px-4 py-6 pb-44">
-            {messages.length === 0 ? (
-              <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex flex-col pt-8 pb-20 w-full">
-                
-                <div className="flex flex-col items-center mb-12">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[#ededed] text-[#0a0a0a] mb-5 shadow-[0_0_30px_rgba(255,255,255,0.06)]">
-                    <Scale size={28} />
-                  </div>
-                  <h2 className="text-3xl font-semibold text-[#ededed] mb-2 text-center tracking-tight">Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {user.email.split('@')[0]}</h2>
-                  <p className="text-[#a1a1aa] text-[15px] text-center">Welcome to your Nyaay AI Workspace.</p>
+            {messages.length === 0 && !activeChat ? (
+              <WorkspaceDashboard user={user} router={router} triggerChat={createNewChat} triggerPro={handleRazorpayUpgrade} />
+            ) : messages.length === 0 && activeChat ? (
+              <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex flex-col pt-12 pb-20 w-full items-center justify-center min-h-[40vh]">
+                <div className="w-16 h-16 rounded-3xl flex items-center justify-center bg-gradient-to-br from-[#111827] to-[#070b16] border border-[#1e2642] mb-6 shadow-[0_0_30px_rgba(168,85,247,0.1)]">
+                  <Zap size={28} className="text-amber-300" />
                 </div>
+                <h2 className="text-2xl font-semibold text-[#ededed] mb-2 tracking-tight">Nyaay AI Assistant</h2>
+                <p className="text-[#a1a1aa] text-sm mb-10">How can I help with your legal research today?</p>
 
-                <div className="space-y-10 w-full max-w-3xl mx-auto">
-                  
-                  {/* Action Required Logic */}
-                  {(user.role === 'CITIZEN' || (user.role === 'LAWYER' && user.verificationStatus !== 'VERIFIED') || (user.role === 'JUDGE' && user.verificationStatus !== 'VERIFIED')) && (
-                    <section>
-                      <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Action Required
-                      </h3>
-                      <div className="flex flex-col gap-3">
-                        {user.role === 'CITIZEN' && (
-                           <button onClick={() => router.push('/profile/citizen/aadhaar')} className="w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all group bg-[#111827] border border-[#1f2937] hover:bg-[#1f2937]/50 shadow-sm">
-                             <div className="flex items-center gap-4">
-                               <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center"><Fingerprint size={20} className="text-indigo-400" /></div>
-                               <div className="text-left">
-                                 <p className="text-sm font-medium text-indigo-300">Complete Aadhaar eKYC</p>
-                                 <p className="text-xs text-indigo-400/70 mt-0.5">Verify your identity to unlock core legal services.</p>
-                               </div>
-                             </div>
-                             <ArrowRight size={18} className="text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                           </button>
-                        )}
-                        {user.role === 'LAWYER' && user.verificationStatus !== 'VERIFIED' && (
-                           <button onClick={() => router.push('/profile/lawyer')} className="w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all group bg-[#1c1917] border border-[#292524] hover:bg-[#292524]/50 shadow-sm">
-                             <div className="flex items-center gap-4">
-                               <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center"><ShieldCheck size={20} className="text-amber-400" /></div>
-                               <div className="text-left">
-                                 <p className="text-sm font-medium text-amber-300">Submit Bar Council Verification</p>
-                                 <p className="text-xs text-amber-400/70 mt-0.5">Your lawyer profile is awaiting credential verification.</p>
-                               </div>
-                             </div>
-                             <ArrowRight size={18} className="text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                           </button>
-                        )}
-                        {user.role === 'JUDGE' && user.verificationStatus !== 'VERIFIED' && (
-                           <button onClick={() => router.push('/profile/judge')} className="w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all group bg-[#2e1065]/40 border border-[#4c1d95]/40 hover:bg-[#4c1d95]/30 shadow-sm">
-                             <div className="flex items-center gap-4">
-                               <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center"><Clock size={20} className="text-purple-400" /></div>
-                               <div className="text-left">
-                                 <p className="text-sm font-medium text-purple-300">Account Pending Admin Approval</p>
-                                 <p className="text-xs text-purple-400/70 mt-0.5">Check your account status and required steps.</p>
-                               </div>
-                             </div>
-                             <ArrowRight size={18} className="text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                           </button>
-                        )}
-                      </div>
-                    </section>
-                  )}
-
-                  <section>
-                    <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-3 px-1">Core Applications</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <button onClick={() => router.push('/search')} className="flex flex-col items-start gap-4 p-5 rounded-2xl bg-[#141414] border border-[#2a2a2a] hover:bg-[#1a1a1a] hover:border-[#3a3a3a] transition-all group">
-                        <div className="w-10 h-10 rounded-xl bg-[#212121] flex items-center justify-center group-hover:bg-[#2a2a2a] transition-colors"><Search size={20} className="text-[#a1a1aa] group-hover:text-[#ededed]" /></div>
-                        <span className="text-sm font-medium text-[#ededed]">Database</span>
-                      </button>
-                      <button onClick={() => router.push('/intelligence')} className="flex flex-col items-start gap-4 p-5 rounded-2xl bg-[#141414] border border-[#2a2a2a] hover:bg-[#1a1a1a] hover:border-[#3a3a3a] transition-all group">
-                        <div className="w-10 h-10 rounded-xl bg-[#212121] flex items-center justify-center group-hover:bg-[#2a2a2a] transition-colors"><Crosshair size={20} className="text-[#a1a1aa] group-hover:text-[#ededed]" /></div>
-                        <span className="text-sm font-medium text-[#ededed]">Strategy</span>
-                      </button>
-                      <button onClick={() => router.push('/marketplace')} className="flex flex-col items-start gap-4 p-5 rounded-2xl bg-[#141414] border border-[#2a2a2a] hover:bg-[#1a1a1a] hover:border-[#3a3a3a] transition-all group">
-                        <div className="w-10 h-10 rounded-xl bg-[#212121] flex items-center justify-center group-hover:bg-[#2a2a2a] transition-colors"><Briefcase size={20} className="text-[#a1a1aa] group-hover:text-[#ededed]" /></div>
-                        <span className="text-sm font-medium text-[#ededed]">Lawyers</span>
-                      </button>
-                      <button onClick={() => router.push('/notifications')} className="flex flex-col items-start gap-4 p-5 rounded-2xl bg-[#141414] border border-[#2a2a2a] hover:bg-[#1a1a1a] hover:border-[#3a3a3a] transition-all group">
-                        <div className="w-10 h-10 rounded-xl bg-[#212121] flex items-center justify-center group-hover:bg-[#2a2a2a] transition-colors"><Zap size={20} className="text-[#a1a1aa] group-hover:text-[#ededed]" /></div>
-                        <span className="text-sm font-medium text-[#ededed]">Alerts</span>
-                      </button>
-                    </div>
-                  </section>
-
-                  <section>
-                    <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-3 px-1">Start a Conversation</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {SUGGESTED.map((s, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handleSuggestedClick(s.text)}
-                          className="flex items-center gap-3 p-4 rounded-2xl border border-[rgba(255,255,255,0.03)] bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.05)] transition-all text-left"
-                        >
-                          <span className="text-lg shrink-0 opacity-80">{s.icon}</span>
-                          <span className="text-sm font-medium text-[#d4d4d8] leading-tight">{s.text}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl px-4">
+                  {SUGGESTED.map((s, i) => (
+                    <button key={i} onClick={() => handleSuggestedClick(s.text)} className="flex items-center gap-3 p-4 rounded-xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.05)] hover:border-[rgba(255,255,255,0.08)] transition-all text-left">
+                      <span className="text-lg shrink-0 opacity-80">{s.icon}</span>
+                      <span className="text-sm font-medium text-[#d4d4d8] leading-tight">{s.text}</span>
+                    </button>
+                  ))}
                 </div>
               </motion.div>
             ) : (
@@ -591,14 +559,14 @@ export default function Home() {
                 {messages.map((msg, i) => (
                   <motion.div key={msg.id || i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-4`}>
                     {msg.role === "assistant" && (
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-[#ededed] text-black border border-[#2a2a2a] mt-1">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-[#ededed] text-black border border-[#1e2642] mt-1">
                         <Scale size={16} />
                       </div>
                     )}
                     <div className={`flex flex-col group ${msg.role === "user" ? "items-end max-w-[70%]" : "items-start max-w-[85%]"}`}>
                       <div className={`px-5 py-3.5 text-[15px] leading-relaxed ${
                           msg.role === "user" 
-                            ? "bg-[#2f2f2f] text-[#ededed] rounded-3xl rounded-tr-sm" 
+                            ? "bg-[#1a2442] text-[#ededed] rounded-3xl rounded-tr-sm" 
                             : "bg-transparent text-[#ededed] rounded-lg"
                         }`}>
                         <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -650,14 +618,14 @@ export default function Home() {
         </AnimatePresence>
 
         {/* ─── INPUT BAR ─── */}
-        <div className="absolute inset-x-0 bottom-0 pb-6 pt-12 pointer-events-none bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/90 to-transparent z-10 lg:pl-[260px]">
+        <div className="absolute inset-x-0 bottom-0 pb-6 pt-12 pointer-events-none bg-gradient-to-t from-[#070b16] via-[#070b16]/90 to-transparent z-10 lg:pl-[260px]">
           <div className="mx-auto max-w-3xl px-4 pointer-events-auto">
-            <div className="relative flex items-end gap-2 rounded-2xl p-2.5 bg-[#2f2f2f] text-[#ededed] shadow-sm ring-1 ring-white/10 focus-within:ring-white/25 transition-all">
+            <div className="relative flex items-end gap-2 rounded-2xl p-2.5 bg-[#1a2442] text-[#ededed] shadow-sm ring-1 ring-white/10 focus-within:ring-white/25 transition-all">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingDoc}
-                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-[#a1a1aa] hover:text-[#ededed] hover:bg-[#3f3f46] transition-colors"
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-[#a1a1aa] hover:text-[#ededed] hover:bg-[#2d3759] transition-colors"
                 title="Upload Document"
               >
                 {uploadingDoc ? <div className="animate-spin w-4 h-4 border-2 border-t-transparent border-[#ededed] rounded-full" /> : <Paperclip size={20} />}
@@ -683,7 +651,7 @@ export default function Home() {
                   }
                 }}
                 disabled={!input.trim() || loadingChat}
-                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[#ededed] text-[#0a0a0a] disabled:opacity-30 disabled:bg-[#3f3f46] disabled:text-[#a1a1aa] transition-colors"
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[#ededed] text-[#070b16] disabled:opacity-30 disabled:bg-[#2d3759] disabled:text-[#a1a1aa] transition-colors"
               >
                 <ArrowRight size={20} />
               </button>

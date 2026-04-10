@@ -119,14 +119,14 @@ export default function AdminDashboard() {
 
   if (authLoading || (!user || user.role !== "ADMIN")) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#07070d" }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#070b16" }}>
         <div className="w-10 h-10 rounded-full border-2 border-yellow-500/30 border-t-yellow-500 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#07070d" }}>
+    <div className="min-h-screen" style={{ background: "#070b16" }}>
       {/* Ambient */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] rounded-full"
@@ -182,7 +182,7 @@ export default function AdminDashboard() {
             <StatCard icon={Users} label="Total Users" value={stats.totalUsers} color="#6366f1" />
             <StatCard icon={Shield} label="Lawyers" value={stats.totalLawyers}
               color="#8b5cf6" sub={`${stats.verifiedLawyers} verified`} />
-            <StatCard icon={Gavel} label="Judges" value={stats.totalJudges} color="#a855f7" />
+            <StatCard icon={Gavel} label="Judges" value={stats.totalJudges} color="#d4af37" />
             <StatCard icon={Clock} label="Pending Reviews"
               value={stats.pendingLawyers + stats.pendingJudges}
               color="#f59e0b"
@@ -231,7 +231,7 @@ export default function AdminDashboard() {
               ) : pendingLawyers.map(lawyer => (
                 <div key={lawyer.id} className="p-5 flex items-start gap-4">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm text-white"
-                    style={{ background: "linear-gradient(135deg,#7c6ef7,#a855f7)" }}>
+                    style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)" }}>
                     {(lawyer.fullName || lawyer.user.email)[0].toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -288,7 +288,7 @@ export default function AdminDashboard() {
               ) : pendingJudges.map(judge => (
                 <div key={judge.id} className="p-5 flex items-start gap-4">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm text-white"
-                    style={{ background: "linear-gradient(135deg,#a855f7,#7c3aed)" }}>
+                    style={{ background: "linear-gradient(135deg,#d4af37,#7c3aed)" }}>
                     {(judge.fullName || judge.user.email)[0].toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">

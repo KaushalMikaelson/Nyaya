@@ -52,7 +52,7 @@ const ROLES: RoleCard[] = [
     icon: Gavel,
     label: "Judge",
     desc: "Access judicial tools with government ID verification",
-    color: "#a855f7",
+    color: "#d4af37",
     glow: "rgba(168,85,247,0.25)",
     badge: "Government",
   },
@@ -288,7 +288,7 @@ export default function Register() {
   const selectedRole = ROLES.find(r => r.role === role)!;
 
   return (
-    <div className="min-h-screen w-full flex" style={{ background: "#07070d" }}>
+    <div className="min-h-screen w-full flex" style={{ background: "#070b16" }}>
 
       {/* ─── Left visual panel ─── */}
       <div className="hidden lg:flex lg:w-[48%] relative flex-col justify-between p-14 overflow-hidden">
@@ -303,13 +303,13 @@ export default function Register() {
           backgroundSize: "28px 28px"
         }} />
         <div className="absolute inset-0" style={{
-          background: "linear-gradient(to right, #07070d 0%, transparent 30%, transparent 70%, #07070d 100%)"
+          background: "linear-gradient(to right, #070b16 0%, transparent 30%, transparent 70%, #070b16 100%)"
         }} />
 
         {/* Logo */}
         <div className="relative z-10 flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 28px rgba(124,110,247,0.45)" }}>
+            style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 28px rgba(124,110,247,0.45)" }}>
             <Scale size={20} className="text-white" />
           </div>
           <span className="text-xl font-bold tracking-tight text-white">Nyaya</span>
@@ -327,7 +327,7 @@ export default function Register() {
             </p>
             <h1 className="text-4xl font-extrabold leading-tight text-white tracking-tight">
               Join India&apos;s<br />
-              <span style={{ background: "linear-gradient(135deg,#818cf8,#c084fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              <span style={{ background: "linear-gradient(135deg,#818cf8,#f2d680)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                 legal revolution.
               </span>
             </h1>
@@ -412,7 +412,7 @@ export default function Register() {
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-3 mb-10 justify-center">
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg,#7c6ef7,#a855f7)", boxShadow: "0 0 24px rgba(124,110,247,0.4)" }}>
+              style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", boxShadow: "0 0 24px rgba(124,110,247,0.4)" }}>
               <Scale size={20} className="text-white" />
             </div>
             <span className="text-xl font-bold text-white">Nyaya</span>
@@ -502,7 +502,7 @@ export default function Register() {
                 onClick={handleRoleNext}
                 whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.975 }}
                 className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2"
-                style={{ background: "linear-gradient(135deg,#7c6ef7,#a855f7)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
+                style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
                 Continue as {selectedRole.label}
                 <ArrowRight size={16} />
               </motion.button>
@@ -626,7 +626,7 @@ export default function Register() {
                       </select>
                     </div>
                     <div className="rounded-xl p-3.5" style={{ background: "rgba(168,85,247,0.07)", border: "1px solid rgba(168,85,247,0.15)" }}>
-                      <p className="text-xs" style={{ color: "#a855f7" }}>
+                      <p className="text-xs" style={{ color: "#d4af37" }}>
                         🔐 Judge accounts require admin approval after email verification. Your government credentials will be verified by our team.
                       </p>
                     </div>
@@ -636,7 +636,7 @@ export default function Register() {
                 <motion.button type="submit" disabled={loading}
                   whileHover={{ scale: loading ? 1 : 1.015 }} whileTap={{ scale: loading ? 1 : 0.975 }}
                   className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: "linear-gradient(135deg,#7c6ef7,#a855f7)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
+                  style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
                   {loading
                     ? <span className="h-5 w-5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
                     : <><span>Create account & verify email</span><ArrowRight size={16} /></>
@@ -669,7 +669,7 @@ export default function Register() {
                 <motion.button type="submit" disabled={loading || otp.length < 6}
                   whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.975 }}
                   className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: "linear-gradient(135deg,#7c6ef7,#a855f7)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
+                  style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
                   {loading
                     ? <span className="h-5 w-5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
                     : <><span>Verify &amp; Continue</span><ArrowRight size={16} /></>
@@ -736,7 +736,7 @@ export default function Register() {
               }>
                 <motion.button whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.975 }}
                   className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2"
-                  style={{ background: "linear-gradient(135deg,#7c6ef7,#a855f7)" }}>
+                  style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)" }}>
                   {role === "LAWYER" ? "Complete Lawyer Profile →"
                     : role === "JUDGE" ? "View Account Status →"
                     : "Go to Dashboard →"}
@@ -753,7 +753,7 @@ export default function Register() {
                 Already have an account?{" "}
                 <Link href="/login" className="font-semibold transition-colors"
                   style={{ color: "#9d8fff" }}
-                  onMouseOver={e => (e.currentTarget.style.color = "#c084fc")}
+                  onMouseOver={e => (e.currentTarget.style.color = "#f2d680")}
                   onMouseOut={e => (e.currentTarget.style.color = "#9d8fff")}>
                   Sign in
                 </Link>

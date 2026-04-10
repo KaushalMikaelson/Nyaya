@@ -152,7 +152,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full flex" style={{ background: "#07070d" }}>
+    <div className="min-h-screen w-full flex" style={{ background: "#070b16" }}>
 
       {/* ─── Left Panel ─── */}
       <div className="hidden lg:flex lg:w-[52%] relative flex-col justify-between p-14 overflow-hidden">
@@ -167,12 +167,12 @@ export default function Login() {
         <div className="absolute inset-0"
           style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
         <div className="absolute inset-0"
-          style={{ background: "linear-gradient(to right, #07070d 0%, transparent 30%, transparent 70%, #07070d 100%)" }} />
+          style={{ background: "linear-gradient(to right, #070b16 0%, transparent 30%, transparent 70%, #070b16 100%)" }} />
 
         {/* Logo */}
         <div className="relative flex items-center gap-3 z-10">
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 28px rgba(124,110,247,0.45)" }}>
+            style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 28px rgba(124,110,247,0.45)" }}>
             <Scale size={20} className="text-white" />
           </div>
           <span className="text-xl font-bold tracking-tight text-white">Nyaay</span>
@@ -241,7 +241,7 @@ export default function Login() {
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-3 mb-10 justify-center">
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 24px rgba(124,110,247,0.4)" }}>
+              style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 24px rgba(124,110,247,0.4)" }}>
               <Scale size={20} className="text-white" />
             </div>
             <span className="text-xl font-bold text-white">Nyaay</span>
@@ -304,7 +304,7 @@ export default function Login() {
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-semibold tracking-wide uppercase" style={{ color: "#5a5a70" }}>Password</label>
                       <Link href="/forgot-password" className="text-xs transition-colors" style={{ color: "#9d8fff" }}
-                        onMouseOver={e => (e.currentTarget.style.color = "#c084fc")}
+                        onMouseOver={e => (e.currentTarget.style.color = "#f2d680")}
                         onMouseOut={e => (e.currentTarget.style.color = "#9d8fff")}>
                         Forgot password?
                       </Link>
@@ -333,7 +333,7 @@ export default function Login() {
                   <motion.button type="submit" disabled={isLoading} id="login-submit"
                     whileHover={{ scale: isLoading ? 1 : 1.015 }} whileTap={{ scale: isLoading ? 1 : 0.975 }}
                     className="relative w-full overflow-hidden rounded-xl py-3 font-semibold text-white transition-all duration-300 mt-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 32px rgba(124,110,247,0.3)" }}>
+                    style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 32px rgba(124,110,247,0.3)" }}>
                     <span className="relative flex items-center justify-center gap-2">
                       {isLoading
                         ? <span className="h-5 w-5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
@@ -376,7 +376,7 @@ export default function Login() {
                       <motion.button type="submit" disabled={isLoading} id="otp-request-submit"
                         whileHover={{ scale: isLoading ? 1 : 1.015 }} whileTap={{ scale: isLoading ? 1 : 0.975 }}
                         className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
-                        style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
+                        style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
                         {isLoading
                           ? <span className="h-5 w-5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
                           : <><span>Send OTP</span><ArrowRight size={16} /></>
@@ -400,7 +400,7 @@ export default function Login() {
                       <motion.button type="submit" disabled={isLoading || otp.length < 6} id="otp-verify-submit"
                         whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.975 }}
                         className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                        style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
+                        style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 28px rgba(124,110,247,0.3)" }}>
                         {isLoading
                           ? <span className="h-5 w-5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
                           : <><span>Verify & Sign In</span><CheckCircle2 size={16} /></>
@@ -432,7 +432,7 @@ export default function Login() {
             <p className="text-sm" style={{ color: "#4a4a62" }}>
               Don&apos;t have an account?{" "}
               <Link href="/signup" className="font-semibold transition-colors" style={{ color: "#9d8fff" }}
-                onMouseOver={e => (e.currentTarget.style.color = "#c084fc")}
+                onMouseOver={e => (e.currentTarget.style.color = "#f2d680")}
                 onMouseOut={e => (e.currentTarget.style.color = "#9d8fff")}>
                 Create one free
               </Link>

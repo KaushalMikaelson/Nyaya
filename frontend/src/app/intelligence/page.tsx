@@ -41,7 +41,7 @@ export default function CaseIntelligence() {
   };
 
   return (
-    <div className="min-h-screen text-white flex flex-col" style={{ background: "#07070d" }}>
+    <div className="min-h-screen text-white flex flex-col" style={{ background: "#070b16" }}>
       {/* Header */}
       <header className="flex items-center h-16 px-4 sticky top-0 z-10"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(7,7,13,0.8)", backdropFilter: "blur(12px)" }}>
@@ -49,7 +49,7 @@ export default function CaseIntelligence() {
           <ArrowLeft size={20} />
         </button>
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)" }}>
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)" }}>
             <Crosshair size={16} className="text-white" />
           </div>
           <div>
@@ -80,7 +80,7 @@ export default function CaseIntelligence() {
               onClick={handleAnalyze}
               disabled={loading || !input.trim()}
               className="absolute bottom-4 right-4 flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-xl disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)" }}
+              style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)" }}
             >
               {loading ? (
                 <>
@@ -111,7 +111,7 @@ export default function CaseIntelligence() {
           {loading && (
             <div className="h-full flex items-center justify-center rounded-2xl border border-white/5 bg-[#11111a] min-h-[400px]">
               <div className="animate-pulse text-center space-y-4">
-                <div className="w-12 h-12 rounded-2xl mx-auto border-t-2 border-purple-500 animate-spin" />
+                <div className="w-12 h-12 rounded-2xl mx-auto border-t-2 border-amber-400 animate-spin" />
                 <p className="text-sm font-semibold" style={{ color: "#a0a0bd" }}>Structuring RAG Case Strategy...</p>
               </div>
             </div>
@@ -123,7 +123,7 @@ export default function CaseIntelligence() {
               {/* Core Understanding */}
               <div className="p-5 rounded-2xl" style={{ background: "rgba(124,110,247,0.1)", border: "1px solid rgba(124,110,247,0.2)" }}>
                 <h3 className="text-sm font-bold flex items-center gap-2 mb-2" style={{ color: "#c8c8e0" }}>
-                  <Crosshair size={14} className="text-purple-400" /> Executive Summary
+                  <Crosshair size={14} className="text-amber-300" /> Executive Summary
                 </h3>
                 <p className="text-sm leading-relaxed" style={{ color: "#e0e0f4" }}>{result.understanding}</p>
               </div>

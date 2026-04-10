@@ -53,7 +53,7 @@ export default function DocumentGenerator() {
   };
 
   return (
-    <div className="min-h-screen text-white flex flex-col" style={{ background: "#07070d" }}>
+    <div className="min-h-screen text-white flex flex-col" style={{ background: "#070b16" }}>
       {/* Top Header */}
       <header className="flex block md:hidden items-center h-14 px-4 sticky top-0 z-10"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(7,7,13,0.8)", backdropFilter: "blur(12px)" }}>
@@ -134,7 +134,7 @@ export default function DocumentGenerator() {
               type="submit"
               disabled={loading || !form.prompt.trim()}
               className="w-full mt-4 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white transition-all disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg, #7c6ef7, #a855f7)", boxShadow: "0 0 20px rgba(124,110,247,0.3)" }}
+              style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 20px rgba(124,110,247,0.3)" }}
             >
               {loading ? (
                 <>
@@ -157,7 +157,7 @@ export default function DocumentGenerator() {
             <h2 className="text-xl font-bold tracking-tight">Draft Output Engine</h2>
             {generatedResult && (
               <button onClick={handleCopy} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
-                style={{ background: copied ? "rgba(34,197,94,0.1)" : "rgba(124,110,247,0.1)", color: copied ? "#4ade80" : "#a855f7" }}>
+                style={{ background: copied ? "rgba(34,197,94,0.1)" : "rgba(124,110,247,0.1)", color: copied ? "#4ade80" : "#d4af37" }}>
                 {copied ? <Check size={14} /> : <Copy size={14} />}
                 {copied ? "Copied" : "Copy Target"}
               </button>

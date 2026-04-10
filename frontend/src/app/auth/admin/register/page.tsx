@@ -216,7 +216,7 @@ function AdminRegisterInner() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-6" style={{ background: "#07070d" }}>
+    <div className="min-h-screen w-full flex items-center justify-center p-6" style={{ background: "#070b16" }}>
 
       {/* Amber ambient glow */}
       <div className="fixed inset-0 pointer-events-none">
@@ -451,7 +451,7 @@ function AdminRegisterInner() {
 export default function AdminRegisterPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#07070d" }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#070b16" }}>
         <div className="w-8 h-8 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
       </div>
     }>
