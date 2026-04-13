@@ -77,6 +77,16 @@ router.get('/lawyers', authenticate, (req, res) => {
   res.json({ lawyers: LAWYERS });
 });
 
+router.get('/lawyers/:id', authenticate, (req, res) => {
+  const lawyerId = req.params.id;
+  const lawyer = LAWYERS.find(l => l.id === lawyerId);
+  if (lawyer) {
+    res.json({ lawyer });
+  } else {
+    res.status(404).json({ error: "Lawyer not found" });
+  }
+});
+
 router.post('/match', authenticate, async (req, res) => {
   try {
     const { caseDescription } = req.body;

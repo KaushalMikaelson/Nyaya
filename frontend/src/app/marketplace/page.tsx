@@ -26,6 +26,16 @@ export default function MarketplacePage() {
   const [loading, setLoading] = useState(false);
   const [isMatched, setIsMatched] = useState(false);
 
+  // Filters
+  const [filterSpecialty, setFilterSpecialty] = useState('');
+  const [filterExperience, setFilterExperience] = useState('');
+
+  const displayedLawyers = lawyers.filter(l => {
+    if (filterSpecialty && !l.specialties.includes(filterSpecialty)) return false;
+    if (filterExperience && l.experienceYears < parseInt(filterExperience)) return false;
+    return true;
+  });
+
   useEffect(() => {
     // Load all lawyers initially
     const fetchLawyers = async () => {
@@ -151,6 +161,32 @@ export default function MarketplacePage() {
           </form>
         </motion.div>
 
+        {/* Global Filters */}
+        <div className="mb-8 flex gap-4 md:flex-row flex-col">
+          <select 
+            className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-slate-300 focus:border-amber-500 outline-none"
+            value={filterSpecialty} onChange={e => setFilterSpecialty(e.target.value)}
+          >
+            <option value="">All Specialties</option>
+            <option value="Criminal Law">Criminal Law</option>
+            <option value="Family Law">Family Law</option>
+            <option value="Corporate Law">Corporate Law</option>
+            <option value="Property Law">Property Law</option>
+            <option value="Cyber Law">Cyber Law</option>
+            <option value="Labor & Employment Law">Labor Law</option>
+          </select>
+          
+          <select 
+            className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-slate-300 focus:border-amber-500 outline-none"
+            value={filterExperience} onChange={e => setFilterExperience(e.target.value)}
+          >
+            <option value="">Any Experience</option>
+            <option value="5">5+ Years</option>
+            <option value="10">10+ Years</option>
+            <option value="15">15+ Years</option>
+          </select>
+        </div>
+
         {/* Lawyer Roster */}
         {loading ? (
            <div className="py-20 text-center flex flex-col justify-center items-center gap-4">
@@ -159,7 +195,7 @@ export default function MarketplacePage() {
            </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {lawyers.map((lawyer, idx) => (
+            {displayedLawyers.map((lawyer, idx) => (
               <motion.div
                 key={lawyer.id}
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -217,7 +253,7 @@ export default function MarketplacePage() {
                   )}
                 </div>
 
-                <button className="w-full py-2.5 rounded-xl border border-slate-700 bg-slate-800/50 hover:bg-amber-600 hover:border-amber-500 hover:text-white transition-colors text-sm font-bold text-slate-300 mt-auto">
+                <button onClick={() => router.push(`/marketplace/${lawyer.id}`)} className="w-full py-2.5 rounded-xl border border-slate-700 bg-slate-800/50 hover:bg-amber-600 hover:border-amber-500 hover:text-white transition-colors text-sm font-bold text-slate-300 mt-auto">
                   Book Consultation
                 </button>
               </motion.div>
