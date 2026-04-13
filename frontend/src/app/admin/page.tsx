@@ -8,8 +8,12 @@ import { motion } from "framer-motion";
 import {
   Scale, LogOut, Users, Shield, Gavel, CheckCircle2,
   Clock, XCircle, UserCheck, Building2, RefreshCw,
-  ChevronRight, Crown, AlertTriangle,
+  Crown, AlertTriangle, Activity, CreditCard, BlockOutlined
 } from "lucide-react";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Legend
+} from 'recharts';
 
 // ─────────────────────────────────────────
 // TYPES
@@ -36,6 +40,29 @@ interface PendingJudge {
   court: string; courtLevel: string; verificationStatus: string;
   user: { id: string; email: string; createdAt: string; isEmailVerified: boolean };
 }
+
+interface PlatformUser {
+  id: string; email: string; role: string; isActive: boolean;
+  isEmailVerified: boolean; isPro: boolean; createdAt: string;
+}
+
+// ─────────────────────────────────────────
+// RECHARTS MOCK DATA
+// ─────────────────────────────────────────
+const revenueData = [
+  { name: 'Jan', ProSubs: 4000, Marketplace: 2400 },
+  { name: 'Feb', ProSubs: 5000, Marketplace: 1398 },
+  { name: 'Mar', ProSubs: 6000, Marketplace: 3800 },
+  { name: 'Apr', ProSubs: 7000, Marketplace: 3908 },
+  { name: 'May', ProSubs: 8500, Marketplace: 4800 },
+  { name: 'Jun', ProSubs: 11000, Marketplace: 3800 },
+];
+
+const activityData = [
+  { name: '12am', queries: 20 }, { name: '4am', queries: 10 },
+  { name: '8am', queries: 60 }, { name: '12pm', queries: 110 },
+  { name: '4pm', queries: 150 }, { name: '8pm', queries: 90 }
+];
 
 // ─────────────────────────────────────────
 // STAT CARD
@@ -70,12 +97,20 @@ export default function AdminDashboard() {
   const { user, loading: authLoading, logout } = useAuth();
   const router = useRouter();
 
+  const [activeTab, setActiveTab] = useState<'verifications' | 'users' | 'billing'>('verifications');
+
   const [stats, setStats] = useState<Stats | null>(null);
+  
+  // Verification State
   const [pendingLawyers, setPendingLawyers] = useState<PendingLawyer[]>([]);
   const [pendingJudges, setPendingJudges] = useState<PendingJudge[]>([]);
+  const [vTab, setVTab] = useState<"lawyers" | "judges">("lawyers");
+
+  // User Management
+  const [allUsers, setAllUsers] = useState<PlatformUser[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [tab, setTab] = useState<"lawyers" | "judges">("lawyers");
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "ADMIN")) {
@@ -86,14 +121,16 @@ export default function AdminDashboard() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsRes, lawyersRes, judgesRes] = await Promise.all([
-        api.get("/api/admin/stats"),
-        api.get("/api/admin/pending/lawyers"),
-        api.get("/api/admin/pending/judges"),
+      const [statsRes, lawyersRes, judgesRes, usersRes] = await Promise.all([
+        api.get("/admin/stats"),
+        api.get("/admin/pending/lawyers"),
+        api.get("/admin/pending/judges"),
+        api.get("/admin/users?limit=50"), // Initial fetch
       ]);
       setStats(statsRes.data);
       setPendingLawyers(lawyersRes.data.lawyers || []);
       setPendingJudges(judgesRes.data.judges || []);
+      setAllUsers(usersRes.data.users || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -108,12 +145,25 @@ export default function AdminDashboard() {
   const handleAction = async (type: "lawyer" | "judge", userId: string, action: "approve" | "reject") => {
     setActionLoading(`${type}-${userId}-${action}`);
     try {
-      await api.post(`/api/admin/verify/${type}/${userId}`, { action });
+      await api.post(`/admin/verify/${type}/${userId}`, { action });
       await fetchAll();
     } catch (err) {
       console.error(err);
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleUserToggle = async (userId: string, currentStatus: boolean) => {
+    setActionLoading(`user-${userId}`);
+    try {
+       const url = currentStatus ? `/admin/users/${userId}/suspend` : `/admin/users/${userId}/reactivate`;
+       await api.post(url);
+       await fetchAll();
+    } catch (err) {
+       console.error(err);
+    } finally {
+       setActionLoading(null);
     }
   };
 
@@ -127,240 +177,268 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen" style={{ background: "#070b16" }}>
-      {/* Ambient */}
-      <div className="fixed inset-0 pointer-events-none">
+      <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] rounded-full"
           style={{ background: "radial-gradient(ellipse, rgba(245,158,11,0.06) 0%, transparent 70%)" }} />
       </div>
 
-      {/* Header */}
-      <header className="sticky top-0 z-30 px-6 h-14 flex items-center justify-between"
+      <header className="sticky top-0 z-40 px-6 h-16 flex items-center justify-between"
         style={{ background: "rgba(7,7,13,0.92)", borderBottom: "1px solid rgba(255,255,255,0.05)", backdropFilter: "blur(16px)" }}>
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg,#f59e0b,#d97706)", boxShadow: "0 0 20px rgba(245,158,11,0.4)" }}>
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-gradient-to-br from-amber-500 to-orange-600 shadow-[0_0_20px_rgba(245,158,11,0.4)]">
             <Scale size={15} className="text-white" />
           </div>
-          <span className="text-base font-bold text-white">Nyaya</span>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
-            style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24", border: "1px solid rgba(245,158,11,0.25)" }}>
-            ADMIN
-          </span>
+          <span className="text-base font-bold text-white tracking-widest uppercase">Nyaya Admin Panel</span>
         </div>
+
+        <nav className="hidden md:flex items-center gap-2">
+           <button onClick={() => setActiveTab('verifications')} className={`px-4 py-2 text-sm font-semibold rounded-full transition-all ${activeTab === 'verifications' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'text-slate-400 hover:text-slate-200'}`}>Verifications</button>
+           <button onClick={() => setActiveTab('users')} className={`px-4 py-2 text-sm font-semibold rounded-full transition-all ${activeTab === 'users' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'text-slate-400 hover:text-slate-200'}`}>User Management</button>
+           <button onClick={() => setActiveTab('billing')} className={`px-4 py-2 text-sm font-semibold rounded-full transition-all ${activeTab === 'billing' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'text-slate-400 hover:text-slate-200'}`}>Analytics & Billing</button>
+        </nav>
+
         <div className="flex items-center gap-4">
-          <button onClick={fetchAll} disabled={loading}
-            className="p-2 rounded-lg transition-colors" style={{ color: "#5a5a70" }}
-            onMouseOver={e => (e.currentTarget.style.color = "#fbbf24")}
-            onMouseOut={e => (e.currentTarget.style.color = "#5a5a70")}>
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+          <button onClick={fetchAll} disabled={loading} className="p-2 rounded-lg text-slate-400 hover:text-amber-400 transition-colors">
+            <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           </button>
-          <div className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full"
-            style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", color: "#fbbf24" }}>
-            <Crown size={12} />
-            {user.email}
+          <div className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+            <Crown size={12} /> {user.email}
           </div>
-          <button onClick={logout} className="p-2 rounded-lg transition-colors" style={{ color: "#5a5a70" }}
-            onMouseOver={e => (e.currentTarget.style.color = "#ef4444")}
-            onMouseOut={e => (e.currentTarget.style.color = "#5a5a70")}>
-            <LogOut size={16} />
+          <button onClick={() => { logout(); router.push('/login'); }} className="p-2 rounded-lg text-slate-400 hover:text-red-500 transition-colors">
+            <LogOut size={18} />
           </button>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* Title */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white mb-1">Admin Dashboard</h1>
-          <p className="text-sm" style={{ color: "#6a6a80" }}>
-            Manage lawyer and judge verifications, and platform users.
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 py-8 relative z-10">
 
-        {/* Stats Grid */}
-        {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <StatCard icon={Users} label="Total Users" value={stats.totalUsers} color="#6366f1" />
-            <StatCard icon={Shield} label="Lawyers" value={stats.totalLawyers}
-              color="#8b5cf6" sub={`${stats.verifiedLawyers} verified`} />
-            <StatCard icon={Gavel} label="Judges" value={stats.totalJudges} color="#d4af37" />
-            <StatCard icon={Clock} label="Pending Reviews"
-              value={stats.pendingLawyers + stats.pendingJudges}
-              color="#f59e0b"
-              sub={`${stats.pendingLawyers} lawyers · ${stats.pendingJudges} judges`} />
-          </div>
+        {stats && activeTab === 'verifications' && (
+          <motion.div initial={{opacity:0}} animate={{opacity:1}}>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <StatCard icon={Users} label="Total Users" value={stats.totalUsers} color="#6366f1" />
+              <StatCard icon={Shield} label="Lawyers" value={stats.totalLawyers}
+                color="#8b5cf6" sub={`${stats.verifiedLawyers} verified`} />
+              <StatCard icon={Gavel} label="Judges" value={stats.totalJudges} color="#4ade80" />
+              <StatCard icon={Clock} label="Pending Reviews"
+                value={stats.pendingLawyers + stats.pendingJudges}
+                color="#f59e0b"
+                sub={`${stats.pendingLawyers} lawyers · ${stats.pendingJudges} judges`} />
+            </div>
+
+            <div className="bg-[#111827] rounded-3xl overflow-hidden border border-slate-800">
+              <div className="flex border-b border-slate-800">
+                {(["lawyers", "judges"] as const).map(t => (
+                  <button key={t} onClick={() => setVTab(t)}
+                    className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-semibold transition-all ${vTab === t ? 'text-amber-400 border-b-2 border-amber-400 bg-slate-800/30' : 'text-slate-400 border-b-2 border-transparent hover:text-slate-200'}`}>
+                    {t === "lawyers" ? <Shield size={16} /> : <Gavel size={16} />}
+                    {t === "lawyers" ? "Pending Lawyers" : "Pending Judges"}
+                    {(t === "lawyers" ? pendingLawyers.length : pendingJudges.length) > 0 && (
+                      <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-500">
+                        {t === "lawyers" ? pendingLawyers.length : pendingJudges.length}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <div className="divide-y divide-slate-800/50 min-h-[400px]">
+                {vTab === "lawyers" && (
+                  pendingLawyers.length === 0 ? (
+                    <div className="py-24 text-center">
+                      <CheckCircle2 size={40} className="mx-auto mb-4 text-emerald-500/50" />
+                      <p className="text-slate-400">Queue empty - all caught up!</p>
+                    </div>
+                  ) : pendingLawyers.map(lawyer => (
+                    <div key={lawyer.id} className="p-6 flex items-start gap-4 hover:bg-slate-800/20 transition-colors">
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 font-bold text-lg text-white font-serif bg-gradient-to-br from-indigo-500 to-purple-600">
+                        {(lawyer.fullName || lawyer.user.email)[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-white text-base">{lawyer.fullName || "—"}</p>
+                        <p className="text-sm text-slate-500">{lawyer.user.email}</p>
+                        <div className="flex flex-wrap gap-3 mt-3">
+                          <span className="text-xs flex items-center gap-1.5 px-2.5 py-1 bg-slate-900 rounded-md border border-slate-800 text-slate-400">
+                            <Shield size={12} className="text-indigo-400"/> {lawyer.barCouncilNumber}
+                          </span>
+                          {lawyer.barCouncilState && (
+                            <span className="text-xs flex items-center gap-1.5 px-2.5 py-1 bg-slate-900 rounded-md border border-slate-800 text-slate-400">
+                              <Building2 size={12} className="text-amber-400"/> {lawyer.barCouncilState}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2 shrink-0">
+                        <button onClick={() => handleAction("lawyer", lawyer.user.id, "approve")} disabled={!!actionLoading} 
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors">
+                          {actionLoading === `lawyer-${lawyer.user.id}-approve` ? <RefreshCw size={16} className="animate-spin" /> : <><UserCheck size={16} /> Approve</>}
+                        </button>
+                        <button onClick={() => handleAction("lawyer", lawyer.user.id, "reject")} disabled={!!actionLoading} 
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 transition-colors">
+                          {actionLoading === `lawyer-${lawyer.user.id}-reject` ? <RefreshCw size={16} className="animate-spin" /> : <><XCircle size={16} /> Reject</>}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+                
+                {vTab === "judges" && (
+                   pendingJudges.length === 0 ? (
+                    <div className="py-24 text-center">
+                      <CheckCircle2 size={40} className="mx-auto mb-4 text-emerald-500/50" />
+                      <p className="text-slate-400">No judges pending verification</p>
+                    </div>
+                  ) : pendingJudges.map(judge => (
+                     // Similar structure mapped out...
+                     <div key={judge.id} className="p-6 flex items-start gap-4 hover:bg-slate-800/20 transition-colors">
+                       <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 font-bold text-lg text-white font-serif bg-gradient-to-br from-amber-500 to-rose-600">
+                         {(judge.fullName || judge.user.email)[0].toUpperCase()}
+                       </div>
+                       <div className="flex-1">
+                         <p className="font-bold text-white text-base">{judge.fullName || "—"}</p>
+                         <p className="text-sm text-slate-500">{judge.user.email}</p>
+                         <p className="text-xs text-slate-400 mt-2 bg-slate-900 px-3 py-1 rounded inline-block border border-slate-800">{judge.court} · {judge.courtLevel}</p>
+                       </div>
+                       <div className="flex flex-col gap-2 shrink-0">
+                          <button onClick={() => handleAction("judge", judge.user.id, "approve")}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20">
+                            <UserCheck size={16} /> Approve
+                          </button>
+                       </div>
+                     </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </motion.div>
         )}
 
-        {/* Pending Verifications */}
-        <div className="rounded-2xl overflow-hidden"
-          style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+        {/* User Management Tab */}
+        {activeTab === 'users' && (
+          <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}}>
+            <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6">
+               <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2"><Users className="text-blue-500" /> Platform Accounts</h2>
+               <div className="overflow-x-auto">
+                 <table className="w-full text-left border-collapse">
+                   <thead>
+                     <tr className="border-b border-slate-800 text-xs uppercase tracking-wider text-slate-500">
+                       <th className="pb-4 font-semibold">User Details</th>
+                       <th className="pb-4 font-semibold">Role</th>
+                       <th className="pb-4 font-semibold">Status</th>
+                       <th className="pb-4 font-semibold text-right">Actions</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-800/40">
+                     {allUsers.map(u => (
+                       <tr key={u.id} className="hover:bg-slate-800/10 transition-colors group">
+                          <td className="py-4">
+                            <div className="flex flex-col">
+                               <span className="text-sm font-semibold text-slate-200">{u.email}</span>
+                               <span className="text-[10px] text-slate-500 font-mono mt-0.5">{u.id}</span>
+                            </div>
+                          </td>
+                          <td className="py-4">
+                            <span className={`px-2.5 py-1 text-xs font-bold rounded-md border 
+                              ${u.role === 'ADMIN' ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' : 
+                                u.role === 'LAWYER' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' :
+                                u.role === 'JUDGE' ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' :
+                                'bg-slate-800 text-slate-300 border-slate-700'}`}>
+                               {u.role} {u.isPro && '★ PRO'}
+                            </span>
+                          </td>
+                          <td className="py-4">
+                             {u.isActive ? (
+                               <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
+                                 <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div> Active
+                               </span>
+                             ) : (
+                               <span className="flex items-center gap-1.5 text-xs text-red-500 font-medium">
+                                 <div className="w-2 h-2 rounded-full bg-red-600"></div> Suspended
+                               </span>
+                             )}
+                          </td>
+                          <td className="py-4 text-right">
+                            {u.role !== 'ADMIN' && (
+                               <button 
+                                 onClick={() => handleUserToggle(u.id, u.isActive)}
+                                 disabled={!!actionLoading}
+                                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all disabled:opacity-50
+                                  ${u.isActive 
+                                    ? 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20' 
+                                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'}`}>
+                                  {actionLoading === `user-${u.id}` ? <RefreshCw size={14} className="animate-spin inline mr-1"/> : null}
+                                  {u.isActive ? 'Suspend' : 'Reactivate'}
+                               </button>
+                            )}
+                          </td>
+                       </tr>
+                     ))}
+                   </tbody>
+                 </table>
+               </div>
+            </div>
+          </motion.div>
+        )}
 
-          {/* Tab bar */}
-          <div className="flex border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-            {(["lawyers", "judges"] as const).map(t => (
-              <button key={t} onClick={() => setTab(t)}
-                className="flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-all"
-                style={tab === t
-                  ? { color: "#fbbf24", borderBottom: "2px solid #f59e0b" }
-                  : { color: "#4a4a60", borderBottom: "2px solid transparent" }}>
-                {t === "lawyers" ? <Shield size={15} /> : <Gavel size={15} />}
-                Pending {t === "lawyers" ? "Lawyers" : "Judges"}
-                {t === "lawyers" && pendingLawyers.length > 0 && (
-                  <span className="text-xs px-1.5 py-0.5 rounded-full font-bold"
-                    style={{ background: "rgba(245,158,11,0.2)", color: "#fbbf24" }}>
-                    {pendingLawyers.length}
-                  </span>
-                )}
-                {t === "judges" && pendingJudges.length > 0 && (
-                  <span className="text-xs px-1.5 py-0.5 rounded-full font-bold"
-                    style={{ background: "rgba(245,158,11,0.2)", color: "#fbbf24" }}>
-                    {pendingJudges.length}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Table */}
-          <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
-            {tab === "lawyers" && (
-              pendingLawyers.length === 0 ? (
-                <div className="py-16 text-center">
-                  <CheckCircle2 size={32} className="mx-auto mb-3" style={{ color: "#22c55e", opacity: 0.5 }} />
-                  <p className="text-sm" style={{ color: "#4a4a60" }}>No pending lawyer verifications</p>
-                </div>
-              ) : pendingLawyers.map(lawyer => (
-                <div key={lawyer.id} className="p-5 flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm text-white"
-                    style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)" }}>
-                    {(lawyer.fullName || lawyer.user.email)[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-white text-sm">{lawyer.fullName || "—"}</p>
-                    <p className="text-xs" style={{ color: "#6a6a80" }}>{lawyer.user.email}</p>
-                    <div className="flex flex-wrap gap-3 mt-2">
-                      <span className="text-xs flex items-center gap-1" style={{ color: "#5a5a70" }}>
-                        <Shield size={12} /> {lawyer.barCouncilNumber}
-                      </span>
-                      {lawyer.barCouncilState && (
-                        <span className="text-xs flex items-center gap-1" style={{ color: "#5a5a70" }}>
-                          <Building2 size={12} /> {lawyer.barCouncilState}
-                        </span>
-                      )}
-                      <span className="text-xs flex items-center gap-1"
-                        style={{ color: lawyer.user.isEmailVerified ? "#22c55e" : "#ef4444" }}>
-                        {lawyer.user.isEmailVerified ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                        Email {lawyer.user.isEmailVerified ? "verified" : "not verified"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                      onClick={() => handleAction("lawyer", lawyer.user.id, "approve")}
-                      disabled={!!actionLoading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
-                      style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", color: "#4ade80" }}>
-                      {actionLoading === `lawyer-${lawyer.user.id}-approve`
-                        ? <RefreshCw size={12} className="animate-spin" />
-                        : <><UserCheck size={12} /> Approve</>}
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                      onClick={() => handleAction("lawyer", lawyer.user.id, "reject")}
-                      disabled={!!actionLoading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
-                      style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171" }}>
-                      {actionLoading === `lawyer-${lawyer.user.id}-reject`
-                        ? <RefreshCw size={12} className="animate-spin" />
-                        : <><XCircle size={12} /> Reject</>}
-                    </motion.button>
-                  </div>
-                </div>
-              ))
-            )}
-
-            {tab === "judges" && (
-              pendingJudges.length === 0 ? (
-                <div className="py-16 text-center">
-                  <CheckCircle2 size={32} className="mx-auto mb-3" style={{ color: "#22c55e", opacity: 0.5 }} />
-                  <p className="text-sm" style={{ color: "#4a4a60" }}>No pending judge verifications</p>
-                </div>
-              ) : pendingJudges.map(judge => (
-                <div key={judge.id} className="p-5 flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm text-white"
-                    style={{ background: "linear-gradient(135deg,#d4af37,#7c3aed)" }}>
-                    {(judge.fullName || judge.user.email)[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-white text-sm">{judge.fullName || "—"}</p>
-                    <p className="text-xs" style={{ color: "#6a6a80" }}>{judge.user.email}</p>
-                    <div className="flex flex-wrap gap-3 mt-2">
-                      <span className="text-xs flex items-center gap-1" style={{ color: "#5a5a70" }}>
-                        <Shield size={12} /> {judge.governmentId}
-                      </span>
-                      {judge.court && (
-                        <span className="text-xs flex items-center gap-1" style={{ color: "#5a5a70" }}>
-                          <Gavel size={12} /> {judge.court}{judge.courtLevel ? ` · ${judge.courtLevel}` : ""}
-                        </span>
-                      )}
-                      <span className="text-xs flex items-center gap-1"
-                        style={{ color: judge.user.isEmailVerified ? "#22c55e" : "#ef4444" }}>
-                        {judge.user.isEmailVerified ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
-                        Email {judge.user.isEmailVerified ? "verified" : "not verified"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                      onClick={() => handleAction("judge", judge.user.id, "approve")}
-                      disabled={!!actionLoading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
-                      style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", color: "#4ade80" }}>
-                      {actionLoading === `judge-${judge.user.id}-approve`
-                        ? <RefreshCw size={12} className="animate-spin" />
-                        : <><UserCheck size={12} /> Approve</>}
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                      onClick={() => handleAction("judge", judge.user.id, "reject")}
-                      disabled={!!actionLoading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
-                      style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171" }}>
-                      {actionLoading === `judge-${judge.user.id}-reject`
-                        ? <RefreshCw size={12} className="animate-spin" />
-                        : <><XCircle size={12} /> Reject</>}
-                    </motion.button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Quick links */}
-        <div className="grid grid-cols-2 gap-4 mt-6">
-          {[
-            { icon: Users, label: "All Users", desc: "Browse and manage all platform users", href: "#" },
-            { icon: Crown, label: "Send Admin Invite", desc: "Invite a new administrator by email", href: "#" },
-          ].map(({ icon: Icon, label, desc, href }) => (
-            <a key={label} href={href}
-              className="flex items-center gap-3 p-4 rounded-2xl transition-all cursor-pointer"
-              style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}
-              onMouseOver={e => { e.currentTarget.style.borderColor = "rgba(245,158,11,0.25)"; }}
-              onMouseOut={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)" }}>
-                <Icon size={16} style={{ color: "#f59e0b" }} />
+        {/* Analytics & Billing Tab */}
+        {activeTab === 'billing' && (
+          <motion.div initial={{opacity:0, scale:0.98}} animate={{opacity:1, scale:1}} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6 flex flex-col">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2"><CreditCard className="text-emerald-400"/> Revenue Trajectory</h2>
+                <span className="text-xs text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md font-bold">+24% YoY</span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white">{label}</p>
-                <p className="text-xs" style={{ color: "#5a5a70" }}>{desc}</p>
+              <div className="flex-1 w-full h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value/1000}k`} />
+                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#fff' }} />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                    <Bar dataKey="ProSubs" name="PRO Subscriptions" stackId="a" fill="#0ea5e9" radius={[0, 0, 4, 4]} />
+                    <Bar dataKey="Marketplace" name="Marketplace Fees" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-              <ChevronRight size={14} style={{ color: "#4a4a60" }} />
-            </a>
-          ))}
-        </div>
+            </div>
+
+            <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6 flex flex-col">
+              <div className="flex items-center justify-between mb-6">
+                 <h2 className="text-xl font-bold text-white flex items-center gap-2"><Activity className="text-indigo-400"/> AI Queries Logged</h2>
+              </div>
+              <div className="flex-1 w-full h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={activityData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px' }} />
+                    <Line type="monotone" dataKey="queries" name="Queries Processed" stroke="#6366f1" strokeWidth={4} dot={{ r: 4, fill: '#6366f1', strokeWidth: 2 }} activeDot={{ r: 8 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Quick Metrics */}
+            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+               <div className="bg-gradient-to-br from-emerald-950 to-[#111827] border border-emerald-900/50 rounded-2xl p-6">
+                  <p className="text-sm font-semibold text-emerald-400 mb-1">Total Verified Revenue</p>
+                  <p className="text-4xl font-bold text-white">₹1.4M</p>
+               </div>
+               <div className="bg-gradient-to-br from-indigo-950 to-[#111827] border border-indigo-900/50 rounded-2xl p-6">
+                  <p className="text-sm font-semibold text-indigo-400 mb-1">PRO Users</p>
+                  <p className="text-4xl font-bold text-white">{allUsers.filter(u => u.isPro).length} <span className="text-sm text-indigo-300 font-normal ml-2">Active</span></p>
+               </div>
+               <div className="bg-gradient-to-br from-rose-950 to-[#111827] border border-rose-900/50 rounded-2xl p-6">
+                  <p className="text-sm font-semibold text-rose-400 mb-1">Blocked Accounts</p>
+                  <p className="text-4xl font-bold text-white">{allUsers.filter(u => !u.isActive).length} <span className="text-sm text-rose-300 font-normal ml-2">Suspended</span></p>
+               </div>
+            </div>
+
+          </motion.div>
+        )}
+
       </div>
     </div>
   );
