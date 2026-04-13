@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { planLimiter } from '../middleware/planLimiter';
 import { prisma } from '../prisma';
 import { VoyageAIClient } from 'voyageai';
 import { CohereClient } from 'cohere-ai';
@@ -98,7 +99,7 @@ router.delete('/conversations/:id', async (req: AuthRequest, res): Promise<void>
   }
 });
 
-router.post('/conversations/:id/messages', async (req: AuthRequest, res): Promise<void> => {
+router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest, res): Promise<void> => {
   const id = String(req.params.id);
   const { content } = req.body;
 
@@ -108,15 +109,10 @@ router.post('/conversations/:id/messages', async (req: AuthRequest, res): Promis
   }
 
   try {
-    // 0. Monetization Check - Free vs Pro limits
+    // 0. Quota is now enforced by planLimiter middleware
     const dbUser = await prisma.user.findUnique({ where: { id: req.user!.userId } });
     if (!dbUser) {
       res.status(404).json({ error: 'User not found' });
-      return;
-    }
-    
-    if (!dbUser.isPro && dbUser.queriesCount >= 10) {
-      res.status(403).json({ error: 'FREE_LIMIT_REACHED', message: 'You have exhausted your 10 free AI queries.' });
       return;
     }
 
@@ -333,13 +329,11 @@ Only output "PASS" or "FAIL". Do not output anything else.`;
       });
     }
 
-    // Increment usage limits for Free Users
-    if (dbUser && !dbUser.isPro) {
-      await prisma.user.update({
-        where: { id: dbUser.id },
-        data: { queriesCount: { increment: 1 } }
-      });
-    }
+    // Legacy counter keep in sync (non-critical)
+    await prisma.user.update({
+      where: { id: dbUser.id },
+      data: { queriesCount: { increment: 1 } }
+    }).catch(() => {});
 
     res.json({ userMessage, assistantMessage });
   } catch (error) {

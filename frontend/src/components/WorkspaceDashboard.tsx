@@ -6,6 +6,7 @@ import {
   ArrowRight, File, TrendingUp, AlertTriangle, Fingerprint, Clock, UploadCloud, Bell, FileStack
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid } from "recharts";
+import BillingCard from "./BillingCard";
 
 const queryData = [
   { name: 'M', queries: 4 },
@@ -212,20 +213,8 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
            </div>
         </div>
 
-        {/* Monetization / Pro Widget */}
-        <motion.div whileHover={{ scale: 1.005 }} onClick={triggerPro} className="mt-8 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-[#0d1224] border border-amber-400/20 p-6 flex flex-col md:flex-row items-center justify-between gap-6 cursor-pointer relative overflow-hidden group">
-           <div className="absolute inset-0 bg-gradient-to-r from-amber-400/0 via-amber-400/5 to-amber-400/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-           <div className="flex items-center gap-4">
-             <div className="w-12 h-12 rounded-full bg-amber-400/20 flex items-center justify-center border border-amber-400/30"><Zap size={24} className="text-amber-300" /></div>
-             <div>
-               <h3 className="text-lg font-semibold text-purple-100">Unlock Nyaay PRO</h3>
-               <p className="text-sm text-purple-300/70">Unlimited AI queries, premium templates, and priority support.</p>
-             </div>
-           </div>
-           <button className="flex items-center gap-2 bg-yellow-500 hover:bg-amber-400 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap shadow-[0_0_15px_rgba(168,85,247,0.4)]">
-             Upgrade Plan <ArrowRight size={16} />
-           </button>
-        </motion.div>
+        {/* Billing & Plan Status */}
+        <BillingCard onUpgrade={triggerPro} />
 
       </div>
     </div>

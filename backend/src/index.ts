@@ -9,7 +9,7 @@ import adminRoutes from './routes/admin';
 import chatRoutes from './routes/chat';
 import searchRoutes from './routes/search';
 import documentRoutes from './routes/documents';
-import paymentRoutes from './routes/payment';
+import paymentRoutes from './routes/payments';
 import generateRoutes from './routes/generate';
 import intelligenceRoutes from './routes/intelligence';
 import uploadRoutes from './routes/uploads';

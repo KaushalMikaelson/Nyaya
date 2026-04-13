@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { planLimiter } from '../middleware/planLimiter';
 import { prisma } from '../prisma';
 import Groq from 'groq-sdk';
 import { VoyageAIClient } from 'voyageai';
@@ -32,7 +33,7 @@ function cosineSimilarity(A: number[], B: number[]) {
 
 router.use(authenticate);
 
-router.post('/', async (req: AuthRequest, res): Promise<void> => {
+router.post('/', planLimiter, async (req: AuthRequest, res): Promise<void> => {
   const { prompt, docType, partyA, partyB, specifics } = req.body;
   if (!prompt) {
     res.status(400).json({ error: 'Prompt is required' });
@@ -40,15 +41,10 @@ router.post('/', async (req: AuthRequest, res): Promise<void> => {
   }
 
   try {
+    // Quota is now enforced by planLimiter middleware
     const dbUser = await prisma.user.findUnique({ where: { id: req.user!.userId } });
     if (!dbUser) {
       res.status(404).json({ error: 'User not found' });
-      return;
-    }
-    
-    // We treat generation mostly like an analysis or query limit. We use docsCount.
-    if (!dbUser.isPro && dbUser.docsCount >= 3) {
-      res.status(403).json({ error: 'FREE_LIMIT_REACHED', message: 'You have exhausted your free document limits. Please upgrade to Pro.' });
       return;
     }
 
@@ -156,12 +152,11 @@ General Instructions: ${prompt}`;
 
     const generatedDoc = completion.choices[0]?.message?.content || "Failed to generate document";
 
-    if (dbUser && !dbUser.isPro) {
-      await prisma.user.update({
-        where: { id: dbUser.id },
-        data: { docsCount: { increment: 1 } }
-      });
-    }
+    // Legacy counter keep in sync (non-critical)
+    await prisma.user.update({
+      where: { id: dbUser.id },
+      data: { docsCount: { increment: 1 } }
+    }).catch(() => {});
 
     res.json({ document: generatedDoc, sources: topLaws });
   } catch (err) {

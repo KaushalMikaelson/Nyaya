@@ -43,7 +43,7 @@ export default function AdvancedLanding() {
             <button className="hover:text-white transition-colors tracking-wide">Platform</button>
             <button className="hover:text-white transition-colors tracking-wide">Solutions</button>
             <button className="hover:text-white transition-colors tracking-wide">Security</button>
-            <button className="hover:text-white transition-colors tracking-wide">Pricing</button>
+            <button onClick={() => router.push('/pricing')} className="hover:text-white transition-colors tracking-wide">Pricing</button>
           </div>
 
           <div className="flex items-center gap-4">

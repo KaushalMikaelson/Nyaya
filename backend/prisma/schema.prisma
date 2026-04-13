@@ -24,6 +24,20 @@ enum VerificationStatus {
   SUSPENDED
 }
 
+enum PlanTier {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INCOMPLETE
+  PAST_DUE
+  CANCELED
+}
+
 enum OtpType {
   EMAIL_VERIFY
   LOGIN
@@ -64,6 +78,8 @@ model User {
   clientCases     Case[] @relation("ClientCases")
   counselCases    Case[] @relation("CounselCases")
   firmMemberships FirmMember[] @relation("UserFirmMembers")
+  subscription    Subscription?
+  payments        Payment[]
 }
 
 // ─────────────────────────────────────────
@@ -343,6 +359,8 @@ model Firm {
   
   members     FirmMember[]
   cases       Case[]
+  subscription Subscription?
+  payments    Payment[]
 }
 
 model FirmMember {
@@ -415,5 +433,47 @@ model CaseDocument {
   uploadedBy  String
   
   createdAt   DateTime @default(now())
+}
+
+// ─────────────────────────────────────────
+// SAAS SUBSCRIPTIONS & PAYMENTS
+// ─────────────────────────────────────────
+
+model Subscription {
+  id                     String             @id @default(uuid())
+  userId                 String?            @unique
+  user                   User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firmId                 String?            @unique
+  firm                   Firm?              @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  
+  tier                   PlanTier           @default(FREE)
+  status                 SubscriptionStatus @default(ACTIVE)
+  razorpaySubscriptionId String?            @unique
+  razorpayCustomerId     String?
+  currentPeriodEnd       DateTime?
+  apiTokensUsed          Int                @default(0)
+  apiTokensLimit         Int                @default(100)
+  
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+}
+
+model Payment {
+  id                String   @id @default(uuid())
+  userId            String?
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  firmId            String?
+  firm              Firm?    @relation(fields: [firmId], references: [id], onDelete: SetNull)
+  
+  amount            Float
+  currency          String   @default("INR")
+  status            String   // "created", "captured", "failed"
+  
+  razorpayOrderId   String   @unique
+  razorpayPaymentId String?  @unique
+  razorpaySignature String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
