@@ -66,6 +66,16 @@ router.post('/verify', async (req: AuthRequest, res): Promise<void> => {
         where: { id: req.user!.userId },
         data: { isPro: true }
       });
+
+      const { dispatchNotification } = require('../workers/notifications');
+      await dispatchNotification(
+        req.user!.userId,
+        "Account Upgraded",
+        "Your account has been successfully upgraded to PRO. You now have full access to advanced AI consultations and priority marketplace standing.",
+        ['in-app', 'email'],
+        { email: req.user!.email, type: 'info' }
+      );
+
       res.json({ success: true, message: "Upgraded to PRO successfully" });
     } else {
       res.status(400).json({ success: false, error: "Invalid payment signature" });

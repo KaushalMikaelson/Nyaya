@@ -63,6 +63,15 @@ router.post('/', async (req: AuthRequest, res): Promise<void> => {
       }
     });
 
+    const { dispatchNotification } = require('../workers/notifications');
+    await dispatchNotification(
+      user.id,
+      "New Case Initialized",
+      `Your case ${title} has been successfully opened in our system.`,
+      ['in-app', 'email', 'push'],
+      { email: user.email, deviceToken: 'device_token_mock', type: 'info' }
+    );
+
     res.status(201).json(newCase);
   } catch (err) {
     console.error('Error creating case:', err);
@@ -177,6 +186,27 @@ router.post('/:id/hearings', async (req: AuthRequest, res): Promise<void> => {
         date: new Date(date)
       }
     });
+
+    const caseDoc = await prisma.case.findUnique({
+      where: { id: caseId },
+      include: { client: true }
+    });
+
+    if (caseDoc && caseDoc.client) {
+      const { dispatchNotification } = require('../workers/notifications');
+      await dispatchNotification(
+        caseDoc.client.id,
+        "Hearing Scheduled",
+        `A hearing has been scheduled for your case on ${new Date(date).toLocaleDateString()}. Purpose: ${purpose}.`,
+        ['in-app', 'sms', 'whatsapp-template'],
+        { 
+          phone: caseDoc.client.phone || '+919999999999',
+          templateId: 'HXxx_hearing_scheduled',
+          variables: { "1": caseDoc.title, "2": new Date(date).toLocaleDateString() },
+          type: 'alert' 
+        }
+      );
+    }
 
     res.status(201).json(hearing);
   } catch (err) {
