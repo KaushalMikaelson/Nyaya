@@ -1,290 +1,126 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { ArrowLeft, Bell, CheckCircle, Info, AlertTriangle } from "lucide-react";
 
 export default function NotificationsPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [triggerForm, setTriggerForm] = useState({
-    type: 'email',
-    to: '',
-    subject: '',
-    message: ''
-  });
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
-  const [scheduleForm, setScheduleForm] = useState({
-    toEmail: '',
-    toPhone: '',
-    caseSnippet: '',
-    delay: 5000
-  });
-
-  const handleTriggerChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setTriggerForm({ ...triggerForm, [e.target.name]: e.target.value });
-  };
-
-  const handleScheduleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.name === 'delay' ? Number(e.target.value) : e.target.value;
-    setScheduleForm({ ...scheduleForm, [e.target.name]: value });
-  };
-
-  const onTrigger = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setSuccess(null);
-    setError(null);
+  const fetchNotifications = async () => {
     try {
-      // Assuming a token could be required, we fetch it if it exists.
-      // We will just let fetch handle cookies in production (credentials: 'include').
-      const res = await fetch('http://localhost:3001/api/notifications/trigger', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}` // Fallback if cookie not used
-        },
-        body: JSON.stringify(triggerForm)
+      const token = localStorage.getItem("token");
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+      const res = await fetch("http://localhost:3001/api/notifications", {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to trigger notification');
-      setSuccess(data.message);
-    } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-      else setError("An unknown error occurred");
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data);
+      }
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const onSchedule = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setSuccess(null);
-    setError(null);
+  const markAsRead = async (id: string) => {
     try {
-      const res = await fetch('http://localhost:3001/api/notifications/schedule', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(scheduleForm)
+      const token = localStorage.getItem("token");
+      await fetch(`http://localhost:3001/api/notifications/${id}/read`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to schedule notification');
-      setSuccess(data.message);
-    } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-      else setError("An unknown error occurred");
-    } finally {
-      setLoading(false);
+      setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      await fetch(`http://localhost:3001/api/notifications/read/all`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(notifications.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error(err);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 p-8 pt-24 font-sans selection:bg-yellow-600/30">
-      <div className="max-w-6xl mx-auto">
-        <button
-          onClick={() => router.push('/')}
-          className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8 group"
-        >
-          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-          Back to Dashboard
-        </button>
-
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-12 text-center"
-        >
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-4">
-            Alerts & Notifications
-          </h1>
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-            Event-based alerts, scheduled jobs, and cross-channel delivery (WhatsApp & Email) powered by BullMQ.
-          </p>
-        </motion.div>
-
-        {success && (
-          <div className="mb-8 p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl max-w-2xl mx-auto text-center font-medium">
-            {success}
+    <div className="min-h-screen bg-[#0a0f1d] text-[#ededed] p-8 pt-24 font-sans relative overflow-x-hidden">
+      <div className="max-w-4xl mx-auto relative z-10">
+        
+        <header className="flex items-center justify-between mb-10">
+          <div>
+            <button onClick={() => router.push('/')} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-4 text-sm font-medium">
+              <ArrowLeft size={16} /> Back to Dashboard
+            </button>
+            <h1 className="text-4xl font-extrabold tracking-tight text-white flex items-center gap-3">
+              <Bell className="text-yellow-500" size={32} />
+              Inbox
+            </h1>
+            <p className="text-slate-400 text-lg mt-1">Review alerts, system updates, and case notifications.</p>
           </div>
-        )}
-        {error && (
-          <div className="mb-8 p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl max-w-2xl mx-auto text-center font-medium">
-            {error}
-          </div>
-        )}
+          <button onClick={markAllAsRead} className="px-4 py-2 bg-[#111827] border border-slate-700 rounded-xl hover:bg-slate-800 transition-colors text-sm font-medium text-slate-300">
+            Mark all read
+          </button>
+        </header>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Immediate Trigger Form */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden group"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-              <span className="w-8 h-8 rounded-lg bg-yellow-600/20 text-amber-200 flex items-center justify-center mr-3 text-sm">⚡</span>
-              Event-based Trigger
-            </h2>
-            <form onSubmit={onTrigger} className="space-y-5 relative z-10">
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Notification Type</label>
-                <select
-                  name="type"
-                  value={triggerForm.type}
-                  onChange={handleTriggerChange}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-600/50 focus:border-yellow-600 transition-colors"
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {notifications.length === 0 ? (
+               <div className="text-center py-20 bg-[#111827] border border-slate-800 rounded-2xl">
+                 <Bell size={40} className="mx-auto text-slate-600 mb-4" />
+                 <h3 className="text-xl font-semibold text-white mb-2">You're all caught up!</h3>
+                 <p className="text-slate-400 max-w-sm mx-auto">No new notifications to show right now.</p>
+               </div>
+            ) : (
+              notifications.map((n) => (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  key={n.id} 
+                  className={`flex gap-4 p-5 rounded-2xl border transition-all ${n.read ? 'bg-[#111827] border-slate-800/50' : 'bg-[#161f36] border-slate-700 shadow-[0_0_15px_rgba(37,99,235,0.1)]'}`}
                 >
-                  <option value="email">Email</option>
-                  <option value="whatsapp">WhatsApp</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">
-                  Destination {triggerForm.type === 'email' ? '(Email Address)' : '(Phone Number)'}
-                </label>
-                <input
-                  type="text"
-                  name="to"
-                  value={triggerForm.to}
-                  onChange={handleTriggerChange}
-                  placeholder={triggerForm.type === 'email' ? "user@example.com" : "+919999999999"}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-600/50 focus:border-yellow-600 transition-colors"
-                  required
-                />
-              </div>
-
-              {triggerForm.type === 'email' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">Subject</label>
-                  <input
-                    type="text"
-                    name="subject"
-                    value={triggerForm.subject}
-                    onChange={handleTriggerChange}
-                    placeholder="Alert Subject"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-600/50 focus:border-yellow-600 transition-colors"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Message</label>
-                <textarea
-                  name="message"
-                  value={triggerForm.message}
-                  onChange={handleTriggerChange}
-                  placeholder="Enter alert message..."
-                  rows={4}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-600/50 focus:border-yellow-600 transition-colors resize-none"
-                  required
-                ></textarea>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-indigo-600 hover:bg-yellow-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-600/50 flex justify-center items-center"
-              >
-                {loading ? (
-                  <svg className="animate-spin h-5 w-5 mr-3 text-white" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                ) : (
-                  "Send Immediate Alert"
-                )}
-              </button>
-            </form>
-          </motion.div>
-
-          {/* Schedule Form */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden group"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-              <span className="w-8 h-8 rounded-lg bg-violet-500/20 text-violet-400 flex items-center justify-center mr-3 text-sm">🕰️</span>
-              Schedule Follow-Up
-            </h2>
-            <form onSubmit={onSchedule} className="space-y-5 relative z-10">
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">WhatsApp Number</label>
-                <input
-                  type="text"
-                  name="toPhone"
-                  value={scheduleForm.toPhone}
-                  onChange={handleScheduleChange}
-                  placeholder="+919999999999"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-colors"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Email Address</label>
-                <input
-                  type="email"
-                  name="toEmail"
-                  value={scheduleForm.toEmail}
-                  onChange={handleScheduleChange}
-                  placeholder="user@example.com"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-colors"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Case Context (Snippet)</label>
-                <input
-                  type="text"
-                  name="caseSnippet"
-                  value={scheduleForm.caseSnippet}
-                  onChange={handleScheduleChange}
-                  placeholder="e.g. Property Dispute"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Delay (ms)</label>
-                <input
-                  type="number"
-                  name="delay"
-                  value={scheduleForm.delay}
-                  onChange={handleScheduleChange}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-colors"
-                  min="0"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-violet-600 hover:bg-violet-500 text-white font-semibold py-3 px-4 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500/50 flex justify-center items-center"
-              >
-                {loading ? (
-                  <svg className="animate-spin h-5 w-5 mr-3 text-white" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                ) : (
-                  "Schedule Job"
-                )}
-              </button>
-            </form>
-          </motion.div>
-        </div>
+                  <div className="mt-1 shrink-0">
+                    {n.type === 'alert' || n.type === 'warning' ? <AlertTriangle className="text-red-400" size={24} /> : <Info className="text-blue-400" size={24} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className={`font-semibold ${n.read ? 'text-slate-300' : 'text-white'}`}>{n.title}</h3>
+                      <span className="text-xs text-slate-500 shrink-0">{new Date(n.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <p className={`text-sm ${n.read ? 'text-slate-500' : 'text-slate-300'}`}>{n.message}</p>
+                  </div>
+                  {!n.read && (
+                    <button onClick={() => markAsRead(n.id)} className="h-8 w-8 rounded-full bg-slate-800/50 hover:bg-slate-700 flex items-center justify-center shrink-0 self-center transition-colors tooltip" aria-label="Mark as read">
+                      <CheckCircle size={16} className="text-emerald-400" />
+                    </button>
+                  )}
+                </motion.div>
+              ))
+            )}
+           </div>
+        )}
       </div>
     </div>
   );

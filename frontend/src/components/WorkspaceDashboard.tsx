@@ -71,7 +71,7 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
 
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-[#0d1224] border border-[#1e2642] rounded-2xl p-5 hover:border-[#2d3759] transition-colors">
+          <div onClick={() => router.push('/cases')} className="bg-[#0d1224] border border-[#1e2642] rounded-2xl p-5 hover:border-[#2d3759] transition-colors cursor-pointer">
             <div className="flex items-center gap-3 text-[#a1a1aa] mb-3"><Briefcase size={16} /> <span className="text-xs font-semibold uppercase tracking-wider">Total Cases</span></div>
             <div className="text-3xl font-semibold text-[#ededed]">12</div>
           </div>
@@ -142,7 +142,7 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
             <div className="bg-[#0d1224] border border-[#1e2642] rounded-2xl p-5">
               <div className="flex justify-between items-center mb-4">
                   <h3 className="text-sm font-semibold text-[#ededed] flex items-center gap-2"><Briefcase size={16} className="text-[#a1a1aa]" /> Active Cases</h3>
-                  <button className="text-xs text-amber-300 hover:text-purple-300">View All</button>
+                  <button onClick={() => router.push('/cases')} className="text-xs text-amber-300 hover:text-purple-300">View All</button>
               </div>
               <div className="overflow-hidden rounded-xl border border-[#1e2642]">
                 <table className="w-full text-left text-sm">

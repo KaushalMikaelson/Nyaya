@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticate } from '../middleware/auth';
 import { notificationQueue } from '../workers/notifications';
+import { prisma } from '../prisma';
 
 const router = express.Router();
 
@@ -72,6 +73,50 @@ router.post('/schedule', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error scheduling notification:', error);
     res.status(500).json({ error: 'Failed to schedule notification' });
+  }
+});
+
+});
+
+// Get user notifications
+router.get('/', authenticate, async (req, res) => {
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { userId: req.user!.userId },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(notifications);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
+// Mark notification read
+router.put('/:id/read', authenticate, async (req, res) => {
+  try {
+    await prisma.notification.updateMany({
+      where: { id: req.params.id, userId: req.user!.userId },
+      data: { read: true }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating notification:', error);
+    res.status(500).json({ error: 'Failed to update notification' });
+  }
+});
+
+// Mark all as read
+router.put('/read/all', authenticate, async (req, res) => {
+  try {
+    await prisma.notification.updateMany({
+      where: { userId: req.user!.userId, read: false },
+      data: { read: true }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating notifications:', error);
+    res.status(500).json({ error: 'Failed to update notifications' });
   }
 });
 
