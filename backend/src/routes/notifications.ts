@@ -1,16 +1,18 @@
 import express from 'express';
-import { authenticate } from '../middleware/auth';
+import { authenticate, AuthRequest } from '../middleware/auth';
+import { Response } from 'express';
 import { dispatchNotification } from '../workers/notifications';
 import { prisma } from '../prisma';
 
 const router = express.Router();
 
-router.post('/trigger', authenticate, async (req, res) => {
+router.post('/trigger', authenticate, async (req: AuthRequest, res: Response): Promise<any> => {
   try {
     const { type, to, message, subject, templateId, variables } = req.body;
 
     if (!type || !to || (!message && type !== 'whatsapp-template')) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
     }
 
     const payload: any = { type: 'alert' };
@@ -37,10 +39,13 @@ router.post('/trigger', authenticate, async (req, res) => {
 });
 
 // Schedule a demo follow-up job
-router.post('/schedule', authenticate, async (req, res) => {
+router.post('/schedule', authenticate, async (req: AuthRequest, res: Response): Promise<any> => {
   try {
     const { toEmail, toPhone, caseSnippet, delay } = req.body;
-    if (!toEmail || !toPhone) return res.status(400).json({ error: 'Missing email or phone number' });
+    if (!toEmail || !toPhone) {
+      res.status(400).json({ error: 'Missing email or phone number' });
+      return;
+    }
 
     const { scheduleFollowUp } = require('../workers/notifications');
     await scheduleFollowUp(req.user!.userId, toEmail, caseSnippet);
@@ -53,7 +58,7 @@ router.post('/schedule', authenticate, async (req, res) => {
 });
 
 // Get user notifications
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<any> => {
   try {
     const notifications = await prisma.notification.findMany({
       where: { userId: req.user!.userId },
@@ -67,10 +72,10 @@ router.get('/', authenticate, async (req, res) => {
 });
 
 // Mark notification read
-router.put('/:id/read', authenticate, async (req, res) => {
+router.put('/:id/read', authenticate, async (req: AuthRequest, res: Response): Promise<any> => {
   try {
     await prisma.notification.updateMany({
-      where: { id: req.params.id, userId: req.user!.userId },
+      where: { id: String(req.params.id), userId: req.user!.userId },
       data: { read: true }
     });
     res.json({ success: true });
@@ -81,7 +86,7 @@ router.put('/:id/read', authenticate, async (req, res) => {
 });
 
 // Mark all as read
-router.put('/read/all', authenticate, async (req, res) => {
+router.put('/read/all', authenticate, async (req: AuthRequest, res: Response): Promise<any> => {
   try {
     await prisma.notification.updateMany({
       where: { userId: req.user!.userId, read: false },
