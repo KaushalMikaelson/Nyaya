@@ -233,6 +233,8 @@
 | 9 | OTP sent to console not email | `SMTP_USER` was blank in `.env` | Filled in Gmail credentials + App Password |
 | 10 | Registration fails | Account already existed with same email from test runs | Register with a fresh email |
 | 11 | OTP invalid despite correct code | Multiple registrations → older OTP invalidated; user had stale email | Added debug logging to `verifyOtp`; use freshest OTP email received |
+| 12 | Login "Invalid credentials" error despite correct password | Email input casing and whitespace mismatches (e.g. `Email@domain.com` vs `email@domain.com`) | Added `.toLowerCase().trim()` to all auth login/registration routines |
+| 13 | Login fallback error shows due to undefined `err.response` in frontend | The frontend `NEXT_PUBLIC_API_URL` missed the `/api` suffix leading to a 404 HTML response that could not be parsed as JSON | Added `/api` suffix to `.env.local` setting |
 
 ---
 

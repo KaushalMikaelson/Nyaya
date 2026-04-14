@@ -1,45 +1,44 @@
 import { prisma } from './src/prisma';
-import bcrypt from 'bcrypt';
+import * as bcrypt from 'bcrypt';
 
 async function main() {
-  const users = await prisma.user.findMany();
-  console.log('Total users:', users.length);
-  for (const user of users) {
-    if (user.passwordHash) {
-      console.log(`User: ${user.email}, Role: ${user.role}`);
-    } else {
-      console.log(`User: ${user.email}, HasHash: false`);
-    }
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      isEmailVerified: true,
+      isActive: true,
+      passwordHash: true,
+      createdAt: true,
+    },
+  });
+
+  if (users.length === 0) {
+    console.log('No users found in database.');
+    return;
   }
 
-  // Force seed admin@nyaay.in if missing or mismatched password
-  const exists = await prisma.user.findUnique({ where: { email: 'admin@nyaay.in' }});
-  const passwordHash = await bcrypt.hash('password123', 12);
-
-  if (!exists) {
-    await prisma.user.create({
-      data: {
-        email: 'admin@nyaay.in',
-        passwordHash,
-        role: 'ADMIN',
-        isActive: true,
-        isEmailVerified: true,
-        adminProfile: {
-          create: {
-             fullName: 'Nyaya Admin',
-             permissions: ['verify_lawyers', 'verify_judges', 'manage_content']
-          }
-        }
+  console.log(`\nFound ${users.length} user(s):\n`);
+  for (const u of users) {
+    console.log(`Email:         ${u.email}`);
+    console.log(`Role:          ${u.role}`);
+    console.log(`EmailVerified: ${u.isEmailVerified}`);
+    console.log(`Active:        ${u.isActive}`);
+    console.log(`HasPassword:   ${!!u.passwordHash}`);
+    if (u.passwordHash) {
+      // Test against common passwords
+      const testPasswords = ['password', 'password123', 'Password123', '12345678', 'admin123', 'password@123'];
+      for (const p of testPasswords) {
+        const match = await bcrypt.compare(p, u.passwordHash);
+        if (match) console.log(`  ⚠️  Password matches common password: "${p}"`);
       }
-    });
-    console.log("SEEDED admin@nyaay.in with password123");
-  } else {
-    // Force reset the password to ensure it matches 'password123'
-    await prisma.user.update({
-      where: { email: 'admin@nyaay.in' },
-      data: { passwordHash }
-    });
-    console.log("UPDATED admin@nyaay.in with password123");
+    }
+    console.log(`Created:       ${u.createdAt.toISOString()}`);
+    console.log('─'.repeat(50));
   }
 }
-main().finally(() => prisma.$disconnect());
+
+main()
+  .catch((e) => { console.error(e); process.exit(1); })
+  .finally(() => prisma.$disconnect());

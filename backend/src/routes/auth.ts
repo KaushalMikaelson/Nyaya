@@ -80,7 +80,8 @@ function getMeta(req: Request) {
  * Creates account and sends email OTP for verification.
  */
 router.post('/citizen/register', registerLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, password, fullName, phone } = req.body;
+  let { email, password, fullName, phone } = req.body;
+  if (email) email = email.toLowerCase().trim();
 
   if (!email || !password) {
     res.status(400).json({ error: 'Email and password are required.' });
@@ -131,7 +132,8 @@ router.post('/citizen/register', registerLimiter, async (req: Request, res: Resp
  * Verifies OTP and issues JWT tokens.
  */
 router.post('/citizen/verify-email', otpVerifyLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, code } = req.body;
+  let { email, code } = req.body;
+  if (email) email = email.toLowerCase().trim();
   if (!email || !code) {
     res.status(400).json({ error: 'Email and OTP code are required.' });
     return;
@@ -255,7 +257,8 @@ router.post(
  * LAWYER REGISTER
  */
 router.post('/lawyer/register', registerLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, password, fullName, barCouncilNumber, barCouncilState } = req.body;
+  let { email, password, fullName, barCouncilNumber, barCouncilState } = req.body;
+  if (email) email = email.toLowerCase().trim();
 
   if (!email || !password || !fullName || !barCouncilNumber) {
     res.status(400).json({ error: 'Email, password, full name, and Bar Council number are required.' });
@@ -317,7 +320,8 @@ router.post('/lawyer/register', registerLimiter, async (req: Request, res: Respo
  * LAWYER VERIFY EMAIL
  */
 router.post('/lawyer/verify-email', otpVerifyLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, code } = req.body;
+  let { email, code } = req.body;
+  if (email) email = email.toLowerCase().trim();
   if (!email || !code) {
     res.status(400).json({ error: 'Email and OTP code are required.' });
     return;
@@ -424,7 +428,8 @@ router.post(
  * JUDGE REGISTER
  */
 router.post('/judge/register', registerLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, password, fullName, governmentId, court, courtLevel, jurisdiction, departmentCode } = req.body;
+  let { email, password, fullName, governmentId, court, courtLevel, jurisdiction, departmentCode } = req.body;
+  if (email) email = email.toLowerCase().trim();
 
   if (!email || !password || !fullName || !governmentId) {
     res.status(400).json({ error: 'Email, password, full name, and Government ID are required.' });
@@ -486,7 +491,8 @@ router.post('/judge/register', registerLimiter, async (req: Request, res: Respon
  * JUDGE VERIFY EMAIL
  */
 router.post('/judge/verify-email', otpVerifyLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, code } = req.body;
+  let { email, code } = req.body;
+  if (email) email = email.toLowerCase().trim();
   if (!email || !code) {
     res.status(400).json({ error: 'Email and OTP are required.' });
     return;
@@ -557,7 +563,8 @@ router.post(
  * ADMIN REGISTER via invite token
  */
 router.post('/admin/register', registerLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { token, email, password, fullName, department } = req.body;
+  let { token, email, password, fullName, department } = req.body;
+  if (email) email = email.toLowerCase().trim();
 
   if (!token || !email || !password || !fullName) {
     res.status(400).json({ error: 'Invite token, email, password, and full name are required.' });
@@ -635,7 +642,8 @@ router.post('/admin/register', registerLimiter, async (req: Request, res: Respon
  * ADMIN VERIFY EMAIL
  */
 router.post('/admin/verify-email', otpVerifyLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, code } = req.body;
+  let { email, code } = req.body;
+  if (email) email = email.toLowerCase().trim();
   if (!email || !code) {
     res.status(400).json({ error: 'Email and OTP are required.' });
     return;
@@ -671,7 +679,8 @@ router.post('/admin/verify-email', otpVerifyLimiter, async (req: Request, res: R
  * Works for all roles. Returns tokens.
  */
 router.post('/login', loginLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body;
+  let { email, password } = req.body;
+  if (email) email = email.toLowerCase().trim();
   if (!email || !password) {
     res.status(400).json({ error: 'Email and password are required.' });
     return;
@@ -679,8 +688,12 @@ router.post('/login', loginLimiter, async (req: Request, res: Response): Promise
 
   try {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.passwordHash) {
-      res.status(401).json({ error: 'Invalid credentials.' });
+    if (!user) {
+      res.status(401).json({ error: 'User not found.' });
+      return;
+    }
+    if (!user.passwordHash) {
+      res.status(401).json({ error: 'Password not set for this account. Please use OTP login.' });
       return;
     }
     if (!user.isActive) {
@@ -690,7 +703,7 @@ router.post('/login', loginLimiter, async (req: Request, res: Response): Promise
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) {
-      res.status(401).json({ error: 'Invalid credentials.' });
+      res.status(401).json({ error: 'Incorrect password.' });
       return;
     }
 
@@ -729,7 +742,8 @@ router.post('/login', loginLimiter, async (req: Request, res: Response): Promise
  * OTP LOGIN (passwordless) — request OTP
  */
 router.post('/login/otp/request', otpSendLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, phone } = req.body;
+  let { email, phone } = req.body;
+  if (email) email = email.toLowerCase().trim();
   if (!email && !phone) {
     res.status(400).json({ error: 'Email or phone is required.' });
     return;
@@ -769,7 +783,8 @@ router.post('/login/otp/request', otpSendLimiter, async (req: Request, res: Resp
  * OTP LOGIN — verify OTP and get tokens
  */
 router.post('/login/otp/verify', otpVerifyLimiter, loginLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, phone, code } = req.body;
+  let { email, phone, code } = req.body;
+  if (email) email = email.toLowerCase().trim();
   if ((!email && !phone) || !code) {
     res.status(400).json({ error: 'Email/phone and OTP are required.' });
     return;
@@ -805,7 +820,8 @@ router.post('/login/otp/verify', otpVerifyLimiter, loginLimiter, async (req: Req
  * RESEND OTP
  */
 router.post('/resend-otp', otpSendLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, type } = req.body;
+  let { email, type } = req.body;
+  if (email) email = email.toLowerCase().trim();
   if (!email || !type) {
     res.status(400).json({ error: 'Email and OTP type are required.' });
     return;
@@ -923,7 +939,8 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise
  * Silently succeeds even if email not found (security)
  */
 router.post('/forgot-password', passwordResetLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email } = req.body;
+  let { email } = req.body;
+  if (email) email = email.toLowerCase().trim();
   if (!email) {
     res.status(400).json({ error: 'Email is required.' });
     return;
@@ -951,7 +968,8 @@ router.post('/forgot-password', passwordResetLimiter, async (req: Request, res: 
  * RESET PASSWORD — Verify OTP + set new password
  */
 router.post('/reset-password', passwordResetLimiter, otpVerifyLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, code, newPassword } = req.body;
+  let { email, code, newPassword } = req.body;
+  if (email) email = email.toLowerCase().trim();
 
   if (!email || !code || !newPassword) {
     res.status(400).json({ error: 'Email, OTP code, and new password are required.' });
