@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
+import { motion, useScroll, useTransform, AnimatePresence, type Variants } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 import {
   Scale, ArrowRight, Shield,
@@ -14,11 +14,12 @@ import { Playfair_Display, Inter } from 'next/font/google';
 const playfair = Playfair_Display({ subsets: ['latin'], style: ['normal', 'italic'] });
 const inter = Inter({ subsets: ['latin'] });
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 30 },
-  visible: (i = 0) => ({
-    opacity: 1, y: 0,
-    transition: { duration: 0.7, delay: i * 0.12, ease: [0.22, 1, 0.36, 1] }
+  visible: (i: number = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.7, delay: i * 0.12, ease: "easeOut" }
   })
 };
 
