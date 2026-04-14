@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 import {
   Scale, LogOut, Users, Shield, Gavel, CheckCircle2,
   Clock, XCircle, UserCheck, Building2, RefreshCw,
-  Crown, AlertTriangle, Activity, CreditCard, BlockOutlined
+  Crown, AlertTriangle, Activity, CreditCard, Ban, ArrowRight, Briefcase
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,

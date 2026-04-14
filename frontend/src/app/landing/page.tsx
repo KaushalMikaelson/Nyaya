@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useState } from "react";
 import { 
   Scale, ArrowRight, Shield, Globe, Award, ChevronRight, 
   FileStack, Users, Zap, Briefcase, Lock, CheckCircle2,
@@ -20,6 +21,15 @@ const fadeIn = {
 
 export default function AdvancedLanding() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState("Business Law");
+
+  const workflowNodes = [
+    { id: 1, title: "Initial Consultation", x: 10, y: 36 },
+    { id: 2, title: "Ongoing Legal Support", x: 30, y: 84 },
+    { id: 3, title: "Regulatory Compliance", x: 50, y: 100 },
+    { id: 4, title: "Contract Review", x: 70, y: 84 },
+    { id: 5, title: "Entity Formation", x: 90, y: 36 },
+  ];
 
   return (
     <div className={`min-h-screen bg-[#070b16] text-[#ededed] overflow-x-hidden ${inter.className}`}>
@@ -202,38 +212,94 @@ export default function AdvancedLanding() {
         </div>
       </section>
 
-      {/* Workflow Timeline Section */}
-      <section className="py-24 bg-[#0a0f1d] border-y border-[#1e2642]">
-        <div className="max-w-7xl mx-auto px-6 lg:px-12">
-          <div className="text-center max-w-2xl mx-auto mb-20">
-            <h2 className={`${playfair.className} text-4xl text-white mb-4`}>From query to courtroom in three steps.</h2>
-            <p className="text-[#a1a1aa]">We streamline the paralyzing complexity of the Indian legal system.</p>
+      {/* Interactive Workflow Section */}
+      <section className="py-32 bg-[#090b14] border-y border-[#1e2642] relative overflow-hidden">
+        {/* Subtle grid background covering the section */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
+
+        <div className="max-w-[90rem] mx-auto px-6 lg:px-12 relative z-10">
+          
+          <div className="flex flex-col md:flex-row items-center justify-center md:justify-between mb-16 relative">
+            <div className="hidden lg:flex absolute left-0 top-0 h-full flex-col">
+               <div className="h-full w-px bg-gradient-to-b from-[#1e2642] via-[#ffffff10] to-[#1e2642]"></div>
+               <div className="absolute top-1/2 -left-[14px] -translate-y-1/2 text-[#474a58] text-[10px] uppercase tracking-widest -rotate-90 origin-center">Process</div>
+            </div>
+
+            <div className="text-center w-full">
+              <h2 className={`${playfair.className} text-5xl md:text-6xl text-white mb-6 font-medium tracking-wide`}>Our Workflow</h2>
+              <p className="text-[#727581] text-sm md:text-base max-w-2xl mx-auto">At Nyaay AI, our workflow is meticulously crafted to ensure seamless and efficient handling of your legal matters.</p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
-             <div className="hidden md:block absolute top-[28px] left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-[#d4af37]/30 to-transparent" />
-             
-             {/* Step 1 */}
-             <div className="relative flex flex-col items-center text-center">
-               <div className="w-14 h-14 rounded-full bg-[#070b16] border-2 border-[#1e2642] flex items-center justify-center text-xl font-bold text-[#d4af37] mb-6 z-10 shadow-[0_0_20px_rgba(0,0,0,0.5)]">1</div>
-               <h4 className="text-xl font-semibold mb-3 text-white">Ask Nyaay AI</h4>
-               <p className="text-[#a1a1aa] text-sm leading-relaxed px-4">Input your legal issue in native languages. Our LLM parses the facts and generates a preliminary legal strategy backed by citations.</p>
-             </div>
-
-             {/* Step 2 */}
-             <div className="relative flex flex-col items-center text-center">
-               <div className="w-14 h-14 rounded-full bg-[#0d1224] border-2 border-[#d4af37] flex items-center justify-center text-xl font-bold text-[#d4af37] mb-6 z-10 shadow-[0_0_30px_rgba(212,175,55,0.2)]">2</div>
-               <h4 className="text-xl font-semibold mb-3 text-white">Analyze Evidence</h4>
-               <p className="text-[#a1a1aa] text-sm leading-relaxed px-4">Upload contracts, FIRs, or evidence. Nyaay extracts entities and checks for procedural loopholes or breaches of contract instantly.</p>
-             </div>
-
-             {/* Step 3 */}
-             <div className="relative flex flex-col items-center text-center">
-               <div className="w-14 h-14 rounded-full bg-[#070b16] border-2 border-[#1e2642] flex items-center justify-center text-xl font-bold text-[#d4af37] mb-6 z-10 shadow-[0_0_20px_rgba(0,0,0,0.5)]">3</div>
-               <h4 className="text-xl font-semibold mb-3 text-white">Retain Counsel</h4>
-               <p className="text-[#a1a1aa] text-sm leading-relaxed px-4">Sync your case file to a verified Lawyer matching your jurisdiction and let them take the matter into court immediately.</p>
-             </div>
+          {/* Interactive Navigation Pills */}
+          <div className="flex justify-center mb-32 relative z-20">
+            <div className="bg-[#101422] p-1.5 flex items-center gap-1 rounded border border-white/5 shadow-2xl">
+              {["Business Law", "Litigation", "Real Estate", "Personal Injury"].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-8 py-3 text-xs md:text-sm font-medium transition-all duration-500 rounded-sm ${activeTab === tab ? "bg-white text-[#090b14] shadow-md" : "text-[#727581] hover:text-white"}`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* Curved Timeline Arc */}
+          <div className="relative h-[250px] md:h-[350px] w-full max-w-5xl mx-auto mt-10">
+            {/* SVG Arc lines */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none transform scale-y-110" preserveAspectRatio="none" viewBox="0 0 100 100">
+                <path d="M 0 0 Q 50 200 100 0" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="0.2" vectorEffect="non-scaling-stroke" strokeDasharray="4 2"/>
+                <path d="M 0 20 Q 50 200 100 20" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="0.1" vectorEffect="non-scaling-stroke"/>
+                <path d="M 0 -20 Q 50 200 100 -20" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="0.1" vectorEffect="non-scaling-stroke"/>
+            </svg>
+
+            {/* Nodes mapped along the arc */}
+            {workflowNodes.map((node) => (
+              <motion.div 
+                 key={node.id}
+                 className="absolute flex flex-col items-center justify-center group"
+                 style={{ left: `${node.x}%`, top: `${node.y}%` }}
+                 initial={{ opacity: 0, y: 10 }}
+                 whileInView={{ opacity: 1, y: 0 }}
+                 viewport={{ once: true }}
+                 transition={{ duration: 0.5, delay: node.id * 0.1 }}
+              >
+                  <div className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer pt-6">
+                    {/* Dark Circular Node with Dotted/Dashed Ring */}
+                    <div className="relative w-7 h-7 rounded-full bg-[#090b14] border border-[#a1a1aa]/30 flex items-center justify-center shadow-lg group-hover:border-white transition-all duration-300 z-10 hover:scale-110">
+                       <div className="absolute inset-0 rounded-full border border-dashed border-white/40 group-hover:animate-[spin_4s_linear_infinite]"></div>
+                       <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,1)]"></div>
+                    </div>
+                    {/* Pulse Effect Behind Node */}
+                    <div className="absolute top-[28px] left-[50%] -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full border border-white/5 animate-ping opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    
+                    {/* Title Text */}
+                    <div className="mt-4 text-center w-[120px]">
+                      <span className="text-[#a1a1aa] text-xs font-medium tracking-wide group-hover:text-white transition-colors">{node.title}</span>
+                    </div>
+                  </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-32 md:mt-40 flex justify-center relative z-20"
+          >
+            <button className="flex items-stretch overflow-hidden rounded-[0.5rem] border border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.5)] group hover:shadow-[0_0_40px_rgba(167,243,208,0.15)] transition-all">
+              <div className="bg-[#242730] px-6 py-4 text-white text-xl md:text-2xl font-bold flex items-center justify-center border-r border-[#1e2642]">
+                W.
+              </div>
+              <div className="bg-[#a7f3d0] px-8 py-4 text-[#064e3b] font-bold text-xs md:text-sm tracking-widest uppercase flex items-center justify-center group-hover:bg-[#86efac] transition-colors">
+                Visit Resource
+              </div>
+            </button>
+          </motion.div>
+
         </div>
       </section>
 

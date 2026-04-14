@@ -332,15 +332,13 @@ export default function Home() {
 
   if (authLoading || !user) {
     return (
-      <div className="flex h-screen w-full items-center justify-center" style={{ background: "#070b16" }}>
+      <div className="flex h-screen w-full items-center justify-center bg-[#f8f9fa]">
         <div className="flex flex-col items-center gap-5">
           <div className="relative">
-            <div className="w-16 h-16 rounded-3xl flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 40px rgba(124,110,247,0.4)" }}>
-              <Scale size={28} className="text-white" />
+            <div className="w-16 h-16 rounded-3xl flex items-center justify-center shadow-md bg-white border border-slate-200">
+              <Scale size={28} className="text-[#0f172a]" />
             </div>
-            <div className="absolute inset-0 rounded-3xl animate-spin-slow"
-              style={{ border: "1px solid transparent", borderTopColor: "rgba(124,110,247,0.6)", borderRadius: "24px" }} />
+            <div className="absolute inset-0 rounded-3xl animate-spin-slow border border-transparent border-t-[#0f172a]/60" />
           </div>
           <div className="flex gap-1.5">
             {[0, 1, 2].map(i => (
@@ -354,45 +352,45 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#070b16] text-[#ededed] font-sans">
+    <div className="flex h-screen w-full overflow-hidden bg-[#f8f9fa] text-[#1e293b] font-sans selection:bg-[#0f172a] selection:text-white">
 
-      {/* Mobile overlay */}
+      {/* Drawer Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 md:hidden bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
           />
         )}
       </AnimatePresence>
 
-      {/* ─── SIDEBAR ─── */}
+      {/* ─── DRAWER SIDEBAR ─── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 md:static w-[260px] flex flex-col transition-transform duration-300 ease-in-out bg-[#0a0f1d] ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
+        className={`fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col transition-transform duration-300 ease-in-out bg-[#0f172a] border-r border-slate-800 shadow-[20px_0_50px_rgba(0,0,0,0.2)] ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         {/* Sidebar Header */}
         <div className="flex items-center gap-1.5 px-3 h-[60px] shrink-0">
           <button
             onClick={() => { setActiveChat(null); setMessages([]); if(window.innerWidth < 768) setSidebarOpen(false); }}
-            className={`flex items-center justify-center w-10 h-10 shrink-0 rounded-lg transition-colors ${!activeChat && messages.length === 0 ? 'bg-[#131b31] text-[#ededed]' : 'text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed]'}`}
+            className={`flex items-center justify-center w-10 h-10 shrink-0 rounded-lg transition-colors ${!activeChat && messages.length === 0 ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
             title="Dashboard Workspace"
           >
             <LayoutDashboard size={18} />
           </button>
           <button
             onClick={createNewChat}
-            className="flex-1 flex items-center justify-between px-3 h-10 text-sm font-medium text-[#ededed] hover:bg-[#131b31] transition-colors rounded-lg group"
+            className="flex-1 flex items-center justify-between px-3 h-10 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors rounded-lg group"
           >
             <div className="flex items-center gap-2">
-              <Scale size={16} className="text-[#a1a1aa]" />
+              <Scale size={16} className="text-slate-400 group-hover:text-white" />
               <span>New chat</span>
             </div>
-            <Plus size={16} className="text-[#a1a1aa] group-hover:text-[#ededed]" />
+            <Plus size={16} className="text-slate-400 group-hover:text-white" />
           </button>
-          <button className="md:hidden w-10 h-10 flex items-center justify-center shrink-0 rounded-lg text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed] transition-colors"
+          <button className="md:hidden w-10 h-10 flex items-center justify-center shrink-0 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
             onClick={() => setSidebarOpen(false)}>
             <X size={18} />
           </button>
@@ -401,35 +399,35 @@ export default function Home() {
 
 
         {/* Main Navigation */}
-        <div className="flex flex-col gap-1 px-3 py-4 border-b border-[#1e2642] mb-2 overflow-y-auto custom-scrollbar">
-          <button onClick={() => { setActiveChat(null); setMessages([]); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${!activeChat && messages.length === 0 ? 'bg-[#131b31] text-white' : 'text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed]'}`}>
+        <div className="flex flex-col gap-1 px-3 py-4 border-b border-slate-800 mb-2 overflow-y-auto custom-scrollbar">
+          <button onClick={() => { setActiveChat(null); setMessages([]); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-sm font-medium transition-colors ${!activeChat && messages.length === 0 ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <LayoutDashboard size={18} /> Dashboard
           </button>
-          <button onClick={createNewChat} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeChat ? 'bg-[#131b31] text-amber-300' : 'text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed]'}`}>
+          <button onClick={createNewChat} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeChat ? 'bg-slate-800 text-[#d4af37]' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <Zap size={18} /> AI Assistant
           </button>
-          <button onClick={() => router.push('/search')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed] transition-colors">
+          <button onClick={() => router.push('/search')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
             <Search size={18} /> Legal Search
           </button>
-          <button onClick={() => router.push('/documents')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed] transition-colors">
+          <button onClick={() => router.push('/documents')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
             <FileStack size={18} /> Documents
           </button>
-          <button onClick={() => router.push('/cases')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed] transition-colors">
+          <button onClick={() => router.push('/cases')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
             <Briefcase size={18} /> Case Management
           </button>
-          <button onClick={() => router.push('/marketplace')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed] transition-colors">
+          <button onClick={() => router.push('/marketplace')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
             <Users size={18} /> Lawyer Marketplace
           </button>
-          <button onClick={() => router.push('/notifications')} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed] transition-colors">
+          <button onClick={() => router.push('/notifications')} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
             <div className="flex items-center gap-3"><Bell size={18} /> Notifications</div>
-            <div className="w-5 h-5 rounded bg-amber-400/20 text-amber-300 text-[10px] flex items-center justify-center font-bold">3</div>
+            <div className="w-5 h-5 rounded bg-[#d4af37]/20 text-[#d4af37] text-[10px] flex items-center justify-center font-bold">3</div>
           </button>
-          <button onClick={handleRazorpayUpgrade} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#a1a1aa] hover:bg-[#131b31] hover:text-[#ededed] transition-colors">
+          <button onClick={handleRazorpayUpgrade} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
             <CreditCard size={18} /> Billing
           </button>
 
           {user.role === 'ADMIN' && (
-            <button onClick={() => router.push('/admin')} className="w-full flex items-center gap-3 px-3 py-2.5 mt-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors">
+            <button onClick={() => router.push('/admin')} className="w-full flex items-center gap-3 px-3 py-2.5 mt-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-950 transition-colors">
               <ShieldAlert size={18} /> Admin Console
             </button>
           )}
@@ -444,17 +442,17 @@ export default function Home() {
             </div>
           ) : (
             <div className="space-y-0.5">
-              <div className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider px-2 pb-2 ml-1">Recent AI Chats</div>
+              <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-2 pb-2 ml-1">Recent AI Chats</div>
               {conversations.map((conv) => {
                 const isActive = activeChat === conv.id;
                 return (
                   <motion.div key={conv.id} layout className="relative group">
-                    <button onClick={() => selectConversation(conv)} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${isActive ? "bg-[#131b31]" : "hover:bg-[#131b31]/50"}`}>
+                    <button onClick={() => selectConversation(conv)} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${isActive ? "bg-slate-800" : "hover:bg-slate-800/50"}`}>
                       <div className="flex-1 min-w-0 pr-6">
-                        <div className={`truncate text-[13px] ${isActive ? "text-[#ededed] font-medium" : "text-[#a1a1aa]"}`}>{conv.title}</div>
+                        <div className={`truncate text-[13px] ${isActive ? "text-white font-medium" : "text-slate-400"}`}>{conv.title}</div>
                       </div>
                     </button>
-                    <button onClick={(e) => deleteConversation(e, conv.id)} disabled={deletingId === conv.id} className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-md text-[#71717a] hover:text-[#ededed] hover:bg-[#2d3759]" title="Delete chat">
+                    <button onClick={(e) => deleteConversation(e, conv.id)} disabled={deletingId === conv.id} className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-md text-slate-500 hover:text-white hover:bg-slate-700" title="Delete chat">
                       <Trash2 size={13} />
                     </button>
                   </motion.div>
@@ -478,14 +476,14 @@ export default function Home() {
 
         {/* User Profile */}
         <div className="shrink-0 p-3">
-          <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-[#131b31] transition-colors cursor-pointer group" onClick={logout} title="Click to Sign out">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-medium text-xs text-black bg-[#ededed]">
+          <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-slate-800 transition-colors cursor-pointer group border border-slate-800" onClick={logout} title="Click to Sign out">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-xs text-[#0f172a] bg-white">
               {user.email[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="truncate text-sm font-medium text-[#ededed] group-hover:text-white transition-colors">{user.email.split('@')[0]}</div>
+              <div className="truncate text-sm font-medium text-slate-300 group-hover:text-white transition-colors">{user.email.split('@')[0]}</div>
             </div>
-            <LogOut size={15} className="text-[#71717a] group-hover:text-[#a1a1aa] opacity-0 group-hover:opacity-100 transition-all" />
+            <LogOut size={15} className="text-slate-500 group-hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-all" />
           </div>
         </div>
       </aside>
@@ -494,110 +492,112 @@ export default function Home() {
       <main className="flex flex-1 flex-col min-w-0 relative">
 
         {/* Top Navbar */}
-        <header className="flex items-center justify-between h-14 px-4 md:px-6 shrink-0 bg-[#070b16]/80 backdrop-blur-md sticky top-0 z-30 border-b border-[#1e2642]/50">
+        <header className="flex items-center justify-between h-14 px-4 md:px-6 shrink-0 bg-white/80 backdrop-blur-md sticky top-0 z-30 border-b border-slate-200">
           <div className="flex items-center gap-4 flex-1">
-            <button className="md:hidden p-2 -ml-2 rounded-lg transition-colors text-[#a1a1aa] hover:text-white hover:bg-[#131b31]"
+            <button className="p-2 -ml-2 rounded-lg transition-colors text-slate-500 hover:text-[#0f172a] hover:bg-slate-100"
               onClick={() => setSidebarOpen(true)}>
               <Menu size={20} />
             </button>
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-[#0d1224] border border-[#1e2642] hover:border-[#2d3759] transition-all rounded-lg max-w-sm w-full group">
-               <SearchIcon size={14} className="text-[#71717a] group-hover:text-[#a1a1aa]" />
-               <input type="text" placeholder="Global search cases, documents, lawyers..." className="bg-transparent border-none outline-none text-sm text-[#ededed] w-full placeholder:text-[#52525b]" />
-               <div className="px-1.5 py-0.5 rounded border border-[#1e2642] text-[10px] text-[#71717a] bg-[#111827] font-mono">⌘K</div>
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 focus-within:border-slate-300 transition-all rounded-[4px] max-w-sm w-full group shadow-sm">
+               <SearchIcon size={14} className="text-slate-400 group-hover:text-[#0f172a]" />
+               <input type="text" placeholder="Global search cases, documents, lawyers..." className="bg-transparent border-none outline-none text-sm text-[#0f172a] w-full placeholder:text-slate-400 font-medium" />
+               <div className="px-1.5 py-0.5 rounded border border-slate-200 text-[10px] text-slate-500 bg-white font-mono shadow-sm">⌘K</div>
             </div>
             {activeChat && (
-              <span className="text-[14px] font-medium text-[#ededed] truncate block md:hidden ml-1">
+              <span className="text-[14px] font-bold text-[#0f172a] truncate block md:hidden ml-1">
                 AI Assistant
               </span>
             )}
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-yellow-600/10 border border-yellow-600/20 rounded-full text-amber-200 text-xs font-semibold tracking-wider uppercase">
-               <ShieldCheck size={12} /> {user.role}
+             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#0f172a] text-white border border-[#0f172a] rounded-full text-xs font-bold tracking-wider uppercase">
+               <ShieldCheck size={12} className="text-[#d4af37]" /> {user.role}
              </div>
-             <button className="p-2 rounded-full text-[#a1a1aa] hover:text-[#ededed] hover:bg-[#131b31] transition-colors relative">
+             <button className="p-2 rounded-full text-slate-400 hover:text-[#0f172a] hover:bg-slate-100 transition-colors relative">
                <Bell size={18} />
-               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
+               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 border border-white" />
              </button>
-             <div className="w-px h-5 bg-[#1e2642] mx-1" />
+             <div className="w-px h-5 bg-slate-200 mx-1" />
              <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-               <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-yellow-500 to-yellow-600 flex items-center justify-center text-white text-xs font-bold border border-[#1e2642]">
+               <div className="w-7 h-7 rounded-full bg-[#0f172a] flex items-center justify-center text-white text-xs font-bold">
                  {user.email[0].toUpperCase()}
                </div>
-               <ChevronDown size={14} className="text-[#71717a]" />
+               <ChevronDown size={14} className="text-slate-400" />
              </button>
           </div>
         </header>
 
 
 
-        {/* Messages */}
+        {/* Main Content Area */}
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
-          <div className="mx-auto max-w-3xl px-4 py-6 pb-44">
-            {messages.length === 0 && !activeChat ? (
-              <WorkspaceDashboard user={user} router={router} triggerChat={createNewChat} triggerPro={handleRazorpayUpgrade} />
-            ) : messages.length === 0 && activeChat ? (
-              <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex flex-col pt-12 pb-20 w-full items-center justify-center min-h-[40vh]">
-                <div className="w-16 h-16 rounded-3xl flex items-center justify-center bg-gradient-to-br from-[#111827] to-[#070b16] border border-[#1e2642] mb-6 shadow-[0_0_30px_rgba(168,85,247,0.1)]">
-                  <Zap size={28} className="text-amber-300" />
-                </div>
-                <h2 className="text-2xl font-semibold text-[#ededed] mb-2 tracking-tight">Nyaay AI Assistant</h2>
-                <p className="text-[#a1a1aa] text-sm mb-10">How can I help with your legal research today?</p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl px-4">
-                  {SUGGESTED.map((s, i) => (
-                    <button key={i} onClick={() => handleSuggestedClick(s.text)} className="flex items-center gap-3 p-4 rounded-xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.05)] hover:border-[rgba(255,255,255,0.08)] transition-all text-left">
-                      <span className="text-lg shrink-0 opacity-80">{s.icon}</span>
-                      <span className="text-sm font-medium text-[#d4d4d8] leading-tight">{s.text}</span>
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            ) : (
-              <div className="space-y-6">
-                {messages.map((msg, i) => (
-                  <motion.div key={msg.id || i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-4`}>
-                    {msg.role === "assistant" && (
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-[#ededed] text-black border border-[#1e2642] mt-1">
-                        <Scale size={16} />
-                      </div>
-                    )}
-                    <div className={`flex flex-col group ${msg.role === "user" ? "items-end max-w-[70%]" : "items-start max-w-[85%]"}`}>
-                      <div className={`px-5 py-3.5 text-[15px] leading-relaxed ${
-                          msg.role === "user" 
-                            ? "bg-[#1a2442] text-[#ededed] rounded-3xl rounded-tr-sm" 
-                            : "bg-transparent text-[#ededed] rounded-lg"
-                        }`}>
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span className="text-[11px] text-[#52525b]">{formatTime(msg.createdAt)}</span>
-                        {msg.role === "assistant" && <CopyButton text={msg.content} />}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-
-                {/* Typing indicator */}
-                {loadingChat && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start gap-4">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-[#ededed] text-black mt-1">
-                      <Scale size={16} />
-                    </div>
-                    <div className="px-5 py-4">
-                      <div className="flex gap-1.5 items-center">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#52525b] animate-bounce" />
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#52525b] animate-bounce" style={{ animationDelay: "0.15s" }} />
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#52525b] animate-bounce" style={{ animationDelay: "0.3s" }} />
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+          {messages.length === 0 && !activeChat ? (
+             <WorkspaceDashboard user={user} router={router} triggerChat={createNewChat} triggerPro={handleRazorpayUpgrade} />
+          ) : (
+             <div className="mx-auto max-w-3xl px-4 py-6 pb-44">
+               {messages.length === 0 && activeChat ? (
+                 <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex flex-col pt-12 pb-20 w-full items-center justify-center min-h-[40vh]">
+                   <div className="w-16 h-16 rounded-3xl flex items-center justify-center bg-gradient-to-br from-[#111827] to-[#070b16] border border-[#1e2642] mb-6 shadow-[0_0_30px_rgba(168,85,247,0.1)]">
+                     <Zap size={28} className="text-amber-300" />
+                   </div>
+                   <h2 className="text-2xl font-semibold text-[#ededed] mb-2 tracking-tight">Nyaay AI Assistant</h2>
+                   <p className="text-[#a1a1aa] text-sm mb-10">How can I help with your legal research today?</p>
+   
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl px-4">
+                     {SUGGESTED.map((s, i) => (
+                       <button key={i} onClick={() => handleSuggestedClick(s.text)} className="flex items-center gap-3 p-4 rounded-xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.05)] hover:border-[rgba(255,255,255,0.08)] transition-all text-left">
+                         <span className="text-lg shrink-0 opacity-80">{s.icon}</span>
+                         <span className="text-sm font-medium text-[#d4d4d8] leading-tight">{s.text}</span>
+                       </button>
+                     ))}
+                   </div>
+                 </motion.div>
+               ) : (
+                 <div className="space-y-6">
+                   {messages.map((msg, i) => (
+                     <motion.div key={msg.id || i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-4`}>
+                       {msg.role === "assistant" && (
+                         <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-white border border-slate-200 text-[#0f172a] mt-1 shadow-sm">
+                           <Scale size={16} />
+                         </div>
+                       )}
+                       <div className={`flex flex-col group ${msg.role === "user" ? "items-end max-w-[70%]" : "items-start max-w-[85%]"}`}>
+                         <div className={`px-5 py-3.5 text-[15px] font-medium tracking-wide leading-relaxed shadow-sm ${
+                             msg.role === "user" 
+                               ? "bg-[#0f172a] text-white rounded-3xl rounded-tr-sm" 
+                               : "bg-white border border-slate-200 text-slate-800 rounded-lg"
+                           }`}>
+                           <p className="whitespace-pre-wrap">{msg.content}</p>
+                         </div>
+                         <div className="flex items-center gap-2 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                           <span className="text-[11px] font-bold text-slate-400">{formatTime(msg.createdAt)}</span>
+                           {msg.role === "assistant" && <CopyButton text={msg.content} />}
+                         </div>
+                       </div>
+                     </motion.div>
+                   ))}
+   
+                   {/* Typing indicator */}
+                   {loadingChat && (
+                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start gap-4">
+                       <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-[#ededed] text-black mt-1">
+                         <Scale size={16} />
+                       </div>
+                       <div className="px-5 py-4">
+                         <div className="flex gap-1.5 items-center">
+                           <div className="w-1.5 h-1.5 rounded-full bg-[#52525b] animate-bounce" />
+                           <div className="w-1.5 h-1.5 rounded-full bg-[#52525b] animate-bounce" style={{ animationDelay: "0.15s" }} />
+                           <div className="w-1.5 h-1.5 rounded-full bg-[#52525b] animate-bounce" style={{ animationDelay: "0.3s" }} />
+                         </div>
+                       </div>
+                     </motion.div>
+                   )}
+                 </div>
+               )}
+               <div ref={messagesEndRef} />
+             </div>
+          )}
         </div>
 
         {/* Scroll to bottom button */}
@@ -618,17 +618,17 @@ export default function Home() {
         </AnimatePresence>
 
         {/* ─── INPUT BAR ─── */}
-        <div className="absolute inset-x-0 bottom-0 pb-6 pt-12 pointer-events-none bg-gradient-to-t from-[#070b16] via-[#070b16]/90 to-transparent z-10 lg:pl-[260px]">
+        <div className="absolute inset-x-0 bottom-0 pb-6 pt-12 pointer-events-none bg-gradient-to-t from-[#f8f9fa] via-[#f8f9fa]/90 to-transparent z-10">
           <div className="mx-auto max-w-3xl px-4 pointer-events-auto">
-            <div className="relative flex items-end gap-2 rounded-2xl p-2.5 bg-[#1a2442] text-[#ededed] shadow-sm ring-1 ring-white/10 focus-within:ring-white/25 transition-all">
+            <div className="relative flex items-end gap-2 p-2.5 bg-white border border-slate-200 text-slate-800 shadow-xl focus-within:border-slate-300 focus-within:shadow-2xl transition-all rounded-xl">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingDoc}
-                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-[#a1a1aa] hover:text-[#ededed] hover:bg-[#2d3759] transition-colors"
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                 title="Upload Document"
               >
-                {uploadingDoc ? <div className="animate-spin w-4 h-4 border-2 border-t-transparent border-[#ededed] rounded-full" /> : <Paperclip size={20} />}
+                {uploadingDoc ? <div className="animate-spin w-4 h-4 border-2 border-t-transparent border-slate-400 rounded-full" /> : <Paperclip size={20} />}
               </button>
               
               <textarea
@@ -638,7 +638,7 @@ export default function Home() {
                 onKeyDown={handleKeyDown}
                 placeholder={activeChat ? "Message Nyaay..." : "Ask anything about Indian law..."}
                 rows={1}
-                className="flex-1 resize-none bg-transparent text-[15px] outline-none placeholder:text-[#a1a1aa] py-2.5 px-1"
+                className="flex-1 resize-none bg-transparent text-[15px] font-medium outline-none placeholder:text-slate-400 py-2.5 px-1"
                 style={{ maxHeight: "200px", lineHeight: "1.5" }}
               />
 
@@ -651,12 +651,12 @@ export default function Home() {
                   }
                 }}
                 disabled={!input.trim() || loadingChat}
-                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[#ededed] text-[#070b16] disabled:opacity-30 disabled:bg-[#2d3759] disabled:text-[#a1a1aa] transition-colors"
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[#0f172a] text-white disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 transition-colors shadow-sm"
               >
                 <ArrowRight size={20} />
               </button>
             </div>
-            <p className="mt-3 text-center text-xs text-[#71717a]">
+            <p className="mt-3 text-center text-xs font-semibold text-slate-400">
               Nyaay can make mistakes. Always consult a qualified lawyer for serious matters.
             </p>
           </div>

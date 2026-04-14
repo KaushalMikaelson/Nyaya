@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, Calendar, FileText, Share2, 
-  Clock, Plus, Scale, ChevronRight, X, Building2 
+  Clock, Plus, Scale, ChevronRight, X, Building2, ArrowRight, Briefcase 
 } from "lucide-react";
 
 export default function CaseDetailsPage() {
