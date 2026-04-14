@@ -153,7 +153,7 @@ export default function AdvancedLanding() {
             >
               <Scale className="text-[#070b16]" size={14} />
             </motion.div>
-            <span className="text-sm font-bold tracking-widest uppercase text-[#f2d680]">Nyaay AI</span>
+            <span className="text-sm font-bold tracking-widest uppercase text-[#f2d680]">Nyaya AI</span>
           </motion.div>
 
           <div className="hidden lg:flex items-center gap-8 text-sm text-gray-300">
@@ -235,7 +235,7 @@ export default function AdvancedLanding() {
               transition={{ duration: 1, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className={`${playfair.className} text-6xl sm:text-7xl lg:text-[7rem] leading-[0.9] text-white font-medium mb-6 drop-shadow-xl tracking-tight`}
             >
-              <span className="block">NYAAY</span>
+              <span className="block">Nyaya</span>
               <span className="block mt-2 min-h-[1.1em]">
                 <Typewriter words={["LEGAL AI", "JUSTICE", "YOUR SHIELD", "FOR INDIA"]} />
               </span>
@@ -371,7 +371,7 @@ export default function AdvancedLanding() {
               An ecosystem designed for profound legal intelligence.
             </motion.h2>
             <motion.p custom={1} variants={fadeUp} className="text-[#a1a1aa] text-lg">
-              Nyaay integrates document parsing, generative AI, and a verified practitioner network into a single, cohesive operating environment.
+              Nyaya integrates document parsing, generative AI, and a verified practitioner network into a single, cohesive operating environment.
             </motion.p>
           </motion.div>
 
@@ -402,7 +402,7 @@ export default function AdvancedLanding() {
                 <FileStack className="text-[#d4af37]" size={28} />
               </motion.div>
               <h3 className={`${playfair.className} text-3xl text-white mb-4 relative drop-shadow-md`} style={{ transform: "translateZ(60px)" }}>Document Intelligence</h3>
-              <p className="text-[#a1a1aa] text-lg max-w-md mb-8 relative" style={{ transform: "translateZ(30px)" }}>Upload massive FIRs, charge sheets, or contracts. Nyaay extracts critical entities, identifies loopholes, and summarizes thousands of pages in seconds.</p>
+              <p className="text-[#a1a1aa] text-lg max-w-md mb-8 relative" style={{ transform: "translateZ(30px)" }}>Upload massive FIRs, charge sheets, or contracts. Nyaya extracts critical entities, identifies loopholes, and summarizes thousands of pages in seconds.</p>
               <motion.button
                 whileHover={{ x: 4 }}
                 className="flex items-center gap-2 text-[#d4af37] font-semibold text-sm transition-all relative"
@@ -508,7 +508,7 @@ export default function AdvancedLanding() {
             className="text-center w-full mb-16"
           >
             <motion.h2 custom={0} variants={fadeUp} className={`${playfair.className} text-5xl md:text-6xl text-white mb-6 font-medium`}>Our Workflow</motion.h2>
-            <motion.p custom={1} variants={fadeUp} className="text-[#727581] text-sm md:text-base max-w-2xl mx-auto">At Nyaay AI, our workflow is meticulously crafted to ensure seamless and efficient handling of your legal matters.</motion.p>
+            <motion.p custom={1} variants={fadeUp} className="text-[#727581] text-sm md:text-base max-w-2xl mx-auto">At Nyaya AI, our workflow is meticulously crafted to ensure seamless and efficient handling of your legal matters.</motion.p>
           </motion.div>
 
           {/* Tabs */}
@@ -666,7 +666,7 @@ export default function AdvancedLanding() {
                 transition={{ duration: 4, repeat: Infinity }}
                 className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(212,175,55,0.1),transparent)] pointer-events-none rounded-3xl"
               />
-              <h4 className="text-xl font-semibold text-[#f2d680] mb-2">Nyaay PRO</h4>
+              <h4 className="text-xl font-semibold text-[#f2d680] mb-2">Nyaya PRO</h4>
               <p className="text-sm text-[#a1a1aa] mb-6">For power users and independent practitioners.</p>
               <div className="text-4xl font-bold text-white mb-8">₹1,999 <span className="text-base font-normal text-gray-500">/mo</span></div>
               <ul className="space-y-4 mb-10 flex-1">
@@ -740,7 +740,7 @@ export default function AdvancedLanding() {
             <div>
               <div className="flex items-center gap-2 mb-6">
                 <Scale className="text-[#d4af37]" size={20} />
-                <span className="text-sm font-bold tracking-widest uppercase text-white">Nyaay AI</span>
+                <span className="text-sm font-bold tracking-widest uppercase text-white">Nyaya AI</span>
               </div>
               <p className="text-xs text-gray-500 leading-relaxed max-w-xs">The intelligent legal operating system defining the future of jurisdiction and procedural law in India.</p>
             </div>
@@ -762,7 +762,7 @@ export default function AdvancedLanding() {
             ))}
           </div>
           <div className="mt-16 text-center text-xs text-gray-600">
-            © {new Date().getFullYear()} Nyaay Technologies Pvt Ltd. All rights reserved.
+            © {new Date().getFullYear()} Nyaya Technologies Pvt Ltd. All rights reserved.
           </div>
         </div>
       </footer>
