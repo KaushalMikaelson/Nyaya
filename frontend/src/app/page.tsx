@@ -432,33 +432,8 @@ export default function Home() {
           )}
         </div>
 
-        {/* Conversations History */}
+        {/* Space Spacer to push bottom items down */}
         <div className="flex-1 overflow-y-auto px-3 py-2">
-          {conversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-6 text-center px-4 opacity-50">
-              <MessageSquare size={16} className="text-[#2d3759] mb-2" />
-              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">No Chat History</p>
-            </div>
-          ) : (
-            <div className="space-y-0.5">
-              <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-2 pb-2 ml-1">Recent AI Chats</div>
-              {conversations.map((conv) => {
-                const isActive = activeChat === conv.id;
-                return (
-                  <motion.div key={conv.id} layout className="relative group">
-                    <button onClick={() => selectConversation(conv)} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${isActive ? "bg-slate-800" : "hover:bg-slate-800/50"}`}>
-                      <div className="flex-1 min-w-0 pr-6">
-                        <div className={`truncate text-[13px] ${isActive ? "text-white font-medium" : "text-slate-400"}`}>{conv.title}</div>
-                      </div>
-                    </button>
-                    <button onClick={(e) => deleteConversation(e, conv.id)} disabled={deletingId === conv.id} className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-md text-slate-500 hover:text-white hover:bg-slate-700" title="Delete chat">
-                      <Trash2 size={13} />
-                    </button>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         {/* Monetization Upgrade Banner */}
@@ -497,11 +472,7 @@ export default function Home() {
               onClick={() => setSidebarOpen(true)}>
               <Menu size={20} />
             </button>
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 focus-within:border-slate-300 transition-all rounded-[4px] max-w-sm w-full group shadow-sm">
-               <SearchIcon size={14} className="text-slate-400 group-hover:text-[#0f172a]" />
-               <input type="text" placeholder="Global search cases, documents, lawyers..." className="bg-transparent border-none outline-none text-sm text-[#0f172a] w-full placeholder:text-slate-400 font-medium" />
-               <div className="px-1.5 py-0.5 rounded border border-slate-200 text-[10px] text-slate-500 bg-white font-mono shadow-sm">⌘K</div>
-            </div>
+
             {activeChat && (
               <span className="text-[14px] font-bold text-[#0f172a] truncate block md:hidden ml-1">
                 AI Assistant
@@ -617,6 +588,7 @@ export default function Home() {
         </AnimatePresence>
 
         {/* ─── INPUT BAR ─── */}
+        {activeChat && (
         <div className="absolute inset-x-0 bottom-0 pb-6 pt-12 pointer-events-none bg-gradient-to-t from-[#f8f9fa] via-[#f8f9fa]/90 to-transparent z-10">
           <div className="mx-auto max-w-3xl px-4 pointer-events-auto">
             <div className="relative flex items-end gap-2 p-2.5 bg-white border border-slate-200 text-slate-800 shadow-xl focus-within:border-slate-300 focus-within:shadow-2xl transition-all rounded-xl">
@@ -660,6 +632,7 @@ export default function Home() {
             </p>
           </div>
         </div>
+        )}
       </main>
     </div>
   );

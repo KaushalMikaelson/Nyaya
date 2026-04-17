@@ -34,15 +34,29 @@ export default function SearchPage() {
     if (!authLoading && !user) router.push("/login");
   }, [authLoading, user, router]);
 
-  const handleSearch = async (e?: React.FormEvent) => {
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('q');
+      if (q) {
+        setQuery(q);
+        // Clear param from URL optionally without reload
+        window.history.replaceState({}, '', '/search');
+        handleSearch(undefined, q);
+      }
+    }
+  }, []);
+
+  const handleSearch = async (e?: React.FormEvent, directQuery?: string) => {
     if (e) e.preventDefault();
-    if (!query.trim()) return;
+    const searchQuery = directQuery ?? query;
+    if (!searchQuery.trim()) return;
     
     setLoading(true);
     setHasSearched(true);
     try {
       const { data } = await api.post("/search", { 
-        query, 
+        query: searchQuery, 
         filters: {
           act: filterAct,
           category: filterCategory,
