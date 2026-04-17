@@ -11,6 +11,8 @@ export const setAccessToken = (token: string) => {
   accessToken = token;
 };
 
+export const getAccessToken = () => accessToken;
+
 // Request interceptor to add the access token
 api.interceptors.request.use((config) => {
   if (accessToken && config.headers) {

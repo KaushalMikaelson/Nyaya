@@ -1,98 +1,104 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createTextStreamResponse } from 'ai';
-
-// Shape of a legal citation returned by the backend
-export interface LegalCitation {
-  actTitle: string;
-  actShortName: string;
-  sectionNumber: string;
-  sectionTitle: string;
-  clauseNumber?: string;
-}
-
-/**
- * Sentinel that separates the human-readable answer from the citations JSON
- * appended at the end of the stream.  Using a plain ASCII delimiter avoids
- * issues with null-byte encoding across HTTP chunked transfer.
- */
-export const CITATION_SENTINEL = '\n\n[[NYAYA_CITATIONS]]\n';
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Accept chat messages & extract latest user query
-    const { messages } = await req.json();
-    const latestMessage = messages[messages.length - 1];
+    const body = await req.json();
+    const { messages, conversationId: existingConvId } = body;
 
+    const latestMessage = messages?.[messages.length - 1];
     if (!latestMessage || latestMessage.role !== 'user') {
       return NextResponse.json({ error: 'Invalid message structure' }, { status: 400 });
     }
 
-    // 2. Call RAG backend for search results
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-    const backendRes = await fetch(`${backendUrl}/search`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: latestMessage.content }),
-    });
+    const authHeader =
+      req.headers.get('Authorization') ||
+      req.headers.get('authorization') ||
+      '';
 
-    if (!backendRes.ok) {
-      throw new Error(`Backend returned ${backendRes.status}`);
-    }
+    const forwardHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(authHeader ? { Authorization: authHeader } : {}),
+    };
 
-    const data = await backendRes.json();
-    const answer: string = data.answer || 'No answer found.';
+    // ── Step 1: Get or create a backend Conversation ──────────────────────────
+    let conversationId: string = existingConvId || '';
 
-    // 3. Extract structured legal citations from the results array
-    const citations: LegalCitation[] = [];
-    const seenKeys = new Set<string>();
+    if (!conversationId) {
+      const shortTitle = latestMessage.content.substring(0, 60);
+      const convRes = await fetch(`${backendUrl}/chat/conversations`, {
+        method: 'POST',
+        headers: forwardHeaders,
+        body: JSON.stringify({ title: shortTitle }),
+      });
 
-    if (data.results && Array.isArray(data.results)) {
-      for (const result of data.results) {
-        if (!result.act || !result.section) continue;
-
-        const key = `${result.act.shortName}::${result.section.number}::${result.clause?.number ?? ''}`;
-        if (seenKeys.has(key)) continue;
-        seenKeys.add(key);
-
-        citations.push({
-          actTitle: result.act.title,
-          actShortName: result.act.shortName,
-          sectionNumber: result.section.number,
-          sectionTitle: result.section.title || '',
-          clauseNumber: result.clause?.number ?? undefined,
-        });
-
-        // Cap at 5 unique citations
-        if (citations.length >= 5) break;
+      if (!convRes.ok) {
+        const txt = await convRes.text().catch(() => convRes.statusText);
+        throw new Error(`Failed to create conversation (${convRes.status}): ${txt}`);
       }
+
+      const conv = await convRes.json();
+      conversationId = conv.id;
     }
 
-    // 4. Build a ReadableStream<string>:
-    //    • Stream the answer word-by-word for a live-typing effect.
-    //    • Append the sentinel + citations JSON at the very end so the client
-    //      can strip it out before displaying and render the citation cards.
-    const textStream = new ReadableStream<string>({
+    // ── Step 2: Send message through the full RAG + Groq pipeline ────────────
+    const msgRes = await fetch(
+      `${backendUrl}/chat/conversations/${conversationId}/messages`,
+      {
+        method: 'POST',
+        headers: forwardHeaders,
+        body: JSON.stringify({ content: latestMessage.content }),
+      },
+    );
+
+    if (!msgRes.ok) {
+      const errData = await msgRes.json().catch(() => ({})) as any;
+      if (errData?.error === 'FREE_LIMIT_REACHED') {
+        return new Response(
+          'You have reached your free query limit. Please upgrade to Pro to continue.',
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'text/plain; charset=utf-8',
+              'X-Conversation-Id': conversationId,
+            },
+          }
+        );
+      }
+      throw new Error(errData?.error || `Backend returned ${msgRes.status}`);
+    }
+
+    const data = await msgRes.json() as any;
+    const answer: string = data.assistantMessage?.content || 'No response received from AI.';
+
+    // ── Step 3: Stream answer as plain text chunks ────────────────────────────
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
       async start(controller) {
         const tokens = answer.split(' ');
         for (let i = 0; i < tokens.length; i++) {
-          controller.enqueue(tokens[i] + (i < tokens.length - 1 ? ' ' : ''));
-          await new Promise((resolve) => setTimeout(resolve, 28));
+          controller.enqueue(encoder.encode(tokens[i] + (i < tokens.length - 1 ? ' ' : '')));
+          await new Promise((r) => setTimeout(r, 18));
         }
-
-        if (citations.length > 0) {
-          controller.enqueue(`${CITATION_SENTINEL}${JSON.stringify(citations)}`);
-        }
-
         controller.close();
       },
     });
 
-    return createTextStreamResponse({ textStream });
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Transfer-Encoding': 'chunked',
+        'X-Conversation-Id': conversationId,
+        'Access-Control-Expose-Headers': 'X-Conversation-Id',
+      },
+    });
+
   } catch (error) {
     console.error('[Chat API Error]:', error);
     return NextResponse.json(
-      { error: 'An error occurred while communicating with the backend' },
+      { error: String(error) },
       { status: 500 },
     );
   }

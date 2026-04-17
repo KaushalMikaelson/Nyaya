@@ -1,6 +1,5 @@
 'use client';
 
-import { useChat } from '@ai-sdk/react';
 import { useState, useEffect, useRef } from 'react';
 import {
   Send,
@@ -32,6 +31,7 @@ import {
 
 import { useRouter } from 'next/navigation';
 import { useAuth } from "@/contexts/AuthContext";
+import { getAccessToken } from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -141,8 +141,17 @@ function CitationsPanel({ citations }: { citations: LegalCitation[] }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export default function AskNyayaPage() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading, append } = useChat() as any;
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [localInput, setLocalInput] = useState('');
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const router = useRouter();
@@ -157,18 +166,77 @@ export default function AskNyayaPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
+  const sendMessage = async (content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed || isLoading) return;
+
+    const userMsg: ChatMessage = { id: `${Date.now()}-u`, role: 'user', content: trimmed };
+    const assistantId = `${Date.now()}-a`;
+    setMessages(prev => [...prev, userMsg, { id: assistantId, role: 'assistant', content: '' }]);
+    setLocalInput('');
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAccessToken()}`,
+        },
+        body: JSON.stringify({
+          messages: [...messages, userMsg],
+          conversationId,
+        }),
+      });
+
+      const convId = res.headers.get('X-Conversation-Id');
+      if (convId && !conversationId) setConversationId(convId);
+
+      if (!res.ok || !res.body) {
+        const errText = await res.text().catch(() => 'Unknown error');
+        setMessages(prev => prev.map(m =>
+          m.id === assistantId ? { ...m, content: `Error: ${errText}` } : m
+        ));
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+        const snap = accumulated;
+        setMessages(prev => prev.map(m =>
+          m.id === assistantId ? { ...m, content: snap } : m
+        ));
+      }
+    } catch (err) {
+      console.error('Chat error:', err);
+      setMessages(prev => prev.map(m =>
+        m.id === assistantId
+          ? { ...m, content: 'Sorry, something went wrong. Please try again.' }
+          : m
+      ));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Support ?q= parameter
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const q = params.get('q');
-      if (q && !hasAppendedRef.current && messages.length === 0) {
-        append({ role: 'user', content: q });
+      if (q && !hasAppendedRef.current) {
         hasAppendedRef.current = true;
-        window.history.replaceState({}, '', '/ask-nyaya'); // Clean URL
+        sendMessage(q);
+        window.history.replaceState({}, '', '/ask-nyaya');
       }
     }
-  }, [append, messages.length]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex h-screen w-full bg-white text-[#0d0d0d] font-sans selection:bg-slate-200 selection:text-slate-900">
@@ -198,18 +266,19 @@ export default function AskNyayaPage() {
         .citation-card {
            display: flex;
            gap: 8px;
-           background: #f9f9f9;
-           border: 1px solid #ececec;
-           border-radius: 12px;
-           padding: 10px 12px;
+           background: #ffffff;
+           border: 1px solid #e2e8f0;
+           border-radius: 10px;
+           padding: 12px 14px;
            overflow: hidden;
            position: relative;
+           box-shadow: 0 2px 4px rgba(0,0,0,0.02);
         }
         .citation-accent {
            position: absolute;
            left: 0; top: 0; bottom: 0;
            width: 3px;
-           background: #10a37f;
+           background: #d4af37;
         }
         .citation-body {
            flex: 1;
@@ -222,8 +291,8 @@ export default function AskNyayaPage() {
            align-items: center;
            gap: 6px;
            font-size: 11px;
-           font-weight: 600;
-           color: #10a37f;
+           font-weight: 700;
+           color: #0f172a;
         }
         .citation-act-pill, .citation-clause-pill {
            display: flex;
@@ -329,8 +398,8 @@ export default function AskNyayaPage() {
                 <PanelLeftOpen size={20} />
               </button>
             )}
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors text-lg font-semibold text-[#0d0d0d]">
-              Ask Nyaay <ChevronDown size={18} className="text-slate-400" />
+            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors text-[20px] font-semibold text-[#0f172a] font-serif tracking-tight">
+              Nyaya Workspace <ChevronDown size={18} className="text-slate-400" />
             </button>
           </div>
           <div className="flex items-center">
@@ -346,29 +415,36 @@ export default function AskNyayaPage() {
           {messages.length === 0 ? (
             /* Empty State */
             <div className="flex flex-col items-center justify-center flex-1 w-full mt-[-8vh] px-4">
-              <h2 className="text-[26px] md:text-[32px] font-semibold text-[#0d0d0d] mb-8 text-center bg-white z-10 w-full py-4 relative">
-                 What's on the agenda today?
-              </h2>
+              <div className="flex flex-col items-center mb-10 z-10 w-full py-4 relative">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-[#d4af37] flex items-center justify-center shadow-2xl mb-6 border border-[#334155]">
+                  <Scale size={32} strokeWidth={1.5} />
+                </div>
+                <h2 className="text-[28px] md:text-[36px] font-serif font-medium text-[#0f172a] text-center tracking-tight">
+                   How can I assist your legal research?
+                </h2>
+                <p className="text-[#64748b] mt-3 font-medium text-[15px] text-center max-w-lg">
+                   Analyze case laws, draft legal documents, or explore the Indian Penal Code with precision.
+                </p>
+              </div>
 
               {/* Centered Input */}
-              <div className="w-full max-w-[760px] mx-auto z-20 shadow-[0_0_40px_rgba(0,0,0,0.03)] rounded-[24px]">
-                <form onSubmit={handleSubmit} className="relative flex flex-col bg-[#f4f4f4] border border-[#e5e5e5] rounded-[24px] focus-within:bg-white focus-within:border-slate-300 focus-within:shadow-[0_0_15px_rgba(0,0,0,0.05)] transition-all px-4 py-3">
+              <div className="w-full max-w-[760px] mx-auto z-20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[16px]">
+                <form onSubmit={(e) => { e.preventDefault(); sendMessage(localInput); }} className="relative flex flex-col bg-white border border-[#e2e8f0] rounded-[16px] focus-within:border-[#cbd5e1] focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all px-4 py-3">
                   <div className="flex items-start gap-2">
-                    <button type="button" className="p-2 rounded-full hover:bg-slate-200 text-slate-500 transition-colors mt-0.5 shrink-0" title="Attach file">
-                      <Plus size={20} />
+                    <button type="button" className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors mt-0.5 shrink-0" title="Attach case files">
+                      <Paperclip size={20} />
                     </button>
                     <textarea
-                      value={input}
-                      onChange={handleInputChange}
+                      value={localInput}
+                      onChange={(e) => setLocalInput(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
-                          const form = e.currentTarget.form;
-                          if (form && (input ?? '' as string).trim()) form.requestSubmit();
+                          sendMessage(localInput);
                         }
                       }}
-                      placeholder="Ask anything..."
-                      className="flex-1 resize-none bg-transparent text-[16px] text-slate-800 outline-none py-2 max-h-[200px]"
+                      placeholder="Ask anything about Indian law..."
+                      className="flex-1 resize-none bg-transparent text-[16px] text-slate-800 outline-none py-2 max-h-[200px] placeholder:text-slate-400"
                       rows={1}
                       ref={(el) => {
                         if (el) {
@@ -378,15 +454,15 @@ export default function AskNyayaPage() {
                       }}
                     />
                     <div className="flex items-center gap-1 mt-0.5 shrink-0">
-                      {!(input || '').trim() ? (
-                        <button type="button" className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-200 text-slate-500 transition-colors">
+                      {!localInput.trim() ? (
+                        <button type="button" className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
                           <Mic size={18} />
                         </button>
                       ) : (
                         <button
                           type="submit"
                           disabled={isLoading}
-                          className="w-10 h-10 flex items-center justify-center rounded-full bg-black text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+                          className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#0f172a] text-[#d4af37] hover:bg-[#1e293b] transition-colors disabled:opacity-50 shadow-sm"
                         >
                           {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                         </button>
@@ -395,39 +471,40 @@ export default function AskNyayaPage() {
                   </div>
                 </form>
               </div>
-              <div className="mt-8 flex flex-wrap justify-center gap-3 max-w-[760px] opacity-70">
-                <button onClick={() => append({role:'user',content:'What is IPC 420?'})} className="px-4 py-2 bg-slate-100 border border-slate-200 rounded-full text-sm font-medium hover:bg-slate-200 text-slate-600 transition-colors">What is IPC 420?</button>
-                <button onClick={() => append({role:'user',content:'Draft a landlord eviction notice'})} className="px-4 py-2 bg-slate-100 border border-slate-200 rounded-full text-sm font-medium hover:bg-slate-200 text-slate-600 transition-colors">Draft an eviction notice</button>
-                <button onClick={() => append({role:'user',content:'Consumer Protection Act highlights'})} className="px-4 py-2 bg-slate-100 border border-slate-200 rounded-full text-sm font-medium hover:bg-slate-200 text-slate-600 transition-colors">Consumer Protection Act</button>
+              <div className="mt-8 flex flex-wrap justify-center gap-3 max-w-[760px]">
+                <button onClick={() => sendMessage('Explain Article 21 of the Constitution of India — Protection of life and personal liberty. What does it guarantee?')} className="px-4 py-2.5 bg-white border border-[#e2e8f0] rounded-xl text-[13px] font-medium hover:border-[#cbd5e1] hover:bg-[#f8fafc] text-[#475569] transition-all shadow-sm flex items-center gap-2"><Scale size={14} className="text-[#d4af37]"/> Constitution Art. 21</button>
+                <button onClick={() => sendMessage('What is Section 103 of the Bharatiya Nyaya Sanhita (BNS) 2023 — Punishment for murder? How has it changed from the old IPC?')} className="px-4 py-2.5 bg-white border border-[#e2e8f0] rounded-xl text-[13px] font-medium hover:border-[#cbd5e1] hover:bg-[#f8fafc] text-[#475569] transition-all shadow-sm flex items-center gap-2"><BookOpen size={14} className="text-[#d4af37]"/> BNS Sec. 103 — Murder</button>
+                <button onClick={() => sendMessage('Explain Section 66 of the IT Act 2000 — Computer related offences. What constitutes an offence and what is the penalty?')} className="px-4 py-2.5 bg-white border border-[#e2e8f0] rounded-xl text-[13px] font-medium hover:border-[#cbd5e1] hover:bg-[#f8fafc] text-[#475569] transition-all shadow-sm flex items-center gap-2"><FileText size={14} className="text-[#d4af37]"/> IT Act Sec. 66</button>
+                <button onClick={() => sendMessage('What are the rights of a consumer under Section 2 of the Consumer Protection Act, 2019?')} className="px-4 py-2.5 bg-white border border-[#e2e8f0] rounded-xl text-[13px] font-medium hover:border-[#cbd5e1] hover:bg-[#f8fafc] text-[#475569] transition-all shadow-sm flex items-center gap-2"><Briefcase size={14} className="text-[#d4af37]"/> Consumer Rights</button>
+                <button onClick={() => sendMessage('Explain Section 173 of the BNSS 2023 — Information in cognizable cases. How does the FIR filing process work?')} className="px-4 py-2.5 bg-white border border-[#e2e8f0] rounded-xl text-[13px] font-medium hover:border-[#cbd5e1] hover:bg-[#f8fafc] text-[#475569] transition-all shadow-sm flex items-center gap-2"><Hash size={14} className="text-[#d4af37]"/> BNSS Sec. 173 — FIR</button>
               </div>
             </div>
           ) : (
             /* Populated Chat Thread */
             <div className="w-full max-w-[760px] flex flex-col gap-8 py-8 px-4 flex-1">
-              {messages.map((m: any, idx: number) => {
+              {messages.map((m: ChatMessage, idx: number) => {
                 const isUser = m.role === 'user';
-                const raw = getMessageContent(m);
                 const { text, citations } = isUser
-                  ? { text: raw, citations: [] as LegalCitation[] }
-                  : parseMessage(raw);
+                  ? { text: m.content, citations: [] as LegalCitation[] }
+                  : parseMessage(m.content);
 
                 return (
                   <div key={m.id || idx} className="flex gap-4 msg-enter w-full">
                     <div className="shrink-0 mt-0.5">
                       {isUser ? (
-                        <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-[11px] border border-slate-300">NK</div>
+                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-[10px] border border-slate-200 shadow-sm uppercase tracking-wide">{user?.name ? user.name.substring(0,2) : 'NK'}</div>
                       ) : (
-                        <div className="w-8 h-8 rounded-full border border-slate-200 bg-white text-[#10a37f] flex items-center justify-center shadow-sm">
-                           <Zap size={18} fill="currentColor" strokeWidth={0} />
+                        <div className="w-8 h-8 rounded-lg border border-[#1e293b] bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-[#d4af37] flex items-center justify-center shadow-md">
+                           <Scale size={16} strokeWidth={1.5} />
                         </div>
                       )}
                     </div>
 
                     <div className="flex-1 min-w-0 pr-4">
                       {isUser ? (
-                        <h3 className="font-semibold text-[15px] mb-1">You</h3>
+                        <h3 className="font-semibold text-[14px] text-slate-700 mb-1">You</h3>
                       ) : (
-                        <h3 className="font-semibold text-[15px] mb-1">Nyaay AI</h3>
+                        <h3 className="font-semibold text-[14px] text-[#0f172a] mb-1">Nyaya Legal Assistant</h3>
                       )}
                       
                       <div className="prose prose-sm md:prose-base prose-slate max-w-none text-[#0d0d0d] leading-relaxed whitespace-pre-wrap">
@@ -440,15 +517,15 @@ export default function AskNyayaPage() {
                 );
               })}
 
-              {isLoading && messages[messages.length - 1]?.role === 'user' && (
+              {isLoading && messages[messages.length - 1]?.role === 'assistant' && messages[messages.length - 1]?.content === '' && (
                 <div className="flex gap-4 w-full msg-enter">
                   <div className="shrink-0 mt-0.5">
-                     <div className="w-8 h-8 rounded-full border border-slate-200 bg-white text-[#10a37f] flex items-center justify-center shadow-sm">
-                        <Zap size={18} fill="currentColor" strokeWidth={0} />
+                     <div className="w-8 h-8 rounded-lg border border-[#1e293b] bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-[#d4af37] flex items-center justify-center shadow-md">
+                        <Scale size={16} strokeWidth={1.5} />
                      </div>
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-[15px] mb-1">Nyaay AI</h3>
+                    <h3 className="font-semibold text-[14px] text-[#0f172a] mb-1">Nyaya Legal Assistant</h3>
                     <div className="flex items-center gap-1.5 h-6">
                        <Loader2 size={16} className="animate-spin text-slate-400" />
                     </div>
@@ -463,23 +540,22 @@ export default function AskNyayaPage() {
         {/* Bottom Input Area */}
         {messages.length > 0 && (
           <div className="w-full max-w-[800px] mx-auto px-4 pb-6 pt-2 bg-gradient-to-t from-white via-white to-transparent shrink-0">
-            <form onSubmit={handleSubmit} className="relative flex flex-col bg-[#f4f4f4] border border-[#e5e5e5] rounded-[24px] focus-within:bg-white focus-within:border-slate-300 focus-within:shadow-[0_0_15px_rgba(0,0,0,0.05)] transition-all px-4 py-2.5">
+            <form onSubmit={(e) => { e.preventDefault(); sendMessage(localInput); }} className="relative flex flex-col bg-white border border-[#e2e8f0] rounded-[16px] focus-within:border-[#cbd5e1] focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all px-4 py-2.5">
               <div className="flex items-start gap-2">
-                <button type="button" className="p-2 rounded-full hover:bg-slate-200 text-slate-500 transition-colors mt-0.5 shrink-0" title="Attach file">
-                  <Plus size={20} />
+                <button type="button" className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors mt-0.5 shrink-0" title="Attach case files">
+                  <Paperclip size={20} />
                 </button>
                 <textarea
-                  value={input}
-                  onChange={handleInputChange}
+                  value={localInput}
+                  onChange={(e) => setLocalInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
-                      const form = e.currentTarget.form;
-                      if (form && (input ?? '' as string).trim()) form.requestSubmit();
+                      sendMessage(localInput);
                     }
                   }}
-                  placeholder="Ask anything..."
-                  className="flex-1 resize-none bg-transparent text-[16px] text-slate-800 outline-none py-1.5 max-h-[200px]"
+                  placeholder="Ask anything about Indian law..."
+                  className="flex-1 resize-none bg-transparent text-[16px] text-slate-800 outline-none py-1.5 max-h-[200px] placeholder:text-slate-400"
                   rows={1}
                   ref={(el) => {
                     if (el) {
@@ -491,16 +567,16 @@ export default function AskNyayaPage() {
                 <div className="flex items-center gap-1 mt-0.5 shrink-0">
                   <button
                     type="submit"
-                    disabled={isLoading || !(input || '').trim()}
-                    className="w-10 h-10 flex items-center justify-center rounded-full bg-black text-white hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:bg-[#ececec] disabled:text-slate-400"
+                    disabled={isLoading || !localInput.trim()}
+                    className="w-10 h-10 flex items-center justify-center rounded-[12px] bg-[#0f172a] text-[#d4af37] hover:bg-[#1e293b] transition-colors disabled:opacity-50 disabled:bg-[#f1f5f9] disabled:text-[#94a3b8] shadow-sm"
                   >
                     {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                   </button>
                 </div>
               </div>
             </form>
-            <p className="text-center text-xs text-slate-400 mt-3 font-medium">
-              Nyaay AI can make mistakes. Always check important information.
+            <p className="text-center text-xs text-[#94a3b8] mt-3 font-medium">
+              Nyaya Legal Assistant can make mistakes. Always verify critical statutory information independently.
             </p>
           </div>
         )}
