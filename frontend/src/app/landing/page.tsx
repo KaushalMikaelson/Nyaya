@@ -90,6 +90,7 @@ function Typewriter({ words }: { words: string[] }) {
     } else if (deleting && displayed.length > 0) {
       timeout = setTimeout(() => setDisplayed(displayed.slice(0, -1)), 40);
     } else if (deleting && displayed.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDeleting(false);
       setIdx((idx + 1) % words.length);
     }

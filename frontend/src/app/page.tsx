@@ -130,7 +130,6 @@ export default function Home() {
     try {
       const { data } = await api.get("/chat/conversations");
       setConversations(data);
-      if (data.length > 0 && !activeChat) selectConversation(data[0]);
     } catch (err) {
       console.error(err);
     }
@@ -541,14 +540,14 @@ export default function Home() {
                    <div className="w-16 h-16 rounded-3xl flex items-center justify-center bg-gradient-to-br from-[#111827] to-[#070b16] border border-[#1e2642] mb-6 shadow-[0_0_30px_rgba(168,85,247,0.1)]">
                      <Zap size={28} className="text-amber-300" />
                    </div>
-                   <h2 className="text-2xl font-semibold text-[#ededed] mb-2 tracking-tight">Nyaay AI Assistant</h2>
-                   <p className="text-[#a1a1aa] text-sm mb-10">How can I help with your legal research today?</p>
+                   <h2 className="text-2xl font-semibold text-[#0f172a] mb-2 tracking-tight">Nyaay AI Assistant</h2>
+                   <p className="text-slate-500 text-sm mb-10">How can I help with your legal research today?</p>
    
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl px-4">
                      {SUGGESTED.map((s, i) => (
-                       <button key={i} onClick={() => handleSuggestedClick(s.text)} className="flex items-center gap-3 p-4 rounded-xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.05)] hover:border-[rgba(255,255,255,0.08)] transition-all text-left">
+                       <button key={i} onClick={() => handleSuggestedClick(s.text)} className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all text-left shadow-sm">
                          <span className="text-lg shrink-0 opacity-80">{s.icon}</span>
-                         <span className="text-sm font-medium text-[#d4d4d8] leading-tight">{s.text}</span>
+                         <span className="text-sm font-medium text-slate-700 leading-tight">{s.text}</span>
                        </button>
                      ))}
                    </div>

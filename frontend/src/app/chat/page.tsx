@@ -1,7 +1,7 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Send,
   User as UserIcon,
@@ -12,7 +12,20 @@ import {
   Hash,
   FileText,
   Zap,
+  Plus,
+  Search,
+  MessageSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ChevronDown,
+  Paperclip,
+  Menu,
+  MoreHorizontal,
+  LayoutGrid,
+  Mic
 } from 'lucide-react';
+
+import { useRouter } from 'next/navigation';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -145,436 +158,182 @@ function CitationsPanel({ citations }: { citations: LegalCitation[] }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ChatPage() {
-  // @ai-sdk/react v3 ships with UIMessage generics that may omit form helpers
-  // from the inferred type — but they exist at runtime.  Cast to `any` to
-  // unblock TypeScript without losing actual functionality.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat() as any;
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
   return (
-    <>
-      {/* ── Scoped styles ─────────────────────────────────────────────── */}
+    <div className="flex h-screen w-full bg-white text-[#0d0d0d] font-sans selection:bg-blue-100 selection:text-blue-900">
+      
+      {/* ── Scoped Styles for specifics ── */}
       <style>{`
-        /* ── Layout ────────────────────────────────────────────────── */
-        .chat-root {
-          display: flex;
-          flex-direction: column;
-          height: 100svh;
-          background: #080810;
-          font-family: 'Inter', system-ui, sans-serif;
-          color: #e5e7eb;
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
         }
-
-        /* ── Header ────────────────────────────────────────────────── */
-        .chat-header {
-          position: sticky;
-          top: 0;
-          z-index: 20;
-          display: flex;
-          align-items: center;
-          justify-content: flex-start;
-          padding: 20px 32px;
-          background: rgba(8,8,16,0.88);
-          backdrop-filter: blur(20px);
-          border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-        
-        .ai-assistant-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 12px;
-          padding: 12px 24px;
-          background-color: #1e293b;
-          border-radius: 12px;
-          color: #fbbf24;
-          font-weight: 500;
-          font-size: 16px;
-        }
-
-        /* ── Message area ──────────────────────────────────────────── */
-        .chat-messages {
-          flex: 1;
-          overflow-y: auto;
-          padding: 32px 24px 16px;
-          max-width: 860px;
-          width: 100%;
-          margin: 0 auto;
-          display: flex;
-          flex-direction: column;
-          gap: 28px;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(255,255,255,0.07) transparent;
-        }
-
-        /* ── Empty state ───────────────────────────────────────────── */
-        .chat-empty {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          flex: 1;
-          gap: 16px;
-          text-align: center;
-          padding: 80px 20px;
-        }
-        .chat-empty-icon {
-          width: 56px;
-          height: 56px;
-          border-radius: 18px;
-          background: rgba(59,130,246,0.08);
-          border: 1px solid rgba(59,130,246,0.14);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #3b82f6;
-          box-shadow: 0 0 28px rgba(59,130,246,0.1);
-        }
-        .chat-empty h2 {
-          font-size: 20px;
-          font-weight: 600;
-          color: #d1d5db;
-          margin: 0;
-        }
-        .chat-empty p {
-          font-size: 14px;
-          color: #4b5563;
-          margin: 0;
-          max-width: 360px;
-          line-height: 1.65;
-        }
-
-        /* ── Message row ───────────────────────────────────────────── */
-        .msg-row {
-          display: flex;
-          gap: 12px;
-          align-items: flex-start;
-        }
-        .msg-row.user { flex-direction: row-reverse; }
-
-        /* ── Avatar ─────────────────────────────────────────────────  */
-        .avatar {
-          flex-shrink: 0;
-          width: 32px;
-          height: 32px;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .avatar.bot {
-          background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
-          box-shadow: 0 0 14px rgba(59,130,246,0.28);
-          color: #fff;
-        }
-        .avatar.user {
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.09);
-          color: #9ca3af;
-        }
-
-        /* ── Bubble wrapper ─────────────────────────────────────────── */
-        .bubble-wrap {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          max-width: min(78%, 640px);
-        }
-
-        /* ── Chat bubble ─────────────────────────────────────────────  */
-        .bubble {
-          padding: 13px 17px;
-          border-radius: 16px;
-          font-size: 14px;
-          line-height: 1.72;
-          white-space: pre-wrap;
-          word-break: break-word;
-        }
-        .bubble.bot {
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.07);
-          border-top-left-radius: 4px;
-          color: #e2e8f0;
-        }
-        .bubble.user {
-          background: linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 100%);
-          border: 1px solid rgba(59,130,246,0.18);
-          border-top-right-radius: 4px;
-          color: #f1f5f9;
-        }
-
-        /* ══════════════════════════════════════════════════════════════
-           Citations Panel
-        ══════════════════════════════════════════════════════════════ */
-        .citations-panel {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          animation: fadeUp 0.35s ease both;
-        }
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0);   }
-        }
-
-        /* Header row */
-        .citations-header {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          font-size: 10.5px;
-          font-weight: 600;
-          letter-spacing: 0.07em;
-          text-transform: uppercase;
-          color: #4b5563;
-          padding: 0 2px;
-        }
-        .citations-divider {
-          flex: 1;
-          height: 1px;
-          background: rgba(255,255,255,0.05);
-          margin: 0 4px;
-        }
-        .citations-count-label {
-          color: #374151;
-          font-weight: 500;
-          letter-spacing: 0.03em;
-        }
-
-        .citations-list {
-          display: flex;
-          flex-direction: column;
-          gap: 5px;
-        }
-
-        /* ══════════════════════════════════════════════════════════════
-           Citation Card
-        ══════════════════════════════════════════════════════════════ */
-        .citation-card {
-          display: flex;
-          align-items: stretch;
-          background: rgba(12,16,28,0.75);
-          border: 1px solid rgba(59,130,246,0.1);
-          border-radius: 10px;
-          overflow: hidden;
-          animation: fadeUp 0.4s ease both;
-          transition: border-color 0.2s, background 0.2s, transform 0.15s;
-          cursor: default;
-        }
-        .citation-card:hover {
-          border-color: rgba(59,130,246,0.26);
-          background: rgba(17,24,42,0.9);
-          transform: translateX(2px);
-        }
-
-        /* Left gradient accent */
-        .citation-accent {
-          width: 3px;
-          background: linear-gradient(180deg, #60a5fa 0%, #1d4ed8 100%);
-          flex-shrink: 0;
-        }
-
-        /* Card content */
-        .citation-body {
-          display: flex;
-          flex-direction: column;
-          gap: 5px;
-          padding: 10px 13px;
-          flex: 1;
-          min-width: 0;
-        }
-
-        .citation-top-row {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          flex-wrap: wrap;
-        }
-
-        /* Act pill — blue */
-        .citation-act-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          background: rgba(59,130,246,0.1);
-          border: 1px solid rgba(59,130,246,0.2);
-          color: #93c5fd;
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.05em;
-          padding: 2px 8px;
-          border-radius: 20px;
-        }
-
-        /* Clause pill — purple */
-        .citation-clause-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 3px;
-          background: rgba(139,92,246,0.1);
-          border: 1px solid rgba(139,92,246,0.2);
-          color: #a78bfa;
-          font-size: 10px;
-          font-weight: 600;
-          letter-spacing: 0.04em;
-          padding: 2px 7px;
-          border-radius: 20px;
-        }
-
-        /* Section identifier + title */
-        .citation-section-row {
-          display: flex;
-          align-items: baseline;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
-        .citation-section-num {
-          font-size: 13px;
-          font-weight: 700;
-          color: #e2e8f0;
-          font-variant-numeric: tabular-nums;
-          flex-shrink: 0;
-        }
-        .citation-section-title {
-          font-size: 12.5px;
-          color: #94a3b8;
-          font-weight: 400;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        /* Full act name — dimmed subtitle */
-        .citation-act-full {
-          font-size: 10.5px;
-          color: #374151;
-          font-style: italic;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        /* ── Loading dots ──────────────────────────────────────────── */
-        .loading-bubble {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          padding: 14px 18px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 16px;
-          border-top-left-radius: 4px;
-        }
-        .dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: #374151;
-          animation: bounce 1.2s ease-in-out infinite;
-        }
-        @keyframes bounce {
-          0%, 80%, 100% { transform: translateY(0);    background: #374151; }
-          40%            { transform: translateY(-6px); background: #3b82f6; }
-        }
-
-        /* ── Input area ─────────────────────────────────────────────── */
-        .chat-input-area {
-          background: rgba(8,8,16,0.97);
-          border-top: 1px solid rgba(255,255,255,0.05);
-          padding: 14px 24px 22px;
-        }
-        .chat-input-inner {
-          max-width: 860px;
-          margin: 0 auto;
-        }
-        .chat-form {
-          display: flex;
-          align-items: flex-end;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.09);
-          border-radius: 16px;
-          padding: 12px 12px 12px 18px;
-          transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .chat-form:focus-within {
-          border-color: rgba(59,130,246,0.38);
-          box-shadow: 0 0 0 3px rgba(59,130,246,0.07);
-        }
-        .chat-textarea {
-          flex: 1;
+        .custom-scrollbar::-webkit-scrollbar-track {
           background: transparent;
-          border: none;
-          outline: none;
-          resize: none;
-          font-size: 14px;
-          color: #f1f5f9;
-          line-height: 1.6;
-          max-height: 180px;
-          padding-top: 2px;
-          font-family: inherit;
         }
-        .chat-textarea::placeholder { color: #374151; }
-
-        .chat-send-btn {
-          flex-shrink: 0;
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          border: none;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #2563eb;
-          color: #fff;
-          transition: background 0.2s, opacity 0.2s, transform 0.15s;
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: transparent;
+          border-radius: 4px;
         }
-        .chat-send-btn:hover:not(:disabled) {
-          background: #1d4ed8;
-          transform: scale(1.06);
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+          background: #e5e5e5;
         }
-        .chat-send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-        .chat-disclaimer {
-          text-align: center;
-          margin-top: 10px;
-          font-size: 11px;
-          color: #1f2937;
+        .msg-enter {
+          animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
 
-      {/* ── Layout ─────────────────────────────────────────────────────────── */}
-      <div className="chat-root">
+      {/* ── Sidebar ── */}
+      {sidebarOpen && (
+        <div className="flex flex-col w-[260px] bg-[#f9f9f9] shrink-0 transition-all duration-300 relative border-r border-[#ececec]">
+          {/* Top Actions */}
+          <div className="p-3 pb-2 flex items-center justify-between">
+            <button className="flex items-center justify-center p-2 rounded-md hover:bg-[#ececec] transition-colors text-slate-500" onClick={() => setSidebarOpen(false)}>
+              <PanelLeftClose size={20} />
+            </button>
+            <button className="flex items-center gap-2 flex-1 justify-end p-2 rounded-md hover:bg-[#ececec] transition-colors text-slate-700 font-medium text-sm">
+              <Plus size={18} />
+            </button>
+          </div>
 
+          <div className="px-3 flex flex-col gap-1">
+            <button onClick={() => window.location.reload()} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#ececec] transition-colors w-full text-left text-slate-800">
+              <Zap size={16} /> Nyaay AI Chat
+            </button>
+            <button onClick={() => router.push('/')} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#ececec] transition-colors w-full text-left text-slate-800">
+              <LayoutGrid size={16} /> Dashboard
+            </button>
+            <button onClick={() => router.push('/search')} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#ececec] transition-colors w-full text-left text-slate-600">
+              <Search size={16} /> Legal Search
+            </button>
+          </div>
+
+          {/* Chat History / Projects segment */}
+          <div className="flex-1 overflow-y-auto px-3 mt-6 custom-scrollbar opacity-70">
+            <h3 className="text-xs font-semibold text-slate-500 px-3 mb-2">Projects</h3>
+            <div className="space-y-0.5">
+              <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-[#ececec] transition-colors w-full text-left text-slate-600 truncate">
+                <FileText size={14} className="shrink-0" /> Draft Petition CAS-11
+              </button>
+              <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-[#ececec] transition-colors w-full text-left text-slate-600 truncate">
+                <FileText size={14} className="shrink-0" /> Inheritence Laws DB
+              </button>
+            </div>
+
+            <h3 className="text-xs font-semibold text-slate-500 px-3 mt-6 mb-2">Recents</h3>
+            <div className="space-y-0.5">
+              <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-[#ececec] transition-colors w-full text-left text-slate-600 truncate">
+                What is IPC 420?
+              </button>
+              <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-[#ececec] transition-colors w-full text-left text-slate-600 truncate">
+                Landlord eviction notice format
+              </button>
+            </div>
+          </div>
+
+          {/* User Profile Footer */}
+          <div className="p-3 border-t border-[#ececec]">
+            <button onClick={() => router.push('/')} className="flex items-center gap-2 w-full px-2 py-2 rounded-lg hover:bg-[#ececec] transition-colors">
+              <div className="w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">NK</div>
+              <span className="text-sm font-semibold flex-1 text-left text-slate-700">Nyaay User</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Main Chat Area ── */}
+      <div className="flex-1 flex flex-col min-w-0 bg-white relative">
+        
         {/* Header */}
-        <header className="chat-header">
-          <div className="ai-assistant-badge">
-            <Zap size={20} strokeWidth={2} />
-            <span>AI Assistant</span>
+        <header className="h-14 flex items-center justify-between px-3 w-full shrink-0">
+          <div className="flex items-center gap-3">
+            {!sidebarOpen && (
+              <button className="p-2 rounded-md hover:bg-slate-100 transition-colors text-slate-500" onClick={() => setSidebarOpen(true)}>
+                <PanelLeftOpen size={20} />
+              </button>
+            )}
+            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors text-lg font-semibold text-[#0d0d0d]">
+              Nyaay AI <ChevronDown size={18} className="text-slate-400" />
+            </button>
+          </div>
+          <div className="flex items-center">
+             <button className="w-8 h-8 rounded-full border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
+               <UserIcon size={16} />
+             </button>
           </div>
         </header>
 
-        {/* Messages */}
-        <main className="chat-messages">
+        {/* Dynamic Context Container */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative w-full items-center">
+          
           {messages.length === 0 ? (
-            <div className="chat-empty" style={{ margin: 'auto' }}>
-              <div className="chat-empty-icon">
-                <BotIcon size={24} />
+            /* Empty State */
+            <div className="flex flex-col items-center justify-center flex-1 w-full mt-[-8vh] px-4">
+              <h2 className="text-[26px] md:text-[32px] font-semibold text-[#0d0d0d] mb-8 text-center bg-white z-10 w-full py-4 relative">
+                How can I help you today?
+              </h2>
+
+              {/* Centered Input (moved from bottom when empty) */}
+              <div className="w-full max-w-[760px] mx-auto z-20">
+                <form onSubmit={handleSubmit} className="relative flex flex-col bg-[#f4f4f4] border border-[#e5e5e5] rounded-[24px] focus-within:bg-white focus-within:border-slate-300 focus-within:shadow-[0_0_15px_rgba(0,0,0,0.05)] transition-all px-4 py-3">
+                  <div className="flex items-start gap-2">
+                    <button type="button" className="p-2 rounded-full hover:bg-slate-200 text-slate-500 transition-colors mt-0.5 shrink-0" title="Attach file">
+                      <Plus size={20} />
+                    </button>
+                    <textarea
+                      value={input}
+                      onChange={handleInputChange}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          const form = e.currentTarget.form;
+                          if (form && (input ?? '' as string).trim()) form.requestSubmit();
+                        }
+                      }}
+                      placeholder="Ask anything about Indian law..."
+                      className="flex-1 resize-none bg-transparent text-[16px] text-slate-800 outline-none py-2 max-h-[200px]"
+                      rows={1}
+                      ref={(el) => {
+                        if (el) {
+                          el.style.height = 'auto';
+                          el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+                        }
+                      }}
+                    />
+                    <div className="flex items-center gap-1 mt-0.5 shrink-0">
+                      {!(input || '').trim() ? (
+                        <button type="button" className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-200 text-slate-500 transition-colors">
+                          <Mic size={18} />
+                        </button>
+                      ) : (
+                        <button
+                          type="submit"
+                          disabled={isLoading}
+                          className="w-10 h-10 flex items-center justify-center rounded-full bg-black text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+                        >
+                          {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </form>
               </div>
-              <h2>How can I help you today?</h2>
-              <p>
-                Ask any question about Indian law — I&apos;ll find the relevant
-                acts, sections and clauses for you.
-              </p>
             </div>
           ) : (
-            <>
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {messages.map((m: any) => {
+            /* Populated Chat Thread */
+            <div className="w-full max-w-[760px] flex flex-col gap-8 py-8 px-4 flex-1">
+              {messages.map((m: any, idx: number) => {
                 const isUser = m.role === 'user';
                 const raw = getMessageContent(m);
                 const { text, citations } = isUser
@@ -582,20 +341,32 @@ export default function ChatPage() {
                   : parseMessage(raw);
 
                 return (
-                  <div key={m.id} className={`msg-row ${isUser ? 'user' : 'bot'}`}>
+                  <div key={m.id || idx} className="flex gap-4 msg-enter w-full">
                     {/* Avatar */}
-                    <div className={`avatar ${isUser ? 'user' : 'bot'}`}>
-                      {isUser ? <UserIcon size={16} /> : <BotIcon size={16} />}
+                    <div className="shrink-0 mt-0.5">
+                      {isUser ? (
+                        <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-[11px]">NK</div>
+                      ) : (
+                        <div className="w-8 h-8 rounded-full border border-slate-200 bg-white text-[#10a37f] flex items-center justify-center shadow-sm">
+                           <Zap size={18} fill="currentColor" strokeWidth={0} />
+                        </div>
+                      )}
                     </div>
 
-                    {/* Bubble + Citations stacked */}
-                    <div className="bubble-wrap">
-                      <div className={`bubble ${isUser ? 'user' : 'bot'}`}>
+                    {/* Content */}
+                    <div className="flex-1 min-w-0 pr-4">
+                      {isUser ? (
+                        <h3 className="font-semibold text-[15px] mb-1">You</h3>
+                      ) : (
+                        <h3 className="font-semibold text-[15px] mb-1">Nyaay AI</h3>
+                      )}
+                      
+                      <div className="prose prose-sm md:prose-base prose-slate max-w-none text-[#0d0d0d] leading-relaxed whitespace-pre-wrap">
                         {text}
                       </div>
 
-                      {/* Legal Citations Panel — bot only */}
-                      {!isUser && <CitationsPanel citations={citations} />}
+                      {/* Display Citations inside bot message context */}
+                      {!isUser && citations.length > 0 && <CitationsPanel citations={citations} />}
                     </div>
                   </div>
                 );
@@ -603,64 +374,73 @@ export default function ChatPage() {
 
               {/* Streaming loading indicator */}
               {isLoading && messages[messages.length - 1]?.role === 'user' && (
-                <div className="msg-row bot">
-                  <div className="avatar bot">
-                    <BotIcon size={16} />
+                <div className="flex gap-4 w-full msg-enter">
+                  <div className="shrink-0 mt-0.5">
+                     <div className="w-8 h-8 rounded-full border border-slate-200 bg-white text-[#10a37f] flex items-center justify-center shadow-sm">
+                        <Zap size={18} fill="currentColor" strokeWidth={0} />
+                     </div>
                   </div>
-                  <div className="loading-bubble">
-                    <span className="dot" style={{ animationDelay: '0ms' }} />
-                    <span className="dot" style={{ animationDelay: '160ms' }} />
-                    <span className="dot" style={{ animationDelay: '320ms' }} />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-[15px] mb-1">Nyaay AI</h3>
+                    <div className="flex items-center gap-1.5 h-6">
+                      <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
                   </div>
                 </div>
               )}
-            </>
+              <div ref={messagesEndRef} className="h-4" />
+            </div>
           )}
+        </div>
 
-          <div ref={messagesEndRef} style={{ height: '1px' }} />
-        </main>
-
-        {/* Input */}
-        <div className="chat-input-area">
-          <div className="chat-input-inner">
-            <form onSubmit={handleSubmit} className="chat-form">
-              <textarea
-                value={input}
-                onChange={handleInputChange}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    const form = e.currentTarget.form;
-                    if (form && (input ?? '' as string).trim()) form.requestSubmit();
-                  }
-                }}
-                placeholder="Ask about Indian law…"
-                className="chat-textarea"
-                rows={1}
-                ref={(el) => {
-                  if (el) {
-                    el.style.height = 'auto';
-                    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
-                  }
-                }}
-              />
-              <button
-                type="submit"
-                disabled={isLoading || !(input ?? '').toString().trim()}
-                className="chat-send-btn"
-              >
-                {isLoading
-                  ? <Loader2 size={16} className="animate-spin" />
-                  : <Send size={16} />
-                }
-              </button>
+        {/* Bottom Input Area (Visible only when chat is active) */}
+        {messages.length > 0 && (
+          <div className="w-full max-w-[760px] mx-auto px-4 pb-6 pt-2 bg-gradient-to-t from-white via-white to-transparent shrink-0">
+            <form onSubmit={handleSubmit} className="relative flex flex-col bg-[#f4f4f4] border border-[#e5e5e5] rounded-[24px] focus-within:bg-white focus-within:border-slate-300 focus-within:shadow-[0_0_15px_rgba(0,0,0,0.05)] transition-all px-4 py-2.5">
+              <div className="flex items-start gap-2">
+                <button type="button" className="p-2 rounded-full hover:bg-slate-200 text-slate-500 transition-colors mt-0.5 shrink-0" title="Attach file">
+                  <Plus size={20} />
+                </button>
+                <textarea
+                  value={input}
+                  onChange={handleInputChange}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      const form = e.currentTarget.form;
+                      if (form && (input ?? '' as string).trim()) form.requestSubmit();
+                    }
+                  }}
+                  placeholder="Ask anything about Indian law..."
+                  className="flex-1 resize-none bg-transparent text-[16px] text-slate-800 outline-none py-1.5 max-h-[200px]"
+                  rows={1}
+                  ref={(el) => {
+                    if (el) {
+                      el.style.height = 'auto';
+                      el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+                    }
+                  }}
+                />
+                <div className="flex items-center gap-1 mt-0.5 shrink-0">
+                  <button
+                    type="submit"
+                    disabled={isLoading || !(input || '').trim()}
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-black text-white hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:bg-[#ececec] disabled:text-slate-400"
+                  >
+                    {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  </button>
+                </div>
+              </div>
             </form>
-            <p className="chat-disclaimer">
-              AI can make mistakes. Always verify with a licensed legal professional.
+            <p className="text-center text-xs text-slate-400 mt-3 font-medium">
+              Nyaay AI can make mistakes. Always check important information.
             </p>
           </div>
-        </div>
+        )}
+
       </div>
-    </>
+    </div>
   );
 }
