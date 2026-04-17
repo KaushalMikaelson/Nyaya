@@ -380,7 +380,7 @@ export default function Home() {
             <LayoutDashboard size={18} />
           </button>
           <button
-            onClick={() => router.push('/chat')}
+            onClick={() => router.push('/ask-nyaya')}
             className="flex-1 flex items-center justify-between px-3 h-10 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors rounded-lg group"
           >
             <div className="flex items-center gap-2">
@@ -402,11 +402,8 @@ export default function Home() {
           <button onClick={() => { setActiveChat(null); setMessages([]); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-sm font-medium transition-colors ${!activeChat && messages.length === 0 ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <LayoutDashboard size={18} /> Dashboard
           </button>
-          <button onClick={() => router.push('/chat')} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeChat ? 'bg-slate-800 text-[#d4af37]' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <Zap size={18} /> AI Assistant
-          </button>
-          <button onClick={() => router.push('/search')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
-            <Search size={18} /> Legal Search
+          <button onClick={() => router.push('/ask-nyaya')} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeChat ? 'bg-slate-800 text-[#d4af37]' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <Zap size={18} /> Ask Nyaay
           </button>
           <button onClick={() => router.push('/documents')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
             <FileStack size={18} /> Documents
@@ -503,7 +500,7 @@ export default function Home() {
         {/* Main Content Area */}
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
           {messages.length === 0 && !activeChat ? (
-             <WorkspaceDashboard user={user} router={router} triggerChat={() => router.push('/chat')} triggerPro={handleRazorpayUpgrade} />
+             <WorkspaceDashboard user={user} router={router} triggerChat={() => router.push('/ask-nyaya')} triggerPro={handleRazorpayUpgrade} />
           ) : (
              <div className="mx-auto max-w-3xl px-4 py-6 pb-44">
                {messages.length === 0 && activeChat ? (
