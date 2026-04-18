@@ -11,35 +11,20 @@ if (voyageKey) {
   voyageClient = new VoyageAIClient({ apiKey: voyageKey });
 }
 
-// Function to chunk text loosely into ~300 words per chunk 
-// Token estimation roughly: 1 word ~ 1.3 tokens. 
-// A 300 word chunk is roughly 400 tokens, perfectly in the 300-500 token range requested.
-function chunkText(text: string, maxWords = 300): string[] {
-  const words = text.split(/\s+/);
-  const chunks = [];
-  let currentChunk = [];
-  
-  for (let word of words) {
-    currentChunk.push(word);
-    if (currentChunk.length >= maxWords) {
-      chunks.push(currentChunk.join(" "));
-      currentChunk = [];
-    }
-  }
-  if (currentChunk.length > 0) {
-    chunks.push(currentChunk.join(" "));
-  }
-  return chunks;
-}
+import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
+
+const splitter = new RecursiveCharacterTextSplitter({
+  chunkSize: 1200,
+  chunkOverlap: 250,
+  separators: ["\n\n[Clause", "\n\n", "\n", ".", " "],
+});
 
 // Mock semantic embedding generator if no voyage API key is provided
 function generateMockEmbedding(text: string) {
-  // Voyage-law-2 provides 1024 d vectors
   const vec = new Array(1024).fill(0);
-  // deterministic mock values based on text char code sum so similar texts might have *some* relation
   const seed = Array.from(text.substring(0, 10)).reduce((acc, char) => acc + char.charCodeAt(0), 0);
   for (let i = 0; i < 1024; i++) {
-    vec[i] = (Math.sin(seed + i) + 1) / 2; // normalize to 0-1
+    vec[i] = ((Math.sin(seed + i) + 1) / 2).toFixed(6); // normalize to 0-1 and fix length for pgvector
   }
   return vec;
 }
@@ -69,36 +54,31 @@ async function main() {
   for (const act of acts) {
     console.log(`Processing ${act.shortName}...`);
     for (const section of act.sections) {
-      // Chunk Section Level
-      const sectionChunksText = chunkText(`[${act.shortName} - Act] Section ${section.number}: ${section.title || ''}\n${section.content}`);
+      // Split via Langchain
+      const rawText = `[Act: ${act.shortName}] Section ${section.number}: ${section.title || ''}\n${section.content}`;
+      const chunks = await splitter.createDocuments([rawText]);
+      const sectionChunksText = chunks.map(c => c.pageContent);
       const sectionEmbeddings = await getEmbeddings(sectionChunksText);
       
       for (let i = 0; i < sectionChunksText.length; i++) {
-        await prisma.legalChunk.create({
-          data: {
-            actId: act.id,
-            sectionId: section.id,
-            content: sectionChunksText[i],
-            embedding: sectionEmbeddings[i],
-          }
-        });
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO "LegalChunk" ("id", "actId", "sectionId", "content", "embedding", "updatedAt")
+          VALUES (gen_random_uuid(), '${act.id}', '${section.id}', $1, '[${sectionEmbeddings[i].join(',')}]'::vector, NOW())
+        `, sectionChunksText[i]);
       }
 
       // Chunk Clause Level
       for (const clause of section.clauses) {
-        const clauseChunksText = chunkText(`[${act.shortName} - Act] Section ${section.number} Clause ${clause.number}\n${clause.content}`);
+        const clauseRawText = `[Act: ${act.shortName}] Section ${section.number} Clause ${clause.number}\n${clause.content}`;
+        const clauseChunks = await splitter.createDocuments([clauseRawText]);
+        const clauseChunksText = clauseChunks.map(c => c.pageContent);
         const clauseEmbeddings = await getEmbeddings(clauseChunksText);
         
         for (let i = 0; i < clauseChunksText.length; i++) {
-          await prisma.legalChunk.create({
-            data: {
-              actId: act.id,
-              sectionId: section.id,
-              clauseId: clause.id,
-              content: clauseChunksText[i],
-              embedding: clauseEmbeddings[i],
-            }
-          });
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO "LegalChunk" ("id", "actId", "sectionId", "clauseId", "content", "embedding", "updatedAt")
+            VALUES (gen_random_uuid(), '${act.id}', '${section.id}', '${clause.id}', $1, '[${clauseEmbeddings[i].join(',')}]'::vector, NOW())
+          `, clauseChunksText[i]);
         }
       }
     }

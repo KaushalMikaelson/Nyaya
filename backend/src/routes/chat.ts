@@ -10,6 +10,7 @@ import { ChatPromptTemplate, MessagesPlaceholder, PromptTemplate } from '@langch
 import { z } from 'zod';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
+import { hybridSearch, rerankCandidates } from '../services/retrieval';
 
 const router = Router();
 
@@ -31,21 +32,7 @@ function generateMockEmbedding(text: string) {
   return vec;
 }
 
-// Utility: Cosine Similarity
-function cosineSimilarity(A: number[], B: number[]) {
-  let dotproduct = 0;
-  let mA = 0;
-  let mB = 0;
-  for(let i = 0; i < A.length; i++) { 
-      dotproduct += (A[i] * B[i]);
-      mA += (A[i]*A[i]);
-      mB += (B[i]*B[i]);
-  }
-  mA = Math.sqrt(mA);
-  mB = Math.sqrt(mB);
-  const similarity = (dotproduct)/((mA)*(mB));
-  return similarity; 
-}
+// Removed duplicate Manual cosine similarity functions in favor of pgvector
 
 router.get('/conversations', async (req: AuthRequest, res): Promise<void> => {
   try {
@@ -145,53 +132,15 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
       queryEmbedding = generateMockEmbedding(content);
     }
 
-    // Step B: Hybrid Retrieval (Vector + Keyword search)
-    const allChunks = await prisma.legalChunk.findMany();
-    const queryWords = content.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
-    
-    let scoredChunks = allChunks.map(chunk => {
-      let vectorScore = 0;
-      if (chunk.embedding && chunk.embedding.length > 0) {
-        vectorScore = cosineSimilarity(queryEmbedding, chunk.embedding as number[]);
-      }
-      
-      let keywordScore = 0;
-      const lowerContent = chunk.content.toLowerCase();
-      queryWords.forEach((w: string) => {
-        if (lowerContent.includes(w)) keywordScore += 0.2;
-      });
-
-      const hybridScore = (vectorScore * 0.7) + (keywordScore * 0.3);
-      return { chunk, score: hybridScore };
-    });
-
-    scoredChunks.sort((a, b) => b.score - a.score);
-    let topCandidates = scoredChunks.slice(0, 15).map(c => c.chunk.content);
+    // Step B: Hybrid Retrieval (Vector + Keyword search via RRF)
+    const hybridCandidates = await hybridSearch(content, queryEmbedding, 15);
 
     // Step C: Reranking (Cohere)
-    let finalDocuments: string[] = [];
-    if (cohereClient && topCandidates.length > 0) {
-      try {
-        const rerankResponse = await cohereClient.rerank({
-          query: content,
-          documents: topCandidates,
-          model: 'rerank-english-v3.0',
-          topN: 5
-        });
-        rerankResponse.results.forEach(result => {
-          finalDocuments.push(topCandidates[result.index]);
-        });
-      } catch (err) {
-        console.warn("Cohere Rerank failed, using hybrid top 5.", err);
-        finalDocuments = topCandidates.slice(0, 5);
-      }
-    } else {
-      finalDocuments = topCandidates.slice(0, 5);
-    }
+    const finalDocuments = await rerankCandidates(content, hybridCandidates, 5);
 
     // Step D: Context Builder
     const contextString = finalDocuments.length > 0 
-      ? finalDocuments.map((doc, idx) => `[Source ${idx + 1}]: ${doc}`).join('\n\n')
+      ? finalDocuments.map((doc, idx) => `[Source ${idx + 1}: ${doc.chunk.act?.shortName || 'Law'} Sec ${doc.chunk.section?.number || ''}]: ${doc.chunk.content}`).join('\n\n')
       : '';
 
     // -------------------------------------------------------------
@@ -234,11 +183,17 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
       escalationContext = "\n\nCRITICAL INSTRUCTION: The query has been flagged as requiring human lawyer escalation. You must firmly advise the user to consult a lawyer immediately! Use the Nyaya marketplace feature. Reason: " + routerDecision.escalation_reason;
     }
 
-    const ragSystemPromptTemplate = `You are Nyaay, an elite AI legal assistant specializing in Indian law. 
-Use the provided LEGAL CONTEXT to answer the user accurately. 
-If the context contains the answer, explicitly cite the [Source X]. 
-If the context is insufficient, state that clearly but provide general information regarding Indian law. 
-Always insert a disclaimer that your advice does not substitute for a licensed legal professional.
+    const ragSystemPromptTemplate = `You are Nyaya Assistant, an expert Indian legal AI.
+
+**CORE DIRECTIVE:** 
+You must answer the user's query STRICTLY based on the provided LEGAL CONTEXT. Do not fabricate sections, laws, or case results. 
+
+**CITATION RULES:**
+When citing a law, you MUST use the exact bracketed source tag provided. 
+Example: "Under the [Source 1: BNS Sec 103], murder is punishable by..."
+
+If the CONTEXT does not contain the answer, explicitly state: 
+"I cannot verify the exact provision in the available databases, however..."
 You MUST reply in the user's detected language: {detected_language}.{escalation_context}
 
 --- LEGAL CONTEXT (from verified databases) ---
