@@ -4,6 +4,8 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { VoyageAIClient } from 'voyageai';
 import { CohereClient } from 'cohere-ai';
 
+import { Prisma } from '@prisma/client';
+
 const router = Router();
 
 const voyageKey = process.env.VOYAGE_API_KEY;
@@ -16,49 +18,9 @@ function generateMockEmbedding(text: string) {
   const vec = new Array(1024).fill(0);
   const seed = Array.from(text.substring(0, 10)).reduce((acc, char) => acc + char.charCodeAt(0), 0);
   for (let i = 0; i < 1024; i++) {
-    vec[i] = (Math.sin(seed + i) + 1) / 2;
+    vec[i] = ((Math.sin(seed + i) + 1) / 2).toFixed(6) as any;
   }
   return vec;
-}
-
-function cosineSimilarity(A: number[], B: number[]) {
-  let dotproduct = 0, mA = 0, mB = 0;
-  for (let i = 0; i < A.length; i++) {
-    dotproduct += (A[i] * B[i]);
-    mA += (A[i] * A[i]);
-    mB += (B[i] * B[i]);
-  }
-  return mA && mB ? dotproduct / (Math.sqrt(mA) * Math.sqrt(mB)) : 0;
-}
-
-function calculateBM25Scores(query: string, chunks: any[]) {
-  const N = chunks.length;
-  if (N === 0) return chunks;
-
-  const avgdl = chunks.reduce((acc, c) => acc + c.content.split(/\s+/).length, 0) / N;
-  const terms = query.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 2);
-  
-  const df: Record<string, number> = {};
-  terms.forEach(t => {
-      df[t] = chunks.filter(c => c.content.toLowerCase().includes(t)).length;
-  });
-  
-  const idf = (t: string) => Math.log((N - (df[t] || 0) + 0.5) / ((df[t] || 0) + 0.5) + 1);
-  const k1 = 1.2;
-  const b = 0.75;
-  
-  return chunks.map(chunk => {
-      const words = chunk.content.toLowerCase().split(/\s+/);
-      const L = words.length || 1;
-      let score = 0;
-      terms.forEach(t => {
-          const tf = words.filter((w: string) => w === t).length;
-          if (tf > 0) {
-            score += idf(t) * ((tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (L / avgdl))));
-          }
-      });
-      return { ...chunk, bm25Score: score };
-  });
 }
 
 router.use(authenticate);
@@ -84,68 +46,78 @@ router.post('/', async (req: AuthRequest, res): Promise<void> => {
       queryEmbedding = generateMockEmbedding(query);
     }
 
-    // 2. Prepare database constraints
-    const whereClause: any = {};
-    
-    // Act filter
+    let actFilter = Prisma.empty;
     if (filters?.act && filters.act !== 'All Acts') {
-      whereClause.act = { shortName: filters.act };
-    }
-    
-    // Since Category and Court aren't direct relations on chunks, we apply simple text filtering if explicitly requested
-    const contentFilters: string[] = [];
-    if (filters?.category && filters.category !== 'All Categories') {
-      contentFilters.push(filters.category.toLowerCase().split(' ')[0]); // "Criminal Law" -> "criminal"
-    }
-    if (filters?.court && filters.court !== 'All Courts') {
-      contentFilters.push(filters.court.toLowerCase().split(' ')[0]); // "Supreme Court" -> "supreme"
+      const mappedAct = await prisma.act.findUnique({ where: { shortName: filters.act } });
+      if (mappedAct) {
+        actFilter = Prisma.sql`AND "actId" = ${mappedAct.id}`;
+      }
     }
 
-    // Fetch initial dataset (could be optimized with raw SQL and pgvector in production)
-    const allChunks = await prisma.legalChunk.findMany({
-      where: whereClause,
+    const queryStr = query.replace(/[^a-zA-Z0-9 ]/g, ''); 
+
+    // RRF Hybrid pgvector Search Query
+    const results: any[] = await prisma.$queryRaw`
+      WITH vector_search AS (
+        SELECT id, content, "actId", "sectionId", "clauseId",
+               ROW_NUMBER() OVER(ORDER BY embedding <=> ${queryEmbedding}::vector) as rnk
+        FROM "LegalChunk"
+        WHERE 1=1 ${actFilter}
+        ORDER BY embedding <=> ${queryEmbedding}::vector
+        LIMIT 30
+      ),
+      keyword_search AS (
+        SELECT id, content, "actId", "sectionId", "clauseId",
+               ROW_NUMBER() OVER(ORDER BY ts_rank_cd(fts, websearch_to_tsquery('english', ${queryStr})) DESC) as rnk
+        FROM "LegalChunk"
+        WHERE fts @@ websearch_to_tsquery('english', ${queryStr}) ${actFilter}
+        ORDER BY ts_rank_cd(fts, websearch_to_tsquery('english', ${queryStr})) DESC
+        LIMIT 30
+      )
+      SELECT 
+        COALESCE(v.id, k.id) as id,
+        COALESCE(v.content, k.content) as content,
+        (COALESCE(1.0 / (60 + v.rnk), 0.0) + COALESCE(1.0 / (60 + k.rnk), 0.0)) as rrf_score
+      FROM vector_search v
+      FULL OUTER JOIN keyword_search k ON v.id = k.id
+      ORDER BY rrf_score DESC
+      LIMIT 20;
+    `;
+
+    if (results.length === 0) {
+      res.json({ results: [] });
+      return;
+    }
+
+    // Hydrate
+    const chunkIds = results.map(r => r.id);
+    const hydratedChunks = await prisma.legalChunk.findMany({
+      where: { id: { in: chunkIds } },
       include: {
         act: true,
         section: true,
         clause: true,
       }
     });
-    
-    // Apply optional unstructured category/court filters
-    let filteredChunks = allChunks;
+
+    let scoredChunks = results.map(r => {
+      const chunkData = hydratedChunks.find(c => c.id === r.id);
+      return { ...chunkData, hybridScore: r.rrf_score };
+    });
+
+    // Sub-filtering (category / court basic matching since schema isn't fully categorized)
+    const contentFilters: string[] = [];
+    if (filters?.category && filters.category !== 'All Categories') contentFilters.push(filters.category.toLowerCase().split(' ')[0]); 
+    if (filters?.court && filters.court !== 'All Courts') contentFilters.push(filters.court.toLowerCase().split(' ')[0]);
+
     if (contentFilters.length > 0) {
-      filteredChunks = allChunks.filter(c => {
+      scoredChunks = scoredChunks.filter(c => {
         const txt = c.content.toLowerCase();
         return contentFilters.every(f => txt.includes(f));
       });
     }
 
-    if (filteredChunks.length === 0) {
-      res.json({ results: [] });
-      return;
-    }
-
-    // 3. Compute vector scores and BM25 scores
-    const scoredChunks = calculateBM25Scores(query, filteredChunks).map((chunk: any) => {
-      let vectorScore = 0;
-      if (chunk.embedding && chunk.embedding.length > 0) {
-        vectorScore = cosineSimilarity(queryEmbedding, chunk.embedding);
-      }
-      return { ...chunk, vectorScore };
-    });
-
-    // Normalize scores
-    const maxVector = Math.max(...scoredChunks.map(c => c.vectorScore), 1);
-    const maxBm25 = Math.max(...scoredChunks.map(c => c.bm25Score), 1);
-
-    scoredChunks.forEach((c: any) => {
-      c.normVectorScore = c.vectorScore / maxVector;
-      c.normBm25Score = c.bm25Score / maxBm25;
-      c.hybridScore = (c.normVectorScore * 0.6) + (c.normBm25Score * 0.4);
-    });
-
-    // Sort by hybrid score and take top 20
-    const top20 = scoredChunks.sort((a: any, b: any) => b.hybridScore - a.hybridScore).slice(0, 20);
+    let top20 = scoredChunks.slice(0, 15);
 
     // 4. Cohere Re-ranking
     let finalResults = top20;
@@ -165,18 +137,16 @@ router.post('/', async (req: AuthRequest, res): Promise<void> => {
         }));
       } catch (e) {
         console.warn("Cohere reranking failed, falling back to hybrid scores:", e);
-        // Fallback
         finalResults = top20.slice(0, 10).map((c: any) => ({ ...c, score: c.hybridScore }));
       }
     } else {
-      // Fallback
       finalResults = top20.slice(0, 10).map((c: any) => ({ ...c, score: c.hybridScore }));
     }
 
     // Prepare response payload (strip large unstructured data)
     const payload = finalResults.map((c: any) => {
-      const { embedding, bm25Score, vectorScore, normVectorScore, normBm25Score, hybridScore, ...rest } = c;
-      return rest;
+      const { embedding, fts, score, hybridScore, ...rest } = c;
+      return { ...rest, score: score || hybridScore };
     });
 
     res.json({ results: payload });
