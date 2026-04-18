@@ -235,6 +235,7 @@
 | 11 | OTP invalid despite correct code | Multiple registrations → older OTP invalidated; user had stale email | Added debug logging to `verifyOtp`; use freshest OTP email received |
 | 12 | Login "Invalid credentials" error despite correct password | Email input casing and whitespace mismatches (e.g. `Email@domain.com` vs `email@domain.com`) | Added `.toLowerCase().trim()` to all auth login/registration routines |
 | 13 | Login fallback error shows due to undefined `err.response` in frontend | The frontend `NEXT_PUBLIC_API_URL` missed the `/api` suffix leading to a 404 HTML response that could not be parsed as JSON | Added `/api` suffix to `.env.local` setting |
+| 14 | Chat interface input frozen and not sending messages | Incompatibility/version mismatch between `@ai-sdk/react`'s `useChat` hook and `ai` leading to unsynced internal React state | Removed `useChat`, implemented fully custom `fetch`-based manual chunk streaming with `ReadableStream` |
 
 ---
 

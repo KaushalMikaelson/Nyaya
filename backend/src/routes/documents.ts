@@ -215,18 +215,45 @@ ${relevantLawsContext}
 
     const analysisReport = groqResponse.choices[0]?.message?.content || "Analysis could not be generated.";
 
-    const conversation = await prisma.conversation.create({
-      data: {
-        userId: req.user!.userId,
-        title: `Analysis: ${docClass.documentType}`,
-        messages: {
-          create: [
-            { role: 'user', content: `Uploaded a ${docClass.documentType} for Analysis.\nSummary: ${docClass.summary}` },
-            { role: 'assistant', content: analysisReport }
-          ]
-        }
+    const existingConvId = req.body.conversationId;
+    let conversation;
+
+    if (existingConvId) {
+      const existingConv = await prisma.conversation.findFirst({
+        where: { id: existingConvId, userId: req.user!.userId }
+      });
+      
+      if (!existingConv) {
+        res.status(404).json({ error: 'Conversation not found' });
+        return;
       }
-    });
+
+      conversation = await prisma.conversation.update({
+        where: { id: existingConvId },
+        data: {
+          updatedAt: new Date(),
+          messages: {
+            create: [
+              { role: 'user', content: `Uploaded a ${docClass.documentType} for Analysis.\nSummary: ${docClass.summary}` },
+              { role: 'assistant', content: analysisReport }
+            ]
+          }
+        }
+      });
+    } else {
+      conversation = await prisma.conversation.create({
+        data: {
+          userId: req.user!.userId,
+          title: `Analysis: ${docClass.documentType}`,
+          messages: {
+            create: [
+              { role: 'user', content: `Uploaded a ${docClass.documentType} for Analysis.\nSummary: ${docClass.summary}` },
+              { role: 'assistant', content: analysisReport }
+            ]
+          }
+        }
+      });
+    }
 
     if (dbUser && !dbUser.isPro) {
       await prisma.user.update({

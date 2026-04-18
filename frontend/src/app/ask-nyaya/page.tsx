@@ -31,7 +31,7 @@ import {
 
 import { useRouter } from 'next/navigation';
 import { useAuth } from "@/contexts/AuthContext";
-import { getAccessToken } from "@/lib/api";
+import api, { getAccessToken } from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +46,12 @@ interface LegalCitation {
 interface ParsedMessage {
   text: string;
   citations: LegalCitation[];
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  messages: any[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -152,15 +158,88 @@ export default function AskNyayaPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [localInput, setLocalInput] = useState('');
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const hasAppendedRef = useRef(false);
 
+  const fetchConversations = async () => {
+    try {
+      const res = await api.get('/chat/conversations');
+      setConversations(res.data);
+    } catch (err) {
+      console.error('Failed to fetch conversations:', err);
+    }
+  };
+
   useEffect(() => {
     if (!authLoading && !user) router.push("/login");
+    if (user) fetchConversations();
   }, [authLoading, user, router]);
+
+  const loadConversation = (id: string) => {
+    const conv = conversations.find(c => c.id === id);
+    if (conv) {
+      setConversationId(id);
+      setMessages(conv.messages.map((m: any) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content
+      })));
+    }
+  };
+
+  const startNewChat = () => {
+    setConversationId(null);
+    setMessages([]);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    const userMsgId = `${Date.now()}-u`;
+    const asstMsgId = `${Date.now()}-a`;
+    setMessages(prev => [
+      ...prev,
+      { id: userMsgId, role: 'user', content: `[Uploading Document: ${file.name}...]` },
+      { id: asstMsgId, role: 'assistant', content: '' }
+    ]);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    if (conversationId) formData.append('conversationId', conversationId);
+
+    try {
+      const res = await api.post('/documents/analyze', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const { analysis, classification, conversationId: newConvId } = res.data;
+
+      if (!conversationId && newConvId) setConversationId(newConvId);
+
+      setMessages(prev => prev.map(m => {
+        if (m.id === userMsgId) return { ...m, content: `Uploaded a ${classification.documentType} for Analysis.\nSummary: ${classification.summary}` };
+        if (m.id === asstMsgId) return { ...m, content: analysis };
+        return m;
+      }));
+
+      fetchConversations();
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      const errMsg = err.response?.data?.error || err.message || 'Failed to upload document.';
+      setMessages(prev => prev.map(m =>
+        m.id === asstMsgId ? { ...m, content: `Error: ${errMsg}` } : m
+      ));
+    } finally {
+      setIsLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -190,7 +269,10 @@ export default function AskNyayaPage() {
       });
 
       const convId = res.headers.get('X-Conversation-Id');
-      if (convId && !conversationId) setConversationId(convId);
+      if (convId && !conversationId) {
+        setConversationId(convId);
+        fetchConversations();
+      }
 
       if (!res.ok || !res.body) {
         const errText = await res.text().catch(() => 'Unknown error');
@@ -350,13 +432,13 @@ export default function AskNyayaPage() {
             <button className="flex items-center justify-center p-2 rounded-md hover:bg-[#ececec] transition-colors text-slate-500" onClick={() => setSidebarOpen(false)}>
               <PanelLeftClose size={20} />
             </button>
-            <button className="flex items-center justify-center p-2 rounded-md hover:bg-[#ececec] transition-colors text-slate-500" onClick={() => { window.location.href='/ask-nyaya'; }}>
+            <button className="flex items-center justify-center p-2 rounded-md hover:bg-[#ececec] transition-colors text-slate-500" onClick={startNewChat}>
               <Plus size={18} />
             </button>
           </div>
 
           <div className="px-3 py-2 flex flex-col gap-1">
-            <button onClick={() => window.location.href='/ask-nyaya'} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-slate-200 text-slate-800 transition-colors w-full text-left">
+            <button onClick={startNewChat} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-slate-200 text-slate-800 transition-colors w-full text-left">
               <Zap size={16} /> Ask Nyaay
             </button>
             <button onClick={() => router.push('/')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-200 text-slate-600 transition-colors w-full text-left">
@@ -373,8 +455,23 @@ export default function AskNyayaPage() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-3 mt-4 custom-scrollbar">
-            {/* Navigational spacing */}
+          <div className="flex-1 overflow-y-auto px-2 mt-4 custom-scrollbar">
+            {conversations.length > 0 && (
+              <div className="mt-2 flex flex-col gap-1">
+                <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">History</h3>
+                {conversations.map(conv => (
+                  <div key={conv.id} className="relative group">
+                    <button 
+                      onClick={() => loadConversation(conv.id)}
+                      className={`flex items-center px-3 py-2 rounded-lg text-sm transition-colors w-full text-left ${conversationId === conv.id ? 'bg-slate-200 text-slate-800' : 'hover:bg-slate-200 text-slate-600'}`}
+                    >
+                      <MessageSquare size={14} className="shrink-0 mr-2.5 opacity-60" />
+                      <span className="truncate w-full font-medium" title={conv.title}>{conv.title}</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* User Profile Footer */}
@@ -390,6 +487,8 @@ export default function AskNyayaPage() {
       {/* ── Main Chat Area ── */}
       <div className="flex-1 flex flex-col min-w-0 bg-white relative">
         
+        <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".pdf,.png,.jpg,.jpeg,.txt" />
+
         {/* Header */}
         <header className="h-14 flex items-center justify-between px-3 w-full shrink-0">
           <div className="flex items-center gap-2">
@@ -431,7 +530,7 @@ export default function AskNyayaPage() {
               <div className="w-full max-w-[760px] mx-auto z-20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[16px]">
                 <form onSubmit={(e) => { e.preventDefault(); sendMessage(localInput); }} className="relative flex flex-col bg-white border border-[#e2e8f0] rounded-[16px] focus-within:border-[#cbd5e1] focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all px-4 py-3">
                   <div className="flex items-start gap-2">
-                    <button type="button" className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors mt-0.5 shrink-0" title="Attach case files">
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors mt-0.5 shrink-0" title="Attach case files">
                       <Paperclip size={20} />
                     </button>
                     <textarea
@@ -542,7 +641,7 @@ export default function AskNyayaPage() {
           <div className="w-full max-w-[800px] mx-auto px-4 pb-6 pt-2 bg-gradient-to-t from-white via-white to-transparent shrink-0">
             <form onSubmit={(e) => { e.preventDefault(); sendMessage(localInput); }} className="relative flex flex-col bg-white border border-[#e2e8f0] rounded-[16px] focus-within:border-[#cbd5e1] focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all px-4 py-2.5">
               <div className="flex items-start gap-2">
-                <button type="button" className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors mt-0.5 shrink-0" title="Attach case files">
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors mt-0.5 shrink-0" title="Attach case files">
                   <Paperclip size={20} />
                 </button>
                 <textarea
