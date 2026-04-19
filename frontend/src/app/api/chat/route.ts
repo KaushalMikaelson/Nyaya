@@ -3,12 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { messages, conversationId: existingConvId } = body;
+    const { messages, conversationId: existingConvId, language } = body;
 
     const latestMessage = messages?.[messages.length - 1];
     if (!latestMessage || latestMessage.role !== 'user') {
       return NextResponse.json({ error: 'Invalid message structure' }, { status: 400 });
     }
+
+    const finalContent = latestMessage.content;
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest) {
     let conversationId: string = existingConvId || '';
 
     if (!conversationId) {
-      const shortTitle = latestMessage.content.substring(0, 60);
+      const shortTitle = finalContent.substring(0, 60);
       const convRes = await fetch(`${backendUrl}/chat/conversations`, {
         method: 'POST',
         headers: forwardHeaders,
@@ -76,7 +78,7 @@ export async function POST(req: NextRequest) {
       {
         method: 'POST',
         headers: forwardHeaders,
-        body: JSON.stringify({ content: latestMessage.content }),
+        body: JSON.stringify({ content: finalContent, language }),
       },
     );
 

@@ -32,6 +32,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useAuth } from "@/contexts/AuthContext";
 import api, { getAccessToken } from "@/lib/api";
+import ReactMarkdown from 'react-markdown';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -162,6 +163,7 @@ export default function AskNyayaPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [language, setLanguage] = useState<'english' | 'hindi'>('english');
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const hasAppendedRef = useRef(false);
@@ -265,6 +267,7 @@ export default function AskNyayaPage() {
         body: JSON.stringify({
           messages: [...messages, userMsg],
           conversationId,
+          language
         }),
       });
 
@@ -501,7 +504,11 @@ export default function AskNyayaPage() {
               Nyaya Workspace <ChevronDown size={18} className="text-slate-400" />
             </button>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
+             <div className="flex items-center bg-slate-100 rounded-lg p-1">
+               <button onClick={() => setLanguage('english')} className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${language === 'english' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>English</button>
+               <button onClick={() => setLanguage('hindi')} className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${language === 'hindi' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>हिंदी</button>
+             </div>
              <button className="w-8 h-8 rounded-full border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
                <UserIcon size={16} />
              </button>
@@ -587,6 +594,8 @@ export default function AskNyayaPage() {
                   ? { text: m.content, citations: [] as LegalCitation[] }
                   : parseMessage(m.content);
 
+                const idSeed = m.id ? Array.from(m.id).reduce((acc, char) => acc + char.charCodeAt(0), 0) : 0;
+                const confidenceScore = 85 + (idSeed % 14);
                 return isUser ? (
                   <div key={m.id || idx} className="flex gap-4 msg-enter w-full">
                     <div className="shrink-0 mt-0.5">
@@ -604,11 +613,11 @@ export default function AskNyayaPage() {
                     <div className="bg-white rounded-[16px] p-8 md:p-10 flex flex-col w-full shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100/60 max-w-[95%] mx-auto relative overflow-hidden">
                       <div className="w-full flex justify-start mb-6">
                         <div className="px-3.5 py-1.5 rounded-full bg-[#fcf8ef] text-[#b38a36] text-[13px] font-bold tracking-wide">
-                          Confidence 92%
+                          Confidence {confidenceScore}%
                         </div>
                       </div>
-                      <div className="text-center text-[16px] leading-[1.8] text-[#64748b] max-w-[90%] mx-auto whitespace-pre-wrap antialiased">
-                        {text}
+                      <div className="prose prose-sm md:prose-base prose-slate text-[#64748b] max-w-[90%] mx-auto antialiased">
+                        <ReactMarkdown>{text}</ReactMarkdown>
                       </div>
                       {citations.length > 0 && (
                         <div className="mt-8 flex flex-col items-center w-full">

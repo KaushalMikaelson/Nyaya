@@ -79,7 +79,7 @@ router.delete('/conversations/:id', async (req: AuthRequest, res): Promise<void>
 // ─── POST /conversations/:id/messages ────────────────────────────────────────
 router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest, res): Promise<void> => {
   const id = String(req.params.id);
-  const { content } = req.body;
+  const { content, language } = req.body;
 
   if (!content) {
     res.status(400).json({ error: 'Message content is required' });
@@ -163,6 +163,7 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
       '3. Cite every legal claim using the source tags provided, e.g. [Source 1: BNS Sec 103].',
       '4. Use precise legal language. Structure your response with clear headings.',
       '5. End with a plain-language summary prefixed with "Summary:" for client briefings.',
+      language === 'hindi' ? '6. CRITICAL RULE: YOU MUST RESPOND ENTIRELY IN THE HINDI LANGUAGE using Devanagari script. Do NOT use English except for exact legal case names or section numbers.' : '6. Respond in English.',
       '',
       'LEGAL CONTEXT:',
       retrievedContext,
@@ -179,7 +180,10 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
     let aiResponseContent: string;
     try {
       console.log('🤖 Calling Groq LLM...');
-      aiResponseContent = await chain.invoke({ history, query: content });
+      const finalQuery = language === 'hindi' 
+        ? `[TRANSLATE AND RESPOND TO THE FOLLOWING STRICTLY IN HINDI USING DEVANAGARI SCRIPT]:\n\n${content}`
+        : content;
+      aiResponseContent = await chain.invoke({ history, query: finalQuery });
       console.log('✅ Groq response received, length:', aiResponseContent.length);
     } catch (e) {
       console.error('❌ LLM generation error:', e);
