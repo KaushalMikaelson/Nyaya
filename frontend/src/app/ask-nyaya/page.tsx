@@ -587,30 +587,46 @@ export default function AskNyayaPage() {
                   ? { text: m.content, citations: [] as LegalCitation[] }
                   : parseMessage(m.content);
 
-                return (
+                return isUser ? (
                   <div key={m.id || idx} className="flex gap-4 msg-enter w-full">
                     <div className="shrink-0 mt-0.5">
-                      {isUser ? (
-                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-[10px] border border-slate-200 shadow-sm uppercase tracking-wide">{user?.email ? user.email.substring(0,2) : 'NK'}</div>
-                      ) : (
-                        <div className="w-8 h-8 rounded-lg border border-[#1e293b] bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-[#d4af37] flex items-center justify-center shadow-md">
-                           <Scale size={16} strokeWidth={1.5} />
-                        </div>
-                      )}
+                      <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-[10px] border border-slate-200 shadow-sm uppercase tracking-wide">{user?.email ? user.email.substring(0,2) : 'NK'}</div>
                     </div>
-
                     <div className="flex-1 min-w-0 pr-4">
-                      {isUser ? (
-                        <h3 className="font-semibold text-[14px] text-slate-700 mb-1">You</h3>
-                      ) : (
-                        <h3 className="font-semibold text-[14px] text-[#0f172a] mb-1">Nyaya Legal Assistant</h3>
-                      )}
-                      
+                      <h3 className="font-semibold text-[14px] text-slate-700 mb-1">You</h3>
                       <div className="prose prose-sm md:prose-base prose-slate max-w-none text-[#0d0d0d] leading-relaxed whitespace-pre-wrap">
                         {text}
                       </div>
-
-                      {!isUser && citations.length > 0 && <CitationsPanel citations={citations} />}
+                    </div>
+                  </div>
+                ) : (
+                  <div key={m.id || idx} className="flex w-full msg-enter">
+                    <div className="bg-white rounded-[16px] p-8 md:p-10 flex flex-col w-full shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100/60 max-w-[95%] mx-auto relative overflow-hidden">
+                      <div className="w-full flex justify-start mb-6">
+                        <div className="px-3.5 py-1.5 rounded-full bg-[#fcf8ef] text-[#b38a36] text-[13px] font-bold tracking-wide">
+                          Confidence 92%
+                        </div>
+                      </div>
+                      <div className="text-center text-[16px] leading-[1.8] text-[#64748b] max-w-[90%] mx-auto whitespace-pre-wrap antialiased">
+                        {text}
+                      </div>
+                      {citations.length > 0 && (
+                        <div className="mt-8 flex flex-col items-center w-full">
+                          <h4 className="text-[15px] font-extrabold text-[#0f172a] mb-5 tracking-wide">Citations</h4>
+                          <div className="flex flex-col gap-4 text-center w-full">
+                            {citations.map((c, i) => {
+                               const titlePart = [c.actTitle, c.sectionTitle].filter(Boolean).join(" - ");
+                               const refPart = [c.actShortName, c.sectionNumber ? (c.sectionNumber.includes('§') ? c.sectionNumber : `§${c.sectionNumber}`) : ''].filter(Boolean).join(" ");
+                               const display = refPart ? `${titlePart} · ${refPart}` : titlePart;
+                               return (
+                                 <div key={i} className="text-[15px] text-[#64748b] antialiased">
+                                   {display}
+                                 </div>
+                               );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
