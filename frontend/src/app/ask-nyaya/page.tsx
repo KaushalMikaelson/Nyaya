@@ -477,8 +477,8 @@ export default function AskNyayaPage() {
           {/* User Profile Footer */}
           <div className="p-3 border-t border-[#ececec]">
             <button onClick={() => router.push('/')} className="flex items-center gap-2 w-full px-2 py-2 rounded-lg hover:bg-[#ececec] transition-colors">
-              <div className="w-7 h-7 rounded-full bg-black text-white font-bold flex items-center justify-center text-xs">NK</div>
-              <span className="text-sm font-semibold flex-1 text-left text-slate-700">{user?.name || 'Nyaay User'}</span>
+              <div className="w-7 h-7 rounded-full bg-black text-white font-bold flex items-center justify-center text-xs">{(user?.email?.[0] || 'N').toUpperCase()}</div>
+              <span className="text-sm font-semibold flex-1 text-left text-slate-700">{user?.email ? user.email.split('@')[0] : 'Nyaay User'}</span>
             </button>
           </div>
         </div>
@@ -591,7 +591,7 @@ export default function AskNyayaPage() {
                   <div key={m.id || idx} className="flex gap-4 msg-enter w-full">
                     <div className="shrink-0 mt-0.5">
                       {isUser ? (
-                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-[10px] border border-slate-200 shadow-sm uppercase tracking-wide">{user?.name ? user.name.substring(0,2) : 'NK'}</div>
+                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-[10px] border border-slate-200 shadow-sm uppercase tracking-wide">{user?.email ? user.email.substring(0,2) : 'NK'}</div>
                       ) : (
                         <div className="w-8 h-8 rounded-lg border border-[#1e293b] bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-[#d4af37] flex items-center justify-center shadow-md">
                            <Scale size={16} strokeWidth={1.5} />

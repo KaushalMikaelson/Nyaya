@@ -17,8 +17,13 @@ import caseRoutes from './routes/cases'; // Case Management
 
 // Initialize Background Workers
 import './workers/notifications';
+import { startDocumentWorker } from './workers/documentProcessor';
 import notificationRoutes from './routes/notifications';
 import marketplaceRoutes from './routes/marketplace';
+
+// Start document processing worker (gracefully skips if Redis unavailable in dev)
+startDocumentWorker();
+
 
 dotenv.config();
 

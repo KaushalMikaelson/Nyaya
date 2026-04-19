@@ -1104,4 +1104,143 @@ router.post(
   }
 );
 
+
+// ═══════════════════════════════════════════════════════════════════
+//  PROFILE MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * PATCH /profile — Update profile fields based on role
+ * Citizen: fullName, phone, address, state, pincode
+ * Lawyer: bio, specializations, practiceAreas, yearsOfExperience, officeAddress
+ * Judge: court, courtLevel, jurisdiction
+ */
+router.patch('/profile', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  const userId = req.user!.userId;
+  const role = req.user!.role;
+
+  try {
+    const updateData: any = {};
+
+    if (role === 'CITIZEN') {
+      const { fullName, phone, address, state, pincode } = req.body;
+      const profileUpdate: any = {};
+      if (fullName !== undefined) profileUpdate.fullName = fullName;
+      if (address !== undefined) profileUpdate.address = address;
+      if (state !== undefined) profileUpdate.state = state;
+      if (pincode !== undefined) profileUpdate.pincode = pincode;
+
+      if (Object.keys(profileUpdate).length > 0) {
+        await prisma.citizenProfile.upsert({
+          where: { userId },
+          create: { userId, ...profileUpdate },
+          update: profileUpdate,
+        });
+      }
+
+      if (phone !== undefined) {
+        updateData.phone = phone || null;
+      }
+    } else if (role === 'LAWYER') {
+      const { bio, specializations, practiceAreas, yearsOfExperience, firmName, officeAddress, enrollmentYear } = req.body;
+      const profileUpdate: any = {};
+      if (bio !== undefined) profileUpdate.bio = bio;
+      if (firmName !== undefined) profileUpdate.firmName = firmName;
+      if (officeAddress !== undefined) profileUpdate.officeAddress = officeAddress;
+      if (yearsOfExperience !== undefined) profileUpdate.yearsOfExperience = parseInt(yearsOfExperience);
+      if (enrollmentYear !== undefined) profileUpdate.enrollmentYear = parseInt(enrollmentYear);
+      if (specializations !== undefined) profileUpdate.specializations = Array.isArray(specializations) ? specializations : JSON.parse(specializations);
+      if (practiceAreas !== undefined) profileUpdate.practiceAreas = Array.isArray(practiceAreas) ? practiceAreas : JSON.parse(practiceAreas);
+
+      if (Object.keys(profileUpdate).length > 0) {
+        await prisma.lawyerProfile.update({ where: { userId }, data: profileUpdate });
+      }
+    } else if (role === 'JUDGE') {
+      const { court, courtLevel, jurisdiction } = req.body;
+      const profileUpdate: any = {};
+      if (court !== undefined) profileUpdate.court = court;
+      if (courtLevel !== undefined) profileUpdate.courtLevel = courtLevel;
+      if (jurisdiction !== undefined) profileUpdate.jurisdiction = jurisdiction;
+
+      if (Object.keys(profileUpdate).length > 0) {
+        await prisma.judgeProfile.update({ where: { userId }, data: profileUpdate });
+      }
+    } else if (role === 'ADMIN') {
+      const { fullName, department } = req.body;
+      const profileUpdate: any = {};
+      if (fullName !== undefined) profileUpdate.fullName = fullName;
+      if (department !== undefined) profileUpdate.department = department;
+      if (Object.keys(profileUpdate).length > 0) {
+        await prisma.adminProfile.update({ where: { userId }, data: profileUpdate });
+      }
+    }
+
+    // Apply top-level user updates
+    if (Object.keys(updateData).length > 0) {
+      await prisma.user.update({ where: { id: userId }, data: updateData });
+    }
+
+    res.json({ success: true, message: 'Profile updated successfully.' });
+  } catch (err: any) {
+    console.error('[PATCH /profile]', err);
+    res.status(500).json({ error: 'Profile update failed.' });
+  }
+});
+
+/**
+ * DELETE /me — DPDP Act 2023: Right to Erasure
+ * Soft-deletes user, clears PII, revokes all sessions.
+ * Hard delete scheduled after 30 days by a cleanup job.
+ */
+router.delete('/me', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  const userId = req.user!.userId;
+  const { confirmDelete } = req.body;
+
+  if (!confirmDelete) {
+    res.status(400).json({ error: 'confirmDelete is required to proceed with account deletion.' });
+    return;
+  }
+
+  try {
+    // 1. Revoke all tokens
+    await revokeAllTokens(userId).catch(() => {});
+
+    // 2. Deactivate account and clear PII
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        isActive: false,
+        passwordHash: null,
+        phone: null,
+      },
+    });
+
+    // 3. Soft-delete all documents
+    await prisma.userDocument.updateMany({
+      where: { userId, deletedAt: null },
+      data: {
+        deletedAt: new Date(),
+        summary: null,
+        analysisReport: null,
+        partiesInvolved: [],
+      },
+    });
+
+    // 4. Clear profile PII
+    const profileUpdate = { fullName: null, address: null, state: null, pincode: null };
+    await prisma.citizenProfile.updateMany({ where: { userId }, data: profileUpdate }).catch(() => {});
+
+    // 5. Clear cookie
+    res.clearCookie('refreshToken');
+
+    res.json({
+      success: true,
+      message: 'Your account has been deactivated and personal data cleared per DPDP Act 2023. Permanent deletion will occur within 30 days.',
+    });
+  } catch (err) {
+    console.error('[DELETE /me]', err);
+    res.status(500).json({ error: 'Account deletion failed. Please contact support.' });
+  }
+});
+
 export default router;

@@ -7,13 +7,14 @@ const cohereClient = cohereKey ? new CohereClient({ token: cohereKey }) : null;
 export async function hybridSearch(query: string, queryEmbedding: number[], topK = 15) {
   // Sanitize query for websearch_to_tsquery
   const queryStr = query.replace(/[^a-zA-Z0-9 ]/g, '');
+  const vectorStr = `[${queryEmbedding.join(',')}]`;
 
   const results: any[] = await prisma.$queryRaw`
     WITH vector_search AS (
       SELECT id, content, "actId", "sectionId", "clauseId",
-             ROW_NUMBER() OVER(ORDER BY embedding <=> ${queryEmbedding}::vector) as rnk
+             ROW_NUMBER() OVER(ORDER BY embedding <=> CAST(${vectorStr} AS vector)) as rnk
       FROM "LegalChunk"
-      ORDER BY embedding <=> ${queryEmbedding}::vector
+      ORDER BY embedding <=> CAST(${vectorStr} AS vector)
       LIMIT 30
     ),
     keyword_search AS (

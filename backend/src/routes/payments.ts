@@ -143,10 +143,10 @@ router.get('/subscription', authenticate, async (req: AuthRequest, res: Response
     });
     
     if (!subscription) {
-      return res.json({ tier: 'FREE', status: 'ACTIVE', apiTokensUsed: 0, apiTokensLimit: 100 });
+      return res.json({ subscription: { tier: 'FREE', status: 'ACTIVE', apiTokensUsed: 0, apiTokensLimit: 100, currentPeriodEnd: null } });
     }
 
-    res.json(subscription);
+    res.json({ subscription });
   } catch (error) {
     console.error('Error fetching subscription:', error);
     res.status(500).json({ error: 'Failed to fetch subscription status' });

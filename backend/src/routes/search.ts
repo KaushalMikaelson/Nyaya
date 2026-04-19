@@ -102,7 +102,7 @@ router.post('/', async (req: AuthRequest, res): Promise<void> => {
 
     let scoredChunks = results.map(r => {
       const chunkData = hydratedChunks.find(c => c.id === r.id);
-      return { ...chunkData, hybridScore: r.rrf_score };
+      return { ...chunkData, content: chunkData?.content || r.content, hybridScore: r.rrf_score };
     });
 
     // Sub-filtering (category / court basic matching since schema isn't fully categorized)
@@ -112,7 +112,7 @@ router.post('/', async (req: AuthRequest, res): Promise<void> => {
 
     if (contentFilters.length > 0) {
       scoredChunks = scoredChunks.filter(c => {
-        const txt = c.content.toLowerCase();
+        const txt = String(c.content || '').toLowerCase();
         return contentFilters.every(f => txt.includes(f));
       });
     }
@@ -127,7 +127,7 @@ router.post('/', async (req: AuthRequest, res): Promise<void> => {
         const rerankRes = await cohereClient.rerank({
           model: 'rerank-english-v3.0',
           query: query,
-          documents: top20.map(c => c.content),
+          documents: top20.map(c => String(c.content)),
           topN: 10,
         });
         

@@ -33,6 +33,13 @@ enum PlanTier {
   ENTERPRISE
 }
 
+enum DocStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
 enum SubscriptionStatus {
   ACTIVE
   INCOMPLETE
@@ -82,6 +89,7 @@ model User {
   firmMemberships FirmMember[] @relation("UserFirmMembers")
   subscription    Subscription?
   payments        Payment[]
+  userDocuments   UserDocument[]
 }
 
 // ─────────────────────────────────────────
@@ -398,6 +406,7 @@ model Case {
   hearings         Hearing[]
   timeline         CaseTimeline[]
   documents        CaseDocument[]
+  userDocuments    UserDocument[]
 
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
@@ -478,5 +487,48 @@ model Payment {
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────
+// USER DOCUMENTS (S3-backed, AI-analyzed)
+// ─────────────────────────────────────────
+
+model UserDocument {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // File metadata
+  title           String
+  originalName    String
+  s3Key           String    // S3 object key (e.g. "documents/userId/uuid.pdf")
+  s3Url           String    // Public/presigned URL (cached)
+  mimeType        String
+  sizeBytes       Int
+
+  // Processing pipeline
+  status          DocStatus @default(PENDING)
+
+  // AI Classification & Analysis
+  documentType    String?   // "Contract/Agreement", "FIR", "Legal Notice", etc.
+  summary         String?   // 1-2 sentence AI summary
+  partiesInvolved String[]  // Extracted party names
+  analysisReport  String?   @db.Text  // Full markdown AI analysis
+
+  // Case linkage (optional)
+  caseId          String?
+  case            Case?     @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  // Consent & DPDP Act compliance
+  consentGrantedAt DateTime? // Timestamp of user consent for AI processing
+  deletedAt        DateTime? // Soft-delete for right-to-erasure
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+  @@index([caseId])
+  @@index([status])
+  @@index([deletedAt])
 }
 

@@ -12,17 +12,42 @@ export async function POST(req: NextRequest) {
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-    const authHeader =
+    // ── Auth: get token from Authorization header OR refresh via cookie ────────
+    let authToken =
       req.headers.get('Authorization') ||
       req.headers.get('authorization') ||
       '';
 
+    // If no valid token in header, try refreshing using the httpOnly cookie
+    if (!authToken || authToken === 'Bearer ' || authToken === 'Bearer undefined') {
+      const cookieHeader = req.headers.get('cookie') || '';
+      try {
+        const refreshRes = await fetch(`${backendUrl}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
+        });
+        if (refreshRes.ok) {
+          const refreshData = await refreshRes.json();
+          if (refreshData.accessToken) {
+            authToken = `Bearer ${refreshData.accessToken}`;
+            console.log('[Chat Proxy] Token refreshed via cookie successfully');
+          }
+        }
+      } catch (e) {
+        console.warn('[Chat Proxy] Token refresh failed:', e);
+      }
+    }
+
+    if (!authToken || authToken === 'Bearer ' || authToken === 'Bearer undefined') {
+      return NextResponse.json({ error: 'Unauthorized: Please log in again.' }, { status: 401 });
+    }
+
     const forwardHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(authHeader ? { Authorization: authHeader } : {}),
+      Authorization: authToken,
     };
 
-    // ── Step 1: Get or create a backend Conversation ──────────────────────────
+    // ── Step 1: Get or create backend conversation ─────────────────────────────
     let conversationId: string = existingConvId || '';
 
     if (!conversationId) {
@@ -35,14 +60,17 @@ export async function POST(req: NextRequest) {
 
       if (!convRes.ok) {
         const txt = await convRes.text().catch(() => convRes.statusText);
-        throw new Error(`Failed to create conversation (${convRes.status}): ${txt}`);
+        return NextResponse.json(
+          { error: `Failed to create conversation (${convRes.status}): ${txt}` },
+          { status: convRes.status }
+        );
       }
 
       const conv = await convRes.json();
       conversationId = conv.id;
     }
 
-    // ── Step 2: Send message through the full RAG + Groq pipeline ────────────
+    // ── Step 2: Send message through the full RAG pipeline ────────────────────
     const msgRes = await fetch(
       `${backendUrl}/chat/conversations/${conversationId}/messages`,
       {
@@ -66,13 +94,16 @@ export async function POST(req: NextRequest) {
           }
         );
       }
-      throw new Error(errData?.error || `Backend returned ${msgRes.status}`);
+      return NextResponse.json(
+        { error: errData?.error || `Backend returned ${msgRes.status}` },
+        { status: msgRes.status }
+      );
     }
 
     const data = await msgRes.json() as any;
     const answer: string = data.assistantMessage?.content || 'No response received from AI.';
 
-    // ── Step 3: Stream answer as plain text chunks ────────────────────────────
+    // ── Step 3: Stream answer as plain text chunks ─────────────────────────────
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {

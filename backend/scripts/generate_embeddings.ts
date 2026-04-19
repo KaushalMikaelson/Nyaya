@@ -11,11 +11,11 @@ if (voyageKey) {
   voyageClient = new VoyageAIClient({ apiKey: voyageKey });
 }
 
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 
 const splitter = new RecursiveCharacterTextSplitter({
   chunkSize: 1200,
-  chunkOverlap: 250,
+  chunkOverlap: 200,
   separators: ["\n\n[Clause", "\n\n", "\n", ".", " "],
 });
 
