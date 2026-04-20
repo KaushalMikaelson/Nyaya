@@ -4,84 +4,75 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  FileText, Upload, Trash2, Eye, AlertCircle, CheckCircle,
-  Clock, Loader2, Scale, Menu, X, ChevronRight, RefreshCw,
-  FileSearch, Sparkles, ShieldCheck, Bell, LogOut, LayoutDashboard,
-  Zap, Briefcase, Users, FileStack, CreditCard, ShieldAlert, Search,
-  ChevronDown, ArrowLeft
+  FileText, Upload, Trash2, AlertCircle, CheckCircle,
+  Clock, Loader2, Scale, X, RefreshCw,
+  FileSearch, Sparkles, Briefcase, Search, ArrowLeft, ChevronRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Playfair_Display } from "next/font/google";
 import api from "@/lib/api";
 import ReactMarkdown from "react-markdown";
+import NyayaNav from "@/components/NyayaNav";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+const playfair = Playfair_Display({ subsets: ["latin"], style: ["normal", "italic"] });
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface UserDocument {
-  id: string;
-  title: string;
-  originalName: string;
-  mimeType: string;
-  sizeBytes: number;
+  id: string; title: string; originalName: string; mimeType: string; sizeBytes: number;
   status: "PENDING" | "PROCESSING" | "READY" | "FAILED";
-  documentType: string | null;
-  summary: string | null;
-  summaryHi?: string | null;
-  partiesInvolved: string[];
-  caseId: string | null;
+  documentType: string | null; summary: string | null; summaryHi?: string | null;
+  partiesInvolved: string[]; caseId: string | null;
   case?: { id: string; title: string } | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string; updatedAt: string;
 }
 
 interface FullDocument extends UserDocument {
-  analysisReport: string | null;
-  analysisReportHi?: string | null;
-  s3Url: string;
-  consentGrantedAt: string | null;
+  analysisReport: string | null; analysisReportHi?: string | null;
+  s3Url: string; consentGrantedAt: string | null;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+function formatBytes(b: number) {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
 }
-
-function formatDate(iso: string): string {
+function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-const DOC_TYPE_COLORS: Record<string, string> = {
-  "Contract/Agreement": "bg-blue-100 text-blue-700",
-  "Legal Notice": "bg-orange-100 text-orange-700",
-  "Court Judgment/Order": "bg-purple-100 text-purple-700",
-  "FIR/Police Report": "bg-red-100 text-red-700",
-  "Identity/KYC Document": "bg-green-100 text-green-700",
-  "Petition": "bg-indigo-100 text-indigo-700",
-  "Affidavit": "bg-yellow-100 text-yellow-700",
-  "Power of Attorney": "bg-teal-100 text-teal-700",
-  "Will/Testament": "bg-pink-100 text-pink-700",
-  "Other": "bg-slate-100 text-slate-600",
+const TYPE_COLORS: Record<string, { bg: string; color: string }> = {
+  "Contract/Agreement":  { bg: "rgba(59,130,246,0.12)",  color: "#60a5fa" },
+  "Legal Notice":        { bg: "rgba(251,146,60,0.12)",  color: "#fb923c" },
+  "Court Judgment/Order":{ bg: "rgba(167,139,250,0.12)", color: "#a78bfa" },
+  "FIR/Police Report":   { bg: "rgba(248,113,113,0.12)", color: "#f87171" },
+  "Identity/KYC Document":{ bg:"rgba(52,211,153,0.12)",  color: "#34d399" },
+  "Petition":            { bg: "rgba(99,102,241,0.12)",  color: "#818cf8" },
+  "Affidavit":           { bg: "rgba(250,204,21,0.12)",  color: "#facc15" },
+  "Other":               { bg: "rgba(100,116,139,0.12)", color: "#94a3b8" },
+};
+
+const STATUS_MAP = {
+  PENDING:    { icon: Clock,         label: "Queued",    color: "#facc15", bg: "rgba(250,204,21,0.1)" },
+  PROCESSING: { icon: Loader2,       label: "Analyzing", color: "#60a5fa", bg: "rgba(59,130,246,0.1)" },
+  READY:      { icon: CheckCircle,   label: "Ready",     color: "#34d399", bg: "rgba(52,211,153,0.1)" },
+  FAILED:     { icon: AlertCircle,   label: "Failed",    color: "#f87171", bg: "rgba(248,113,113,0.1)" },
 };
 
 function StatusBadge({ status }: { status: UserDocument["status"] }) {
-  const map = {
-    PENDING: { icon: Clock, label: "Queued", class: "bg-yellow-50 text-yellow-700 border-yellow-200" },
-    PROCESSING: { icon: Loader2, label: "Analyzing", class: "bg-blue-50 text-blue-700 border-blue-200" },
-    READY: { icon: CheckCircle, label: "Ready", class: "bg-green-50 text-green-700 border-green-200" },
-    FAILED: { icon: AlertCircle, label: "Failed", class: "bg-red-50 text-red-700 border-red-200" },
-  };
-  const s = map[status];
+  const s = STATUS_MAP[status];
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${s.class}`}>
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold"
+      style={{ background: s.bg, color: s.color }}>
       <s.icon size={11} className={status === "PROCESSING" ? "animate-spin" : ""} />
       {s.label}
     </span>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function DocumentsPage() {
   const { user, loading: authLoading, logout } = useAuth();
@@ -94,24 +85,16 @@ export default function DocumentsPage() {
   const [selectedDoc, setSelectedDoc] = useState<FullDocument | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [consentGiven, setConsentGiven] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [language, setLanguage] = useState<"english" | "hindi">("english");
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!authLoading && !user) router.push("/landing");
-  }, [authLoading, user, router]);
-
-  useEffect(() => {
-    if (user) fetchDocuments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, statusFilter]);
+  useEffect(() => { if (!authLoading && !user) router.push("/landing"); }, [authLoading, user, router]);
+  useEffect(() => { if (user) fetchDocuments(); }, [user, statusFilter]);// eslint-disable-line
 
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
@@ -119,152 +102,69 @@ export default function DocumentsPage() {
       const params = new URLSearchParams();
       if (statusFilter !== "ALL") params.set("status", statusFilter);
       const { data } = await api.get(`/documents?${params.toString()}`);
-      setDocuments(data.data || []);
-      setTotal(data.meta?.total || 0);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+      setDocuments(data.data || []); setTotal(data.meta?.total || 0);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   }, [statusFilter]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!consentGiven) {
-      alert("Please give consent for AI processing before uploading.");
-      return;
-    }
-
-    const MAX_SIZE = 25 * 1024 * 1024;
-    if (file.size > MAX_SIZE) {
-      alert("File too large. Maximum size is 25 MB.");
-      return;
-    }
-
-    const ALLOWED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
-    if (!ALLOWED.includes(file.type)) {
-      alert("Only PDF, JPG, PNG, and WEBP files are allowed.");
-      return;
-    }
-
+    const file = e.target.files?.[0]; if (!file) return;
+    if (!consentGiven) { alert("Please give consent for AI processing before uploading."); return; }
+    if (file.size > 25 * 1024 * 1024) { alert("File too large. Max 25 MB."); return; }
+    if (!["application/pdf","image/jpeg","image/png","image/webp"].includes(file.type)) { alert("Only PDF, JPG, PNG, WEBP allowed."); return; }
     await uploadDocument(file);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const uploadDocument = async (file: File) => {
-    setUploading(true);
-    setUploadProgress(10);
-
+    setUploading(true); setUploadProgress(10);
     try {
-      // Step 1: Request upload URL
-      const { data: urlData } = await api.post("/documents/upload-url", {
-        fileName: file.name,
-        mimeType: file.type,
-        sizeBytes: file.size,
-      });
-
+      const { data: urlData } = await api.post("/documents/upload-url", { fileName: file.name, mimeType: file.type, sizeBytes: file.size });
       setUploadProgress(30);
-
       if (urlData.isLocal) {
-        // Dev mode: upload via backend
         const formData = new FormData();
-        formData.append("file", file);
-        formData.append("title", file.name.replace(/\.[^/.]+$/, ""));
-        formData.append("consentGranted", "true");
-
+        formData.append("file", file); formData.append("title", file.name.replace(/\.[^/.]+$/, "")); formData.append("consentGranted", "true");
         setUploadProgress(60);
-
-        const { data: uploadData } = await api.post("/documents/local-upload", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-
+        const { data: uploadData } = await api.post("/documents/local-upload", formData, { headers: { "Content-Type": "multipart/form-data" } });
         setUploadProgress(85);
-
-        // Queue AI processing
-        if (uploadData.docId) {
-          await api.post(`/documents/analyze-doc/${uploadData.docId}`).catch(() => {});
-        }
+        if (uploadData.docId) await api.post(`/documents/analyze-doc/${uploadData.docId}`).catch(() => {});
       } else {
-        // Production: direct browser → S3, then confirm
-        const formData = new FormData();
-        formData.append("file", file);
-
-        // Note: In prod, PUT to urlData.uploadUrl via fetch
         setUploadProgress(70);
-
-        await api.post("/documents/confirm", {
-          s3Key: urlData.s3Key,
-          fileName: file.name,
-          mimeType: file.type,
-          sizeBytes: file.size,
-          consentGranted: true,
-        });
+        await api.post("/documents/confirm", { s3Key: urlData.s3Key, fileName: file.name, mimeType: file.type, sizeBytes: file.size, consentGranted: true });
       }
-
       setUploadProgress(100);
-      setTimeout(() => {
-        setUploadProgress(0);
-        fetchDocuments();
-      }, 600);
-
+      setTimeout(() => { setUploadProgress(0); fetchDocuments(); }, 600);
     } catch (err: any) {
       console.error(err);
-      if (err.response?.data?.error === "UPGRADE_REQUIRED") {
-        alert(err.response.data.message || "Document uploads require a Pro plan. Please upgrade.");
-      } else {
-        alert("Upload failed. Please try again.");
-      }
+      if (err.response?.data?.error === "UPGRADE_REQUIRED") alert(err.response.data.message || "Document uploads require a Pro plan.");
+      else alert("Upload failed. Please try again.");
       setUploadProgress(0);
-    } finally {
-      setUploading(false);
-    }
+    } finally { setUploading(false); }
   };
 
   const viewDocument = async (doc: UserDocument | FullDocument) => {
     setViewLoading(true);
-    try {
-      const { data } = await api.get(`/documents/${doc.id}`);
-      setSelectedDoc(data.data);
-    } catch {
-      alert("Failed to load document details.");
-    } finally {
-      setViewLoading(false);
-    }
+    try { const { data } = await api.get(`/documents/${doc.id}`); setSelectedDoc(data.data); }
+    catch { alert("Failed to load document details."); } finally { setViewLoading(false); }
   };
 
   const switchLanguage = async (lang: "english" | "hindi") => {
     setLanguage(lang);
-    // If switching to Hindi but current selectedDoc has no Hindi content, re-fetch
-    if (lang === "hindi" && selectedDoc && !selectedDoc.analysisReportHi) {
-      await viewDocument(selectedDoc);
-    }
+    if (lang === "hindi" && selectedDoc && !selectedDoc.analysisReportHi) await viewDocument(selectedDoc);
   };
 
   const deleteDocument = async (id: string) => {
     setDeletingId(id);
     try {
       await api.delete(`/documents/${id}`);
-      setDocuments(prev => prev.filter(d => d.id !== id));
-      setTotal(prev => prev - 1);
+      setDocuments(prev => prev.filter(d => d.id !== id)); setTotal(prev => prev - 1);
       if (selectedDoc?.id === id) setSelectedDoc(null);
-    } catch {
-      alert("Failed to delete document.");
-    } finally {
-      setDeletingId(null);
-      setShowDeleteConfirm(null);
-    }
+    } catch { alert("Failed to delete document."); }
+    finally { setDeletingId(null); setShowDeleteConfirm(null); }
   };
 
   const reanalyzeDoc = async (id: string) => {
-    try {
-      await api.post(`/documents/analyze-doc/${id}`);
-      setDocuments(prev => prev.map(d => d.id === id ? { ...d, status: "PENDING" } : d));
-      alert("Re-analysis queued! Refresh in a moment.");
-    } catch {
-      alert("Failed to queue re-analysis.");
-    }
+    try { await api.post(`/documents/analyze-doc/${id}`); setDocuments(prev => prev.map(d => d.id === id ? { ...d, status: "PENDING" } : d)); alert("Re-analysis queued!"); }
+    catch { alert("Failed to queue re-analysis."); }
   };
 
   const filteredDocs = documents.filter(d =>
@@ -273,148 +173,100 @@ export default function DocumentsPage() {
     d.documentType?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // ── Loading screen ───────────────────────────────────────────────────────────
+
   if (authLoading || !user) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#f8f9fa]">
-        <div className="flex flex-col items-center gap-4">
-          <Scale size={32} className="text-[#0f172a] animate-pulse" />
+      <div className="flex h-screen w-full items-center justify-center" style={{ background: "#070b16" }}>
+        <div className="flex flex-col items-center gap-5">
+          <div className="w-16 h-16 rounded-3xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 40px rgba(124,110,247,0.4)" }}>
+            <Scale size={28} className="text-white" />
+          </div>
           <div className="flex gap-1.5">
-            {[0, 1, 2].map(i => (
-              <div key={i} className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-            ))}
+            {[0,1,2].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "rgba(212,175,55,0.6)", animationDelay: `${i * 0.2}s` }} />)}
           </div>
         </div>
       </div>
     );
   }
 
+  // ── Render ───────────────────────────────────────────────────────────────────
+
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#f8f9fa] text-[#1e293b] font-sans">
+    <div className="flex h-screen w-full overflow-hidden font-sans" style={{ background: "#070b16", color: "#ededed" }}>
+      {/* Ambient orbs */}
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <motion.div animate={{ scale: [1,1.2,1], opacity: [0.12,0.22,0.12] }} transition={{ duration: 12, repeat: Infinity }}
+          style={{ position:"absolute", top:"5%", left:"0%", width:"40vw", height:"40vw", background:"#1a2b58", borderRadius:"50%", filter:"blur(140px)" }} />
+        <motion.div animate={{ scale: [1,1.3,1], opacity: [0.05,0.1,0.05] }} transition={{ duration: 9, repeat: Infinity, delay: 4 }}
+          style={{ position:"absolute", bottom:"10%", right:"5%", width:"30vw", height:"30vw", background:"#d4af37", borderRadius:"50%", filter:"blur(160px)" }} />
+      </div>
 
-      {/* Overlay */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-      </AnimatePresence>
+      <NyayaNav user={user} logout={logout} active="documents" onBilling={() => {}} onUpgrade={() => {}} />
 
-      {/* ─── SIDEBAR (matches main app) ─── */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col transition-transform duration-300 ease-in-out bg-[#0f172a] border-r border-slate-800 shadow-[20px_0_50px_rgba(0,0,0,0.2)] ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="flex items-center gap-1.5 px-3 h-[60px] shrink-0 border-b border-slate-800">
-          <button onClick={() => router.push("/")} className="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-white transition-colors">
-            <Scale size={16} />
-            <span className="text-sm font-semibold text-white">Nyaay AI</span>
-          </button>
-          <button className="md:hidden ml-auto w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white" onClick={() => setSidebarOpen(false)}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-1 px-3 py-4 border-b border-slate-800">
-          <button onClick={() => router.push("/")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
-            <LayoutDashboard size={18} /> Dashboard
-          </button>
-          <button onClick={() => router.push("/ask-nyaya")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
-            <Zap size={18} /> Ask Nyaay
-          </button>
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-slate-800 text-[#d4af37] transition-colors">
-            <FileStack size={18} /> Documents
-          </button>
-          <button onClick={() => router.push("/cases")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
-            <Briefcase size={18} /> Case Management
-          </button>
-          <button onClick={() => router.push("/marketplace")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
-            <Users size={18} /> Lawyer Marketplace
-          </button>
-          <button onClick={() => router.push("/notifications")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
-            <Bell size={18} /> Notifications
-          </button>
-          {user.role === "ADMIN" && (
-            <button onClick={() => router.push("/admin")} className="w-full flex items-center gap-3 px-3 py-2.5 mt-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-950 transition-colors">
-              <ShieldAlert size={18} /> Admin Console
-            </button>
-          )}
-        </div>
-
-        <div className="flex-1" />
-
-        <div className="px-3 pb-3">
-          <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-slate-800 transition-colors cursor-pointer group border border-slate-800" onClick={logout}>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-xs text-[#0f172a] bg-white">
-              {user.email[0].toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="truncate text-sm font-medium text-slate-300 group-hover:text-white">{user.email.split("@")[0]}</div>
-              <div className="text-[11px] text-slate-500">{user.role}</div>
-            </div>
-            <LogOut size={14} className="text-slate-500 opacity-0 group-hover:opacity-100 transition-all" />
-          </div>
-        </div>
-      </aside>
-
-      {/* ─── MAIN ─── */}
-      <main className="flex flex-1 flex-col min-w-0">
+      <div className="flex flex-col flex-1 min-w-0 relative z-10">
         {/* Topbar */}
-        <header className="flex items-center justify-between h-14 px-4 md:px-6 shrink-0 bg-white/80 backdrop-blur-md sticky top-0 z-30 border-b border-slate-200">
-          <div className="flex items-center gap-4">
-            <button className="p-2 -ml-2 rounded-lg text-slate-500 hover:text-[#0f172a] hover:bg-slate-100 transition-colors" onClick={() => setSidebarOpen(true)}>
-              <Menu size={20} />
+        <header className="flex items-center justify-between h-14 px-4 md:px-6 shrink-0 sticky top-0 z-30"
+          style={{ background: "rgba(7,11,22,0.88)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(30,38,66,0.8)" }}>
+          <div className="flex items-center gap-3">
+            <button className="p-2 -ml-2 rounded-lg" style={{ color: "#4a4a62" }}
+              onMouseEnter={e => (e.currentTarget.style.color="#a1a1aa")} onMouseLeave={e => (e.currentTarget.style.color="#4a4a62")}>
+              {/* hamburger via NyayaNav */}
+            </button>
+            <button onClick={() => router.push("/")} className="flex items-center gap-1.5" style={{ color: "#4a4a62" }}
+              onMouseEnter={e => (e.currentTarget.style.color="#a1a1aa")} onMouseLeave={e => (e.currentTarget.style.color="#4a4a62")}>
+              <ArrowLeft size={16} />
             </button>
             <div className="flex items-center gap-2">
-              <button onClick={() => router.push("/")} className="text-slate-400 hover:text-slate-600 transition-colors">
-                <ArrowLeft size={16} />
-              </button>
-              <FileStack size={18} className="text-[#0f172a]" />
-              <h1 className="text-sm font-bold text-[#0f172a]">Document Intelligence</h1>
+              <FileSearch size={17} style={{ color: "#d4af37" }} />
+              <h1 className="text-sm font-bold text-white">Document Intelligence</h1>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#0f172a] text-white rounded-full text-xs font-bold tracking-wider uppercase">
-              <ShieldCheck size={12} className="text-[#d4af37]" /> {user.role}
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase"
+              style={{ background: "rgba(212,175,55,0.1)", color: "#d4af37", border: "1px solid rgba(212,175,55,0.2)" }}>
+              {user.role}
             </div>
-            <div className="w-7 h-7 rounded-full bg-[#0f172a] flex items-center justify-center text-white text-xs font-bold">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+              style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}>
               {user.email[0].toUpperCase()}
             </div>
           </div>
         </header>
 
         <div className="flex flex-1 overflow-hidden">
-          {/* ─── DOCUMENT LIST ─── */}
-          <div className={`flex flex-col ${selectedDoc ? "w-[45%] border-r border-slate-200" : "w-full"} overflow-hidden transition-all duration-300`}>
 
-            {/* Controls bar */}
-            <div className="px-5 py-4 border-b border-slate-100 bg-white">
+          {/* ── DOCUMENT LIST ── */}
+          <div className={`flex flex-col ${selectedDoc ? "w-[45%]" : "w-full"} overflow-hidden transition-all duration-300`}
+            style={{ borderRight: selectedDoc ? "1px solid rgba(30,38,66,0.8)" : "none" }}>
+
+            {/* Controls */}
+            <div className="px-5 py-4 shrink-0" style={{ borderBottom: "1px solid rgba(30,38,66,0.8)", background: "rgba(13,18,36,0.6)" }}>
               <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-xs text-slate-500 font-medium">
-                    {total} document{total !== 1 ? "s" : ""} total
-                  </p>
-                </div>
-                <button
+                <p className="text-xs font-semibold" style={{ color: "#4a4a62" }}>{total} document{total !== 1 ? "s" : ""} total</p>
+                <motion.button
+                  whileHover={{ boxShadow: "0 0 20px rgba(212,175,55,0.3)" }}
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] text-white text-sm font-semibold rounded-lg hover:bg-[#1e2d3d] transition-colors disabled:opacity-60 shadow-sm"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all disabled:opacity-60"
+                  style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}
                 >
-                  {uploading ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                  {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
                   {uploading ? "Uploading..." : "Upload Document"}
-                </button>
+                </motion.button>
               </div>
 
-              {/* Consent toggle */}
+              {/* Consent */}
               {!consentGiven && (
                 <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                  className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 mb-3">
-                  <AlertCircle size={14} className="shrink-0 mt-0.5 text-amber-600" />
+                  className="flex items-start gap-3 p-3 rounded-xl mb-3 text-xs"
+                  style={{ background: "rgba(212,175,55,0.07)", border: "1px solid rgba(212,175,55,0.2)", color: "#d4af37" }}>
+                  <AlertCircle size={14} className="shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-semibold mb-1">Consent required for AI analysis</p>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={consentGiven} onChange={e => setConsentGiven(e.target.checked)}
-                        className="w-3.5 h-3.5 accent-[#0f172a]" />
-                      <span>I consent to AI processing for legal analysis under DPDP Act 2023. My data will not be used for model training.</span>
+                    <p className="font-bold mb-1">Consent required for AI analysis</p>
+                    <label className="flex items-center gap-2 cursor-pointer font-medium" style={{ color: "#a1a1aa" }}>
+                      <input type="checkbox" checked={consentGiven} onChange={e => setConsentGiven(e.target.checked)} className="w-3.5 h-3.5" />
+                      I consent to AI processing under DPDP Act 2023. Data won't be used for training.
                     </label>
                   </div>
                 </motion.div>
@@ -423,12 +275,12 @@ export default function DocumentsPage() {
               {/* Upload progress */}
               {uploading && uploadProgress > 0 && (
                 <div className="mb-3">
-                  <div className="flex justify-between text-xs text-slate-500 mb-1">
-                    <span>Uploading & queuing AI analysis...</span>
-                    <span>{uploadProgress}%</span>
+                  <div className="flex justify-between text-xs mb-1" style={{ color: "#4a4a62" }}>
+                    <span>Uploading & queuing AI analysis...</span><span>{uploadProgress}%</span>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <motion.div className="h-full bg-[#0f172a] rounded-full" animate={{ width: `${uploadProgress}%` }} transition={{ duration: 0.3 }} />
+                  <div className="w-full h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.06)" }}>
+                    <motion.div className="h-full rounded-full" animate={{ width: `${uploadProgress}%` }} transition={{ duration: 0.3 }}
+                      style={{ background: "linear-gradient(to right,#7c6ef7,#d4af37)" }} />
                   </div>
                 </div>
               )}
@@ -436,169 +288,169 @@ export default function DocumentsPage() {
               {/* Search + filter */}
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#4a4a62" }} />
+                  <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                     placeholder="Search documents..."
-                    className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-slate-400 transition-colors"
-                  />
+                    className="w-full pl-8 pr-3 py-2 text-sm rounded-xl outline-none transition-all"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)", color: "#ededed" }}
+                    onFocus={e => (e.currentTarget.style.borderColor = "rgba(212,175,55,0.4)")}
+                    onBlur={e => (e.currentTarget.style.borderColor = "rgba(30,38,66,1)")} />
                 </div>
-                <select
-                  value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-                  className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-600 focus:outline-none focus:border-slate-400 cursor-pointer"
-                >
-                  <option value="ALL">All Status</option>
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 text-sm rounded-xl outline-none cursor-pointer"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)", color: "#a1a1aa" }}>
+                  <option value="ALL">All</option>
                   <option value="PENDING">Queued</option>
                   <option value="PROCESSING">Analyzing</option>
                   <option value="READY">Ready</option>
                   <option value="FAILED">Failed</option>
                 </select>
-                <button onClick={fetchDocuments} className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-[#0f172a] hover:bg-slate-50 transition-colors" title="Refresh">
-                  <RefreshCw size={15} />
+                <button onClick={fetchDocuments} className="p-2 rounded-xl transition-colors" title="Refresh"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)", color: "#4a4a62" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color="#d4af37"; (e.currentTarget as HTMLButtonElement).style.borderColor="rgba(212,175,55,0.3)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color="#4a4a62"; (e.currentTarget as HTMLButtonElement).style.borderColor="rgba(30,38,66,1)"; }}>
+                  <RefreshCw size={14} />
                 </button>
               </div>
             </div>
 
-            {/* Document list */}
+            {/* List body */}
             <div className="flex-1 overflow-y-auto">
               {loading ? (
                 <div className="flex flex-col items-center justify-center h-full gap-3">
-                  <Loader2 size={24} className="animate-spin text-slate-400" />
-                  <span className="text-sm text-slate-500">Loading documents...</span>
+                  <div className="w-10 h-10 rounded-full animate-spin" style={{ border: "2px solid rgba(212,175,55,0.2)", borderTop: "2px solid #d4af37" }} />
+                  <span className="text-sm" style={{ color: "#4a4a62" }}>Loading documents...</span>
                 </div>
               ) : filteredDocs.length === 0 ? (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                   className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
-                    <FileSearch size={28} className="text-slate-400" />
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                    style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.15)" }}>
+                    <FileSearch size={28} style={{ color: "#d4af37" }} />
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-700 mb-1">
-                      {searchQuery ? "No documents match your search" : "No documents yet"}
-                    </p>
-                    <p className="text-sm text-slate-400">
-                      {searchQuery ? "Try a different search term" : "Upload your first legal document to get AI-powered analysis"}
+                    <p className="font-semibold text-white mb-1">{searchQuery ? "No documents match" : "No documents yet"}</p>
+                    <p className="text-sm" style={{ color: "#4a4a62" }}>
+                      {searchQuery ? "Try a different search term" : "Upload your first legal document"}
                     </p>
                   </div>
                   {!searchQuery && (
-                    <button
+                    <motion.button whileHover={{ boxShadow: "0 0 20px rgba(212,175,55,0.3)" }}
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] text-white text-sm font-semibold rounded-lg hover:bg-[#1e2d3d] transition-colors"
-                    >
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl"
+                      style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}>
                       <Upload size={14} /> Upload Document
-                    </button>
+                    </motion.button>
                   )}
                 </motion.div>
               ) : (
-                <div className="divide-y divide-slate-100">
-                  {filteredDocs.map((doc, i) => (
-                    <motion.div
-                      key={doc.id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.03 }}
-                      onClick={() => viewDocument(doc)}
-                      className={`flex items-start gap-3 px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors group relative ${selectedDoc?.id === doc.id ? "bg-slate-50 border-l-2 border-l-[#0f172a]" : ""}`}
-                    >
-                      {/* File icon */}
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 group-hover:bg-slate-200 transition-colors">
-                        <FileText size={18} className="text-slate-500" />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-semibold text-slate-800 truncate leading-5">{doc.title}</p>
-                          <StatusBadge status={doc.status} />
+                <div>
+                  {filteredDocs.map((doc, i) => {
+                    const tc = TYPE_COLORS[doc.documentType ?? "Other"] ?? TYPE_COLORS["Other"];
+                    const isSelected = selectedDoc?.id === doc.id;
+                    return (
+                      <motion.div key={doc.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                        onClick={() => viewDocument(doc)}
+                        className="flex items-start gap-3 px-5 py-4 cursor-pointer group relative transition-all"
+                        style={{
+                          borderBottom: "1px solid rgba(30,38,66,0.5)",
+                          background: isSelected ? "rgba(212,175,55,0.06)" : "transparent",
+                          borderLeft: isSelected ? "2px solid #d4af37" : "2px solid transparent",
+                        }}
+                        onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.025)"; }}
+                        onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+                      >
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all"
+                          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)" }}>
+                          <FileText size={17} style={{ color: "#d4af37" }} />
                         </div>
-
-                        {doc.documentType && (
-                          <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${DOC_TYPE_COLORS[doc.documentType] || DOC_TYPE_COLORS["Other"]}`}>
-                            {doc.documentType}
-                          </span>
-                        )}
-
-                        {doc.summary && (
-                          <p className="mt-1.5 text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                            {(language === 'hindi' && doc.summaryHi) ? doc.summaryHi : doc.summary}
-                          </p>
-                        )}
-
-                        <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400 font-medium">
-                          <span>{formatBytes(doc.sizeBytes)}</span>
-                          <span>·</span>
-                          <span>{formatDate(doc.createdAt)}</span>
-                          {doc.case && <><span>·</span><span className="text-blue-500">📁 {doc.case.title}</span></>}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-semibold text-white truncate leading-5">{doc.title}</p>
+                            <StatusBadge status={doc.status} />
+                          </div>
+                          {doc.documentType && (
+                            <span className="inline-block mt-1 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide"
+                              style={{ background: tc.bg, color: tc.color }}>{doc.documentType}</span>
+                          )}
+                          {doc.summary && (
+                            <p className="mt-1.5 text-xs line-clamp-2 leading-relaxed" style={{ color: "#6a6a82" }}>
+                              {language === "hindi" && doc.summaryHi ? doc.summaryHi : doc.summary}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 mt-2 text-[11px] font-medium" style={{ color: "#4a4a62" }}>
+                            <span>{formatBytes(doc.sizeBytes)}</span><span>·</span><span>{formatDate(doc.createdAt)}</span>
+                            {doc.case && <><span>·</span><span style={{ color: "#818cf8" }}>📁 {doc.case.title}</span></>}
+                          </div>
                         </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                        {doc.status === "FAILED" && (
-                          <button
-                            onClick={e => { e.stopPropagation(); reanalyzeDoc(doc.id); }}
-                            className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 transition-colors"
-                            title="Retry analysis"
-                          >
-                            <RefreshCw size={13} />
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          {doc.status === "FAILED" && (
+                            <button onClick={e => { e.stopPropagation(); reanalyzeDoc(doc.id); }}
+                              className="p-1.5 rounded-lg transition-colors" style={{ color: "#60a5fa" }} title="Retry">
+                              <RefreshCw size={12} />
+                            </button>
+                          )}
+                          <button onClick={e => { e.stopPropagation(); setShowDeleteConfirm(doc.id); }}
+                            className="p-1.5 rounded-lg transition-colors" style={{ color: "#f87171" }} title="Delete">
+                            <Trash2 size={12} />
                           </button>
-                        )}
-                        <button
-                          onClick={e => { e.stopPropagation(); setShowDeleteConfirm(doc.id); }}
-                          className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
             </div>
           </div>
 
-          {/* ─── DOCUMENT DETAIL PANEL ─── */}
+          {/* ── DETAIL PANEL ── */}
           <AnimatePresence>
             {selectedDoc && (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.2 }}
-                className="flex-1 flex flex-col overflow-hidden bg-white"
-              >
+                className="flex-1 flex flex-col overflow-hidden"
+                style={{ background: "rgba(10,15,29,0.8)" }}>
                 {/* Detail header */}
-                <div className="flex items-start justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+                <div className="flex items-start justify-between px-6 py-4 shrink-0"
+                  style={{ borderBottom: "1px solid rgba(30,38,66,0.8)" }}>
                   <div className="flex-1 min-w-0 pr-4">
                     <div className="flex items-center gap-2 mb-1">
                       <StatusBadge status={selectedDoc.status} />
                       {selectedDoc.documentType && (
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${DOC_TYPE_COLORS[selectedDoc.documentType] || DOC_TYPE_COLORS["Other"]}`}>
+                        <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide"
+                          style={{ background: (TYPE_COLORS[selectedDoc.documentType] ?? TYPE_COLORS["Other"]).bg, color: (TYPE_COLORS[selectedDoc.documentType] ?? TYPE_COLORS["Other"]).color }}>
                           {selectedDoc.documentType}
                         </span>
                       )}
                     </div>
-                    <h2 className="text-base font-bold text-[#0f172a] truncate">{selectedDoc.title}</h2>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <h2 className={`${playfair.className} text-base font-medium text-white truncate`}>{selectedDoc.title}</h2>
+                    <p className="text-xs mt-0.5" style={{ color: "#4a4a62" }}>
                       {selectedDoc.originalName} · {formatBytes(selectedDoc.sizeBytes)} · {formatDate(selectedDoc.createdAt)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 mr-2">
-                       <button onClick={() => switchLanguage('english')} className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${language === 'english' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>English</button>
-                       <button onClick={() => switchLanguage('hindi')} className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${language === 'hindi' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>हिंदी</button>
+                    {/* Language toggle */}
+                    <div className="flex rounded-xl p-0.5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)" }}>
+                      {(["english","hindi"] as const).map(lang => (
+                        <button key={lang} onClick={() => switchLanguage(lang)}
+                          className="px-3 py-1 rounded-lg text-xs font-semibold transition-all"
+                          style={language === lang
+                            ? { background: "rgba(212,175,55,0.15)", color: "#d4af37" }
+                            : { color: "#4a4a62" }}>
+                          {lang === "english" ? "English" : "हिंदी"}
+                        </button>
+                      ))}
                     </div>
                     {selectedDoc.status === "FAILED" && (
-                      <button onClick={() => reanalyzeDoc(selectedDoc.id)}
-                        className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors" title="Retry">
-                        <RefreshCw size={15} />
+                      <button onClick={() => reanalyzeDoc(selectedDoc.id)} className="p-2 rounded-xl transition-colors" style={{ color: "#60a5fa" }} title="Retry">
+                        <RefreshCw size={14} />
                       </button>
                     )}
-                    <button onClick={() => setShowDeleteConfirm(selectedDoc.id)}
-                      className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors" title="Delete">
-                      <Trash2 size={15} />
+                    <button onClick={() => setShowDeleteConfirm(selectedDoc.id)} className="p-2 rounded-xl transition-colors" style={{ color: "#f87171" }} title="Delete">
+                      <Trash2 size={14} />
                     </button>
-                    <button onClick={() => setSelectedDoc(null)}
-                      className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors">
-                      <X size={15} />
+                    <button onClick={() => setSelectedDoc(null)} className="p-2 rounded-xl transition-colors" style={{ color: "#4a4a62" }}>
+                      <X size={14} />
                     </button>
                   </div>
                 </div>
@@ -607,35 +459,35 @@ export default function DocumentsPage() {
                 <div className="flex-1 overflow-y-auto px-6 py-5">
                   {viewLoading ? (
                     <div className="flex items-center justify-center h-32 gap-3">
-                      <Loader2 size={20} className="animate-spin text-slate-400" />
-                      <span className="text-sm text-slate-500">Loading analysis...</span>
+                      <div className="w-8 h-8 animate-spin rounded-full" style={{ border: "2px solid rgba(212,175,55,0.2)", borderTop: "2px solid #d4af37" }} />
+                      <span className="text-sm" style={{ color: "#4a4a62" }}>Loading analysis...</span>
                     </div>
                   ) : (
                     <div className="space-y-5">
                       {/* Summary */}
                       {(selectedDoc.summary || selectedDoc.summaryHi) && (
-                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                          className="p-4 rounded-2xl" style={{ background: "rgba(212,175,55,0.06)", border: "1px solid rgba(212,175,55,0.15)" }}>
                           <div className="flex items-center gap-2 mb-2">
-                            <Sparkles size={14} className="text-[#d4af37]" />
-                            <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">
-                               {language === 'hindi' ? 'AI सारांश' : 'AI Summary'}
+                            <Sparkles size={13} style={{ color: "#d4af37" }} />
+                            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: "#d4af37" }}>
+                              {language === "hindi" ? "AI सारांश" : "AI Summary"}
                             </span>
                           </div>
-                          <p className="text-sm text-slate-700 leading-relaxed">
-                             {(language === 'hindi' && selectedDoc.summaryHi) ? selectedDoc.summaryHi : selectedDoc.summary}
+                          <p className="text-sm leading-relaxed" style={{ color: "#a1a1aa" }}>
+                            {language === "hindi" && selectedDoc.summaryHi ? selectedDoc.summaryHi : selectedDoc.summary}
                           </p>
-                        </div>
+                        </motion.div>
                       )}
 
                       {/* Parties */}
                       {selectedDoc.partiesInvolved?.length > 0 && (
                         <div>
-                          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Parties Involved</p>
+                          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#4a4a62" }}>Parties Involved</p>
                           <div className="flex flex-wrap gap-2">
                             {selectedDoc.partiesInvolved.map((p, i) => (
-                              <span key={i} className="px-2.5 py-1 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs font-medium">
-                                {p}
-                              </span>
+                              <span key={i} className="px-2.5 py-1 rounded-lg text-xs font-medium"
+                                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)", color: "#a1a1aa" }}>{p}</span>
                             ))}
                           </div>
                         </div>
@@ -643,58 +495,60 @@ export default function DocumentsPage() {
 
                       {/* Case link */}
                       {selectedDoc.case && (
-                        <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 border border-blue-100">
-                          <Briefcase size={14} className="text-blue-600 shrink-0" />
-                          <span className="text-xs text-blue-700">Linked to case: <span className="font-semibold">{selectedDoc.case.title}</span></span>
-                          <button onClick={() => router.push(`/cases`)} className="ml-auto text-blue-600 hover:text-blue-700">
-                            <ChevronRight size={14} />
+                        <div className="flex items-center gap-2 p-3 rounded-xl"
+                          style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                          <Briefcase size={13} style={{ color: "#818cf8" }} />
+                          <span className="text-xs" style={{ color: "#818cf8" }}>Linked: <strong>{selectedDoc.case.title}</strong></span>
+                          <button onClick={() => router.push("/cases")} className="ml-auto" style={{ color: "#818cf8" }}>
+                            <ChevronRight size={13} />
                           </button>
                         </div>
                       )}
 
-                      {/* Full Analysis */}
+                      {/* Full analysis */}
                       {selectedDoc.status === "READY" && (selectedDoc.analysisReport || selectedDoc.analysisReportHi) ? (
                         <div>
-                          <div className="flex items-center gap-2 mb-3">
-                            <FileSearch size={14} className="text-[#0f172a]" />
-                            <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">
-                               {language === 'hindi' ? 'पूर्ण कानूनी विश्लेषण' : 'Full Legal Analysis'}
-                            </p>
+                          <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: "#4a4a62" }}>
+                            {language === "hindi" ? "पूर्ण कानूनी विश्लेषण" : "Full Legal Analysis"}
+                          </p>
+                          <div className="prose prose-sm max-w-none rounded-2xl p-5 text-[13px] leading-relaxed"
+                            style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(30,38,66,1)", color: "#a1a1aa" }}>
+                            <ReactMarkdown>{language === "hindi" && selectedDoc.analysisReportHi ? selectedDoc.analysisReportHi : (selectedDoc.analysisReport || "")}</ReactMarkdown>
                           </div>
-                          <div className="prose prose-sm prose-slate max-w-none bg-white rounded-xl p-4 border border-slate-100 text-[13px] leading-relaxed">
-                            <ReactMarkdown>
-                              {(language === 'hindi' && selectedDoc.analysisReportHi) ? selectedDoc.analysisReportHi : (selectedDoc.analysisReport || "")}
-                            </ReactMarkdown>
-                          </div>
-                          <p className="mt-3 text-[11px] text-slate-400 italic">
-                            ⚠️ This is AI-generated analysis, not legal advice. Always consult a qualified lawyer before taking action.
+                          <p className="mt-3 text-[11px] italic" style={{ color: "#4a4a62" }}>
+                            ⚠️ AI-generated analysis. Always consult a qualified lawyer before taking action.
                           </p>
                         </div>
-                      ) : selectedDoc.status === "PENDING" || selectedDoc.status === "PROCESSING" ? (
+                      ) : (selectedDoc.status === "PENDING" || selectedDoc.status === "PROCESSING") ? (
                         <div className="flex flex-col items-center justify-center py-12 gap-4">
-                          <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
-                            <Loader2 size={24} className="text-blue-500 animate-spin" />
+                          <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                            style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>
+                            <Loader2 size={24} style={{ color: "#60a5fa" }} className="animate-spin" />
                           </div>
                           <div className="text-center">
-                            <p className="font-semibold text-slate-700">AI Analysis in Progress</p>
-                            <p className="text-sm text-slate-400 mt-1">This may take 30–60 seconds. Refresh to check status.</p>
+                            <p className="font-semibold text-white">AI Analysis in Progress</p>
+                            <p className="text-sm mt-1" style={{ color: "#4a4a62" }}>This may take 30–60 seconds.</p>
                           </div>
-                          <button onClick={() => viewDocument(selectedDoc)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                          <button onClick={() => viewDocument(selectedDoc)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl transition-colors"
+                            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)", color: "#a1a1aa" }}>
                             <RefreshCw size={12} /> Check Status
                           </button>
                         </div>
                       ) : selectedDoc.status === "FAILED" ? (
                         <div className="flex flex-col items-center justify-center py-12 gap-4">
-                          <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
-                            <AlertCircle size={24} className="text-red-500" />
+                          <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                            style={{ background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)" }}>
+                            <AlertCircle size={24} style={{ color: "#f87171" }} />
                           </div>
                           <div className="text-center">
-                            <p className="font-semibold text-slate-700">Analysis Failed</p>
-                            <p className="text-sm text-slate-400 mt-1">{selectedDoc.summary || "The document could not be processed."}</p>
+                            <p className="font-semibold text-white">Analysis Failed</p>
+                            <p className="text-sm mt-1" style={{ color: "#4a4a62" }}>{selectedDoc.summary || "Document could not be processed."}</p>
                           </div>
                           <button onClick={() => reanalyzeDoc(selectedDoc.id)}
-                            className="flex items-center gap-1.5 px-4 py-2 text-sm bg-[#0f172a] text-white rounded-lg hover:bg-[#1e2d3d] transition-colors">
-                            <RefreshCw size={14} /> Retry Analysis
+                            className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-xl transition-colors"
+                            style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.25)", color: "#f87171" }}>
+                            <RefreshCw size={13} /> Retry Analysis
                           </button>
                         </div>
                       ) : null}
@@ -705,47 +559,36 @@ export default function DocumentsPage() {
             )}
           </AnimatePresence>
         </div>
-      </main>
+      </div>
 
       {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pdf,.jpg,.jpeg,.png,.webp"
-        className="hidden"
-        onChange={handleFileSelect}
-      />
+      <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={handleFileSelect} />
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       <AnimatePresence>
         {showDeleteConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            onClick={() => setShowDeleteConfirm(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <Trash2 size={20} className="text-red-600" />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowDeleteConfirm(null)}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="rounded-3xl p-7 max-w-sm w-full mx-4" style={{ background: "#0d1224", border: "1px solid rgba(30,38,66,1)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}
+              onClick={e => e.stopPropagation()}>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)" }}>
+                <Trash2 size={20} style={{ color: "#f87171" }} />
               </div>
-              <h3 className="text-base font-bold text-[#0f172a] mb-2">Delete Document?</h3>
-              <p className="text-sm text-slate-500 mb-5">
-                This document and its AI analysis will be deleted. Per <strong>DPDP Act 2023</strong>, all personal data will be purged within 30 days. This action cannot be undone.
+              <h3 className="text-base font-bold text-white mb-2">Delete Document?</h3>
+              <p className="text-sm mb-5" style={{ color: "#6a6a82" }}>
+                Document & AI analysis will be permanently deleted. Per <strong style={{ color: "#a1a1aa" }}>DPDP Act 2023</strong>, data purged within 30 days.
               </p>
               <div className="flex gap-3">
                 <button onClick={() => setShowDeleteConfirm(null)}
-                  className="flex-1 py-2.5 px-4 text-sm font-medium border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors text-slate-700">
+                  className="flex-1 py-2.5 px-4 text-sm font-medium rounded-xl transition-colors"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)", color: "#a1a1aa" }}>
                   Cancel
                 </button>
-                <button
-                  onClick={() => deleteDocument(showDeleteConfirm)}
-                  disabled={deletingId === showDeleteConfirm}
-                  className="flex-1 py-2.5 px-4 text-sm font-semibold bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
-                >
+                <button onClick={() => deleteDocument(showDeleteConfirm!)} disabled={deletingId === showDeleteConfirm}
+                  className="flex-1 py-2.5 px-4 text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                  style={{ background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171" }}>
                   {deletingId === showDeleteConfirm ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                   Delete
                 </button>

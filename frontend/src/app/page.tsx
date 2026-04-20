@@ -331,18 +331,20 @@ export default function Home() {
 
   if (authLoading || !user) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#f8f9fa]">
+      <div className="flex h-screen w-full items-center justify-center" style={{ background: "#070b16" }}>
         <div className="flex flex-col items-center gap-5">
           <div className="relative">
-            <div className="w-16 h-16 rounded-3xl flex items-center justify-center shadow-md bg-white border border-slate-200">
-              <Scale size={28} className="text-[#0f172a]" />
+            <div
+              className="w-16 h-16 rounded-3xl flex items-center justify-center shadow-xl"
+              style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 40px rgba(124,110,247,0.4)" }}
+            >
+              <Scale size={28} className="text-white" />
             </div>
-            <div className="absolute inset-0 rounded-3xl animate-spin-slow border border-transparent border-t-[#0f172a]/60" />
           </div>
           <div className="flex gap-1.5">
             {[0, 1, 2].map(i => (
-              <div key={i} className="w-1.5 h-1.5 rounded-full shimmer"
-                style={{ background: "rgba(124,110,247,0.5)", animationDelay: `${i * 0.2}s` }} />
+              <div key={i} className="w-1.5 h-1.5 rounded-full animate-bounce"
+                style={{ background: "rgba(212,175,55,0.6)", animationDelay: `${i * 0.2}s` }} />
             ))}
           </div>
         </div>
@@ -351,7 +353,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#f8f9fa] text-[#1e293b] font-sans selection:bg-[#0f172a] selection:text-white">
+    <div className="flex h-screen w-full overflow-hidden font-sans" style={{ background: "#070b16", color: "#ededed" }}>
 
       {/* Drawer Overlay */}
       <AnimatePresence>
@@ -368,93 +370,101 @@ export default function Home() {
 
       {/* ─── DRAWER SIDEBAR ─── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col transition-transform duration-300 ease-in-out bg-[#0f172a] border-r border-slate-800 shadow-[20px_0_50px_rgba(0,0,0,0.2)] ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col transition-transform duration-300 ease-in-out shadow-[20px_0_60px_rgba(0,0,0,0.5)] ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        style={{ background: "#0a0f1d", borderRight: "1px solid rgba(30,38,66,0.8)" }}
       >
         {/* Sidebar Header */}
-        <div className="flex items-center gap-1.5 px-3 h-[60px] shrink-0">
-          <button
-            onClick={() => { setActiveChat(null); setMessages([]); if(window.innerWidth < 768) setSidebarOpen(false); }}
-            className={`flex items-center justify-center w-10 h-10 shrink-0 rounded-lg transition-colors ${!activeChat && messages.length === 0 ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-            title="Dashboard Workspace"
+        <div className="flex items-center gap-2 px-4 h-[64px] shrink-0" style={{ borderBottom: "1px solid rgba(30,38,66,0.8)" }}>
+          <div
+            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 15px rgba(124,110,247,0.35)" }}
           >
-            <LayoutDashboard size={18} />
-          </button>
+            <Scale size={15} className="text-white" />
+          </div>
+          <span className="text-sm font-bold tracking-widest uppercase flex-1" style={{ color: "#f2d680" }}>Nyaya AI</span>
           <button
-            onClick={() => router.push('/ask-nyaya')}
-            className="flex-1 flex items-center justify-between px-3 h-10 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors rounded-lg group"
+            className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+            style={{ color: "#4a4a62" }}
+            onClick={() => setSidebarOpen(false)}
+            onMouseEnter={e => (e.currentTarget.style.color = "#a1a1aa")}
+            onMouseLeave={e => (e.currentTarget.style.color = "#4a4a62")}
           >
-            <div className="flex items-center gap-2">
-              <Scale size={16} className="text-slate-400 group-hover:text-white" />
-              <span>New chat</span>
-            </div>
-            <Plus size={16} className="text-slate-400 group-hover:text-white" />
-          </button>
-          <button className="md:hidden w-10 h-10 flex items-center justify-center shrink-0 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-            onClick={() => setSidebarOpen(false)}>
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
 
 
         {/* Main Navigation */}
-        <div className="flex flex-col gap-1 px-3 py-4 border-b border-slate-800 mb-2 overflow-y-auto custom-scrollbar">
-          <button onClick={() => { setActiveChat(null); setMessages([]); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-sm font-medium transition-colors ${!activeChat && messages.length === 0 ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <LayoutDashboard size={18} /> Dashboard
-          </button>
-          <button onClick={() => router.push('/ask-nyaya')} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeChat ? 'bg-slate-800 text-[#d4af37]' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <Zap size={18} /> Ask Nyaay
-          </button>
-          <button onClick={() => router.push('/documents')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
-            <FileStack size={18} /> Documents
-          </button>
-          <button onClick={() => router.push('/cases')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
-            <Briefcase size={18} /> Case Management
-          </button>
-          <button onClick={() => router.push('/marketplace')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
-            <Users size={18} /> Lawyer Marketplace
-          </button>
-          <button onClick={() => router.push('/notifications')} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
-            <div className="flex items-center gap-3"><Bell size={18} /> Notifications</div>
-            <div className="w-5 h-5 rounded bg-[#d4af37]/20 text-[#d4af37] text-[10px] flex items-center justify-center font-bold">3</div>
-          </button>
-          <button onClick={handleRazorpayUpgrade} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
-            <CreditCard size={18} /> Billing
-          </button>
-
+        <div className="flex flex-col gap-0.5 px-3 py-5 overflow-y-auto custom-scrollbar flex-1">
+          {[
+            { label: "Dashboard",        icon: <LayoutDashboard size={17} />, action: () => { setActiveChat(null); setMessages([]); }, active: !activeChat && messages.length === 0 },
+            { label: "Ask Nyaya",         icon: <Zap size={17} />,             action: () => router.push('/ask-nyaya'),     active: !!activeChat },
+            { label: "Documents",         icon: <FileStack size={17} />,       action: () => router.push('/documents'),    active: false },
+            { label: "Case Management",   icon: <Briefcase size={17} />,       action: () => router.push('/cases'),        active: false },
+            { label: "Marketplace",       icon: <Users size={17} />,           action: () => router.push('/marketplace'),  active: false },
+            { label: "Notifications",     icon: <Bell size={17} />,            action: () => router.push('/notifications'),active: false, badge: "3" },
+            { label: "Billing",           icon: <CreditCard size={17} />,      action: handleRazorpayUpgrade,              active: false },
+          ].map((item) => (
+            <button
+              key={item.label}
+              onClick={item.action}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
+              style={item.active
+                ? { background: "rgba(212,175,55,0.1)", color: "#d4af37", border: "1px solid rgba(212,175,55,0.15)" }
+                : { color: "#4a4a62", border: "1px solid transparent" }}
+              onMouseEnter={e => { if (!item.active) { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "#a1a1aa"; } }}
+              onMouseLeave={e => { if (!item.active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#4a4a62"; } }}
+            >
+              <div className="flex items-center gap-3">{item.icon}{item.label}</div>
+              {item.badge && (
+                <span className="w-5 h-5 rounded-lg text-[10px] font-bold flex items-center justify-center" style={{ background: "rgba(212,175,55,0.15)", color: "#d4af37" }}>{item.badge}</span>
+              )}
+            </button>
+          ))}
           {user.role === 'ADMIN' && (
-            <button onClick={() => router.push('/admin')} className="w-full flex items-center gap-3 px-3 py-2.5 mt-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-950 transition-colors">
-              <ShieldAlert size={18} /> Admin Console
+            <button onClick={() => router.push('/admin')} className="w-full flex items-center gap-3 px-3 py-2.5 mt-2 rounded-xl text-sm font-medium transition-colors" style={{ color: "#f43f5e" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "rgba(244,63,94,0.08)")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+              <ShieldAlert size={17} /> Admin Console
             </button>
           )}
         </div>
 
-        {/* Space Spacer to push bottom items down */}
-        <div className="flex-1 overflow-y-auto px-3 py-2">
-        </div>
-
-        {/* Monetization Upgrade Banner */}
-        <div className="px-3 pb-3">
-          <button 
+        {/* Upgrade CTA */}
+        <div className="px-3 pb-3 pt-2" style={{ borderTop: "1px solid rgba(30,38,66,0.8)" }}>
+          <motion.button
+            whileHover={{ boxShadow: "0 0 25px rgba(212,175,55,0.3)" }}
             onClick={handleRazorpayUpgrade}
             disabled={isUpgrading}
-            className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-medium transition-all bg-[#070b16] text-[#d4d4d8] border border-[#1e2642] hover:bg-[#1e2642] hover:text-white group"
+            className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-sm font-bold transition-all"
+            style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.12), rgba(212,175,55,0.04))", color: "#d4af37", border: "1px solid rgba(212,175,55,0.25)" }}
           >
-             <Sparkles size={14} className="text-[#d4af37] group-hover:text-[#f2d680] transition-colors" />
-             {isUpgrading ? "Loading..." : "Upgrade to PRO"}
-          </button>
+            <Sparkles size={14} />
+            {isUpgrading ? "Loading..." : "Upgrade to PRO"}
+          </motion.button>
         </div>
 
         {/* User Profile */}
-        <div className="shrink-0 p-3">
-          <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-slate-800 transition-colors cursor-pointer group border border-slate-800" onClick={logout} title="Click to Sign out">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-xs text-[#0f172a] bg-white">
+        <div className="shrink-0 px-3 pb-4">
+          <div
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 cursor-pointer group transition-all"
+            style={{ border: "1px solid rgba(30,38,66,0.8)" }}
+            onClick={logout}
+            title="Click to Sign out"
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-xs"
+              style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", color: "#070b16" }}
+            >
               {user.email[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="truncate text-sm font-medium text-slate-300 group-hover:text-white transition-colors">{user.email.split('@')[0]}</div>
+              <div className="truncate text-sm font-medium text-white">{user.email.split('@')[0]}</div>
+              <div className="text-[10px]" style={{ color: "#4a4a62" }}>Sign out</div>
             </div>
-            <LogOut size={15} className="text-slate-500 group-hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-all" />
+            <LogOut size={14} style={{ color: "#4a4a62" }} className="opacity-0 group-hover:opacity-100 transition-all" />
           </div>
         </div>
       </aside>
@@ -463,35 +473,45 @@ export default function Home() {
       <main className="flex flex-1 flex-col min-w-0 relative">
 
         {/* Top Navbar */}
-        <header className="flex items-center justify-between h-14 px-4 md:px-6 shrink-0 bg-white/80 backdrop-blur-md sticky top-0 z-30 border-b border-slate-200">
+        <header
+          className="flex items-center justify-between h-14 px-4 md:px-6 shrink-0 sticky top-0 z-30"
+          style={{
+            background: "rgba(7,11,22,0.85)",
+            backdropFilter: "blur(20px)",
+            borderBottom: "1px solid rgba(30,38,66,0.8)",
+          }}
+        >
           <div className="flex items-center gap-4 flex-1">
-            <button className="p-2 -ml-2 rounded-lg transition-colors text-slate-500 hover:text-[#0f172a] hover:bg-slate-100"
-              onClick={() => setSidebarOpen(true)}>
+            <button
+              className="p-2 -ml-2 rounded-lg transition-colors"
+              style={{ color: "#4a4a62" }}
+              onMouseEnter={e => (e.currentTarget.style.color = "#a1a1aa")}
+              onMouseLeave={e => (e.currentTarget.style.color = "#4a4a62")}
+              onClick={() => setSidebarOpen(true)}
+            >
               <Menu size={20} />
             </button>
-
             {activeChat && (
-              <span className="text-[14px] font-bold text-[#0f172a] truncate block md:hidden ml-1">
-                AI Assistant
-              </span>
+              <span className="text-sm font-bold text-white truncate block md:hidden ml-1">AI Assistant</span>
             )}
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#0f172a] text-white border border-[#0f172a] rounded-full text-xs font-bold tracking-wider uppercase">
-               <ShieldCheck size={12} className="text-[#d4af37]" /> {user.role}
-             </div>
-             <button className="p-2 rounded-full text-slate-400 hover:text-[#0f172a] hover:bg-slate-100 transition-colors relative">
-               <Bell size={18} />
-               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 border border-white" />
-             </button>
-             <div className="w-px h-5 bg-slate-200 mx-1" />
-             <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-               <div className="w-7 h-7 rounded-full bg-[#0f172a] flex items-center justify-center text-white text-xs font-bold">
-                 {user.email[0].toUpperCase()}
-               </div>
-               <ChevronDown size={14} className="text-slate-400" />
-             </button>
+            <div
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase"
+              style={{ background: "rgba(212,175,55,0.1)", color: "#d4af37", border: "1px solid rgba(212,175,55,0.2)" }}
+            >
+              <ShieldCheck size={11} /> {user.role}
+            </div>
+            <div className="w-px h-5 mx-1" style={{ background: "rgba(255,255,255,0.06)" }} />
+            <button className="flex items-center gap-2">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}
+              >
+                {user.email[0].toUpperCase()}
+              </div>
+            </button>
           </div>
         </header>
 
@@ -505,57 +525,79 @@ export default function Home() {
              <div className="mx-auto max-w-3xl px-4 py-6 pb-44">
                {messages.length === 0 && activeChat ? (
                  <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex flex-col pt-12 pb-20 w-full items-center justify-center min-h-[40vh]">
-                   <div className="w-16 h-16 rounded-3xl flex items-center justify-center bg-gradient-to-br from-[#111827] to-[#070b16] border border-[#1e2642] mb-6 shadow-[0_0_30px_rgba(168,85,247,0.1)]">
-                     <Zap size={28} className="text-amber-300" />
+                   <div
+                     className="w-16 h-16 rounded-3xl flex items-center justify-center mb-6 shadow-xl"
+                     style={{ background: "linear-gradient(135deg, #7c6ef7, #d4af37)", boxShadow: "0 0 40px rgba(124,110,247,0.3)" }}
+                   >
+                     <Zap size={28} className="text-white" />
                    </div>
-                   <h2 className="text-2xl font-semibold text-[#0f172a] mb-2 tracking-tight">Nyaay AI Assistant</h2>
-                   <p className="text-slate-500 text-sm mb-10">How can I help with your legal research today?</p>
-   
+                   <h2 className="text-2xl font-semibold text-white mb-2 tracking-tight">Nyaya AI Assistant</h2>
+                   <p className="text-sm mb-10" style={{ color: "#6a6a82" }}>How can I help with your legal research today?</p>
+
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl px-4">
                      {SUGGESTED.map((s, i) => (
-                       <button key={i} onClick={() => handleSuggestedClick(s.text)} className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all text-left shadow-sm">
+                       <button
+                         key={i}
+                         onClick={() => handleSuggestedClick(s.text)}
+                         className="flex items-center gap-3 p-4 rounded-2xl text-left transition-all"
+                         style={{ background: "rgba(13,18,36,0.8)", border: "1px solid rgba(30,38,66,1)" }}
+                         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(212,175,55,0.3)"; (e.currentTarget as HTMLButtonElement).style.background = "rgba(13,18,36,1)"; }}
+                         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(30,38,66,1)"; (e.currentTarget as HTMLButtonElement).style.background = "rgba(13,18,36,0.8)"; }}
+                       >
                          <span className="text-lg shrink-0 opacity-80">{s.icon}</span>
-                         <span className="text-sm font-medium text-slate-700 leading-tight">{s.text}</span>
+                         <span className="text-sm font-medium" style={{ color: "#a1a1aa" }}>{s.text}</span>
                        </button>
                      ))}
                    </div>
                  </motion.div>
                ) : (
                  <div className="space-y-6">
-                   {messages.map((msg, i) => (
-                     <motion.div key={msg.id || i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-4`}>
-                       {msg.role === "assistant" && (
-                         <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-white border border-slate-200 text-[#0f172a] mt-1 shadow-sm">
-                           <Scale size={16} />
-                         </div>
-                       )}
-                       <div className={`flex flex-col group ${msg.role === "user" ? "items-end max-w-[70%]" : "items-start max-w-[85%]"}`}>
-                         <div className={`px-5 py-3.5 text-[15px] font-medium tracking-wide leading-relaxed shadow-sm ${
-                             msg.role === "user" 
-                               ? "bg-[#0f172a] text-white rounded-3xl rounded-tr-sm" 
-                               : "bg-white border border-slate-200 text-slate-800 rounded-lg"
-                           }`}>
-                           <p className="whitespace-pre-wrap">{msg.content}</p>
-                         </div>
-                         <div className="flex items-center gap-2 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                           <span className="text-[11px] font-bold text-slate-400">{formatTime(msg.createdAt)}</span>
-                           {msg.role === "assistant" && <CopyButton text={msg.content} />}
-                         </div>
-                       </div>
-                     </motion.div>
-                   ))}
-   
+                    {messages.map((msg, i) => (
+                      <motion.div key={msg.id || i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-4`}>
+                        {msg.role === "assistant" && (
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1"
+                            style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}
+                          >
+                            <Scale size={15} />
+                          </div>
+                        )}
+                        <div className={`flex flex-col group ${msg.role === "user" ? "items-end max-w-[70%]" : "items-start max-w-[85%]"}`}>
+                          <div
+                            className={`px-5 py-3.5 text-[15px] font-medium leading-relaxed ${
+                              msg.role === "user"
+                                ? "rounded-3xl rounded-tr-sm text-white"
+                                : "rounded-lg"
+                            }`}
+                            style={msg.role === "user"
+                              ? { background: "linear-gradient(135deg, #7c6ef7, #5b52cc)" }
+                              : { background: "rgba(13,18,36,0.8)", border: "1px solid rgba(30,38,66,1)", color: "#c1c1cc" }
+                            }
+                          >
+                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-[11px] font-bold" style={{ color: "#4a4a62" }}>{formatTime(msg.createdAt)}</span>
+                            {msg.role === "assistant" && <CopyButton text={msg.content} />}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+
                    {/* Typing indicator */}
                    {loadingChat && (
                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start gap-4">
-                       <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-[#ededed] text-black mt-1">
-                         <Scale size={16} />
+                       <div
+                         className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1"
+                         style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}
+                       >
+                         <Scale size={15} />
                        </div>
                        <div className="px-5 py-4">
                          <div className="flex gap-1.5 items-center">
-                           <div className="w-1.5 h-1.5 rounded-full bg-[#52525b] animate-bounce" />
-                           <div className="w-1.5 h-1.5 rounded-full bg-[#52525b] animate-bounce" style={{ animationDelay: "0.15s" }} />
-                           <div className="w-1.5 h-1.5 rounded-full bg-[#52525b] animate-bounce" style={{ animationDelay: "0.3s" }} />
+                           <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#d4af37" }} />
+                           <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#d4af37", animationDelay: "0.15s" }} />
+                           <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#d4af37", animationDelay: "0.3s" }} />
                          </div>
                        </div>
                      </motion.div>
@@ -586,28 +628,44 @@ export default function Home() {
 
         {/* ─── INPUT BAR ─── */}
         {activeChat && (
-        <div className="absolute inset-x-0 bottom-0 pb-6 pt-12 pointer-events-none bg-gradient-to-t from-[#f8f9fa] via-[#f8f9fa]/90 to-transparent z-10">
+        <div
+          className="absolute inset-x-0 bottom-0 pb-6 pt-14 pointer-events-none z-10"
+          style={{ background: "linear-gradient(to top, #070b16 60%, transparent)" }}
+        >
           <div className="mx-auto max-w-3xl px-4 pointer-events-auto">
-            <div className="relative flex items-end gap-2 p-2.5 bg-white border border-slate-200 text-slate-800 shadow-xl focus-within:border-slate-300 focus-within:shadow-2xl transition-all rounded-xl">
+            <div
+              className="relative flex items-end gap-2 p-2.5 transition-all rounded-2xl"
+              style={{
+                background: "rgba(13,18,36,0.9)",
+                border: "1px solid rgba(30,38,66,1)",
+                backdropFilter: "blur(12px)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+              }}
+            >
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingDoc}
-                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors"
+                style={{ color: "#4a4a62" }}
+                onMouseEnter={e => (e.currentTarget.style.color = "#a1a1aa")}
+                onMouseLeave={e => (e.currentTarget.style.color = "#4a4a62")}
                 title="Upload Document"
               >
-                {uploadingDoc ? <div className="animate-spin w-4 h-4 border-2 border-t-transparent border-slate-400 rounded-full" /> : <Paperclip size={20} />}
+                {uploadingDoc
+                  ? <div className="animate-spin w-4 h-4 border-2 border-t-[#d4af37] border-transparent rounded-full" />
+                  : <Paperclip size={20} />}
               </button>
-              
+
               <textarea
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={activeChat ? "Message Nyaay..." : "Ask anything about Indian law..."}
+                placeholder="Message Nyaya..."
                 rows={1}
-                className="flex-1 resize-none bg-transparent text-[15px] font-medium outline-none placeholder:text-slate-400 py-2.5 px-1"
-                style={{ maxHeight: "200px", lineHeight: "1.5" }}
+                className="flex-1 resize-none bg-transparent text-[15px] font-medium outline-none py-2.5 px-1"
+                style={{ maxHeight: "200px", lineHeight: "1.5", color: "#ededed" }}
               />
 
               <button
@@ -619,13 +677,14 @@ export default function Home() {
                   }
                 }}
                 disabled={!input.trim() || loadingChat}
-                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[#0f172a] text-white disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 transition-colors shadow-sm"
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors disabled:opacity-40"
+                style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}
               >
                 <ArrowRight size={20} />
               </button>
             </div>
-            <p className="mt-3 text-center text-xs font-semibold text-slate-400">
-              Nyaay can make mistakes. Always consult a qualified lawyer for serious matters.
+            <p className="mt-3 text-center text-xs font-semibold" style={{ color: "#4a4a62" }}>
+              Nyaya can make mistakes. Always consult a qualified lawyer for serious matters.
             </p>
           </div>
         </div>

@@ -339,23 +339,14 @@ export default function AskNyayaPage() {
   }, []);
 
   return (
-    <div className="flex h-screen w-full bg-white text-[#0d0d0d] font-sans selection:bg-slate-200 selection:text-slate-900">
+    <div className="flex h-screen w-full font-sans" style={{ background: "#070b16", color: "#ededed" }}>
       
       {/* ── Scoped Styles ── */}
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: transparent;
-          border-radius: 4px;
-        }
-        .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-          background: #e5e5e5;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.15); border-radius: 4px; }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.35); }
         .msg-enter {
           animation: slideUp 0.3s ease-out;
         }
@@ -364,176 +355,148 @@ export default function AskNyayaPage() {
           to { opacity: 1; transform: translateY(0); }
         }
         .citation-card {
-           display: flex;
-           gap: 8px;
-           background: #ffffff;
-           border: 1px solid #e2e8f0;
-           border-radius: 10px;
-           padding: 12px 14px;
-           overflow: hidden;
-           position: relative;
-           box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+           display: flex; gap: 8px;
+           background: rgba(13,18,36,0.9);
+           border: 1px solid rgba(30,38,66,1);
+           border-radius: 12px; padding: 12px 14px;
+           overflow: hidden; position: relative;
         }
         .citation-accent {
-           position: absolute;
-           left: 0; top: 0; bottom: 0;
-           width: 3px;
-           background: #d4af37;
+           position: absolute; left: 0; top: 0; bottom: 0;
+           width: 3px; background: #d4af37;
         }
-        .citation-body {
-           flex: 1;
-           display: flex;
-           flex-direction: column;
-           gap: 4px;
-        }
-        .citation-top-row {
-           display: flex;
-           align-items: center;
-           gap: 6px;
-           font-size: 11px;
-           font-weight: 700;
-           color: #0f172a;
-        }
-        .citation-act-pill, .citation-clause-pill {
-           display: flex;
-           align-items: center;
-           gap: 4px;
-        }
-        .citation-section-row {
-           font-size: 14px;
-           font-weight: 600;
-           color: #333;
-        }
-        .citation-act-full {
-           font-size: 11px;
-           color: #888;
-           white-space: nowrap;
-           overflow: hidden;
-           text-overflow: ellipsis;
-        }
-        .citations-panel {
-           margin-top: 16px;
-           padding: 14px;
-           background: rgba(0,0,0,0.02);
-           border: 1px solid rgba(0,0,0,0.06);
-           border-radius: 12px;
-        }
-        .citations-header {
-           display: flex;
-           align-items: center;
-           gap: 6px;
-           font-size: 12px;
-           font-weight: 600;
-           color: #666;
-           text-transform: uppercase;
-           letter-spacing: 0.5px;
-           margin-bottom: 12px;
-        }
-        .citations-divider {
-           flex: 1;
-           height: 1px;
-           background: rgba(0,0,0,0.06);
-           margin: 0 8px;
-        }
-        .citations-list {
-           display: flex;
-           flex-direction: column;
-           gap: 8px;
-        }
+        .citation-body { flex:1; display:flex; flex-direction:column; gap:4px; }
+        .citation-top-row { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#d4af37; }
+        .citation-act-pill,.citation-clause-pill { display:flex; align-items:center; gap:4px; }
+        .citation-section-row { font-size:14px; font-weight:600; color:#ededed; }
+        .citation-act-full { font-size:11px; color:#4a4a62; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .citations-panel { margin-top:16px; padding:14px; background:rgba(255,255,255,0.02); border:1px solid rgba(30,38,66,1); border-radius:14px; }
+        .citations-header { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#4a4a62; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px; }
+        .citations-divider { flex:1; height:1px; background:rgba(30,38,66,1); margin:0 8px; }
+        .citations-list { display:flex; flex-direction:column; gap:8px; }
       `}</style>
 
       {/* ── Sidebar ── */}
       {sidebarOpen && (
-        <div className="flex flex-col w-[260px] bg-[#f9f9f9] shrink-0 transition-all duration-300 relative border-r border-[#ececec]">
-          {/* Top Actions */}
-          <div className="p-3 pb-2 flex items-center justify-between">
-            <button className="flex items-center justify-center p-2 rounded-md hover:bg-[#ececec] transition-colors text-slate-500" onClick={() => setSidebarOpen(false)}>
-              <PanelLeftClose size={20} />
-            </button>
-            <button className="flex items-center justify-center p-2 rounded-md hover:bg-[#ececec] transition-colors text-slate-500" onClick={startNewChat}>
-              <Plus size={18} />
-            </button>
-          </div>
-
-          <div className="px-3 py-2 flex flex-col gap-1">
-            <button onClick={startNewChat} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-slate-200 text-slate-800 transition-colors w-full text-left">
-              <Zap size={16} /> Ask Nyaay
-            </button>
-            <button onClick={() => router.push('/')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-200 text-slate-600 transition-colors w-full text-left">
-              <LayoutGrid size={16} /> Dashboard
-            </button>
-            <button onClick={() => router.push('/documents')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-200 text-slate-600 transition-colors w-full text-left mt-4 border-t border-slate-200 pt-3">
-              <FileStack size={16} /> Documents
-            </button>
-            <button onClick={() => router.push('/cases')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-200 text-slate-600 transition-colors w-full text-left">
-              <Briefcase size={16} /> Case Management
-            </button>
-            <button onClick={() => router.push('/marketplace')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-200 text-slate-600 transition-colors w-full text-left">
-              <Users size={16} /> Lawyer Marketplace
+        <div className="flex flex-col w-[260px] shrink-0 transition-all duration-300 relative"
+          style={{ background: "#0a0f1d", borderRight: "1px solid rgba(30,38,66,0.8)" }}>
+          {/* Logo row */}
+          <div className="flex items-center gap-2.5 px-4 h-[64px] shrink-0" style={{ borderBottom: "1px solid rgba(30,38,66,0.8)" }}>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", boxShadow: "0 0 14px rgba(124,110,247,0.35)" }}>
+              <Scale size={15} className="text-white" />
+            </div>
+            <span className="text-sm font-bold tracking-widest uppercase flex-1" style={{ color: "#f2d680" }}>Nyaya AI</span>
+            <button className="w-7 h-7 flex items-center justify-center rounded-lg" style={{ color: "#4a4a62" }} onClick={() => setSidebarOpen(false)}
+              onMouseEnter={e => (e.currentTarget.style.color="#a1a1aa")} onMouseLeave={e => (e.currentTarget.style.color="#4a4a62")}>
+              <PanelLeftClose size={15} />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-2 mt-4 custom-scrollbar">
+          {/* Nav items */}
+          <div className="px-3 py-4 flex flex-col gap-0.5" style={{ borderBottom: "1px solid rgba(30,38,66,0.8)" }}>
+            {[
+              { label: "New Chat", icon: <Plus size={15} />, action: startNewChat, active: !conversationId },
+              { label: "Dashboard", icon: <LayoutGrid size={15} />, action: () => router.push("/"), active: false },
+              { label: "Documents", icon: <FileStack size={15} />, action: () => router.push("/documents"), active: false },
+              { label: "Cases", icon: <Briefcase size={15} />, action: () => router.push("/cases"), active: false },
+              { label: "Marketplace", icon: <Users size={15} />, action: () => router.push("/marketplace"), active: false },
+            ].map((item) => (
+              <button key={item.label} onClick={item.action}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={item.active
+                  ? { background: "rgba(212,175,55,0.1)", color: "#d4af37", border: "1px solid rgba(212,175,55,0.15)" }
+                  : { color: "#4a4a62", border: "1px solid transparent" }}
+                onMouseEnter={e => { if (!item.active) { (e.currentTarget as HTMLButtonElement).style.background="rgba(255,255,255,0.04)"; (e.currentTarget as HTMLButtonElement).style.color="#a1a1aa"; } }}
+                onMouseLeave={e => { if (!item.active) { (e.currentTarget as HTMLButtonElement).style.background="transparent"; (e.currentTarget as HTMLButtonElement).style.color="#4a4a62"; } }}>
+                {item.icon}{item.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Chat history */}
+          <div className="flex-1 overflow-y-auto px-3 py-4 custom-scrollbar">
             {conversations.length > 0 && (
-              <div className="mt-2 flex flex-col gap-1">
-                <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">History</h3>
-                {conversations.map(conv => (
-                  <div key={conv.id} className="relative group">
-                    <button 
-                      onClick={() => loadConversation(conv.id)}
-                      className={`flex items-center px-3 py-2 rounded-lg text-sm transition-colors w-full text-left pr-8 ${conversationId === conv.id ? 'bg-slate-200 text-slate-800' : 'hover:bg-slate-200 text-slate-600'}`}
-                    >
-                      <MessageSquare size={14} className="shrink-0 mr-2.5 opacity-60" />
-                      <span className="truncate w-full font-medium" title={conv.title}>{conv.title}</span>
-                    </button>
-                    <button
-                      onClick={(e) => deleteConversation(conv.id, e)}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                      title="Delete chat"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ))}
+              <div>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest px-1 mb-3" style={{ color: "#4a4a62" }}>Chat History</h3>
+                <div className="flex flex-col gap-0.5">
+                  {conversations.map(conv => (
+                    <div key={conv.id} className="relative group">
+                      <button onClick={() => loadConversation(conv.id)}
+                        className="flex items-center gap-2.5 px-3 py-2.5 w-full text-left rounded-xl transition-all text-sm font-medium pr-9"
+                        style={conversationId === conv.id
+                          ? { background: "rgba(212,175,55,0.1)", color: "#d4af37", border: "1px solid rgba(212,175,55,0.15)" }
+                          : { color: "#4a4a62", border: "1px solid transparent" }}
+                        onMouseEnter={e => { if (conversationId !== conv.id) { (e.currentTarget as HTMLButtonElement).style.background="rgba(255,255,255,0.04)"; (e.currentTarget as HTMLButtonElement).style.color="#a1a1aa"; } }}
+                        onMouseLeave={e => { if (conversationId !== conv.id) { (e.currentTarget as HTMLButtonElement).style.background="transparent"; (e.currentTarget as HTMLButtonElement).style.color="#4a4a62"; } }}>
+                        <MessageSquare size={13} className="shrink-0 opacity-60" />
+                        <span className="truncate" title={conv.title}>{conv.title}</span>
+                      </button>
+                      <button onClick={(e) => deleteConversation(conv.id, e)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                        style={{ color: "#f87171" }} title="Delete chat">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
-          {/* User Profile Footer */}
-          <div className="p-3 border-t border-[#ececec]">
-            <button onClick={() => router.push('/')} className="flex items-center gap-2 w-full px-2 py-2 rounded-lg hover:bg-[#ececec] transition-colors">
-              <div className="w-7 h-7 rounded-full bg-black text-white font-bold flex items-center justify-center text-xs">{(user?.email?.[0] || 'N').toUpperCase()}</div>
-              <span className="text-sm font-semibold flex-1 text-left text-slate-700">{user?.email ? user.email.split('@')[0] : 'Nyaay User'}</span>
-            </button>
+          {/* User footer */}
+          <div className="px-3 pb-4" style={{ borderTop: "1px solid rgba(30,38,66,0.8)" }}>
+            <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 mt-3 cursor-pointer group transition-all"
+              style={{ border: "1px solid rgba(30,38,66,0.8)" }}
+              onClick={() => router.push("/")}
+              onMouseEnter={e => (e.currentTarget.style.background="rgba(255,255,255,0.04)")} onMouseLeave={e => (e.currentTarget.style.background="transparent")}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}>
+                {(user?.email?.[0] || "N").toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="truncate text-sm font-medium text-white">{user?.email?.split("@")[0] ?? "User"}</div>
+                <div className="text-[10px]" style={{ color: "#4a4a62" }}>Back to Dashboard</div>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* ── Main Chat Area ── */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white relative">
+      <div className="flex-1 flex flex-col min-w-0 relative" style={{ background: "#070b16" }}>
         
         <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".pdf,.png,.jpg,.jpeg,.txt" />
 
         {/* Header */}
-        <header className="h-14 flex items-center justify-between px-3 w-full shrink-0">
+        <header className="h-14 flex items-center justify-between px-4 w-full shrink-0"
+          style={{ background: "rgba(7,11,22,0.9)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(30,38,66,0.8)" }}>
           <div className="flex items-center gap-2">
             {!sidebarOpen && (
-              <button className="p-2 rounded-md hover:bg-slate-100 transition-colors text-slate-500" onClick={() => setSidebarOpen(true)}>
-                <PanelLeftOpen size={20} />
+              <button className="p-2 rounded-xl transition-colors" style={{ color: "#4a4a62" }}
+                onMouseEnter={e => (e.currentTarget.style.color="#a1a1aa")} onMouseLeave={e => (e.currentTarget.style.color="#4a4a62")}
+                onClick={() => setSidebarOpen(true)}>
+                <PanelLeftOpen size={18} />
               </button>
             )}
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors text-[20px] font-semibold text-[#0f172a] font-serif tracking-tight">
-              Nyaya Workspace <ChevronDown size={18} className="text-slate-400" />
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)" }}>
+                <Scale size={12} className="text-white" />
+              </div>
+              <span className="text-sm font-bold tracking-widest uppercase" style={{ color: "#f2d680" }}>Nyaya AI</span>
+            </div>
           </div>
           <div className="flex items-center gap-3">
-             <div className="flex items-center bg-slate-100 rounded-lg p-1">
-               <button onClick={() => setLanguage('english')} className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${language === 'english' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>English</button>
-               <button onClick={() => setLanguage('hindi')} className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${language === 'hindi' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>हिंदी</button>
-             </div>
-             <button className="w-8 h-8 rounded-full border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
-               <UserIcon size={16} />
-             </button>
+            <div className="flex rounded-xl p-0.5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)" }}>
+              <button onClick={() => setLanguage('english')}
+                className="px-3 py-1 rounded-lg text-xs font-semibold transition-all"
+                style={language === 'english' ? { background: "rgba(212,175,55,0.15)", color: "#d4af37" } : { color: "#4a4a62" }}>English</button>
+              <button onClick={() => setLanguage('hindi')}
+                className="px-3 py-1 rounded-lg text-xs font-semibold transition-all"
+                style={language === 'hindi' ? { background: "rgba(212,175,55,0.15)", color: "#d4af37" } : { color: "#4a4a62" }}>हिंदी</button>
+            </div>
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+              style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}>
+              {(user?.email?.[0] || "N").toUpperCase()}
+            </div>
           </div>
         </header>
 
@@ -541,75 +504,87 @@ export default function AskNyayaPage() {
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative w-full items-center">
           
           {messages.length === 0 ? (
-            /* Empty State */
-            <div className="flex flex-col items-center justify-center flex-1 w-full mt-[-8vh] px-4">
+            /* Empty State — Dark */
+            <div className="flex flex-col items-center justify-center flex-1 w-full px-4">
+              {/* Ambient orbs */}
+              <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+                <div style={{ position:"absolute", top:"5%", left:"5%", width:"40vw", height:"40vw", background:"#1a2b58", borderRadius:"50%", filter:"blur(140px)", opacity:0.15 }} />
+                <div style={{ position:"absolute", bottom:"5%", right:"5%", width:"30vw", height:"30vw", background:"#d4af37", borderRadius:"50%", filter:"blur(160px)", opacity:0.06 }} />
+              </div>
               <div className="flex flex-col items-center mb-10 z-10 w-full py-4 relative">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-[#d4af37] flex items-center justify-center shadow-2xl mb-6 border border-[#334155]">
-                  <Scale size={32} strokeWidth={1.5} />
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
+                  style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", boxShadow: "0 0 40px rgba(124,110,247,0.35)" }}>
+                  <Scale size={30} className="text-white" strokeWidth={1.5} />
                 </div>
-                <h2 className="text-[28px] md:text-[36px] font-serif font-medium text-[#0f172a] text-center tracking-tight">
-                   How can I assist your legal research?
+                <h2 className="text-2xl md:text-4xl font-medium text-white text-center tracking-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
+                  How can I assist your <span style={{ color: "#d4af37", fontStyle: "italic" }}>legal research?</span>
                 </h2>
-                <p className="text-[#64748b] mt-3 font-medium text-[15px] text-center max-w-lg">
-                   Analyze case laws, draft legal documents, or explore the Indian Penal Code with precision.
+                <p className="mt-3 text-sm text-center max-w-lg font-medium" style={{ color: "#6a6a82" }}>
+                  Analyze case laws, draft legal documents, or explore the Indian Penal Code with precision.
                 </p>
               </div>
 
-              {/* Centered Input */}
-              <div className="w-full max-w-[760px] mx-auto z-20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[16px]">
-                <form onSubmit={(e) => { e.preventDefault(); sendMessage(localInput); }} className="relative flex flex-col bg-white border border-[#e2e8f0] rounded-[16px] focus-within:border-[#cbd5e1] focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all px-4 py-3">
+              {/* Input */}
+              <div className="w-full max-w-[760px] mx-auto z-20">
+                <form onSubmit={(e) => { e.preventDefault(); sendMessage(localInput); }}
+                  className="relative flex flex-col rounded-2xl px-4 py-3 transition-all"
+                  style={{ background: "rgba(13,18,36,0.9)", border: "1px solid rgba(30,38,66,1)", backdropFilter: "blur(12px)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
                   <div className="flex items-start gap-2">
-                    <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors mt-0.5 shrink-0" title="Attach case files">
-                      <Paperclip size={20} />
+                    <button type="button" onClick={() => fileInputRef.current?.click()}
+                      className="p-2 rounded-xl transition-colors mt-0.5 shrink-0" style={{ color: "#4a4a62" }}
+                      onMouseEnter={e => (e.currentTarget.style.color="#a1a1aa")} onMouseLeave={e => (e.currentTarget.style.color="#4a4a62")} title="Attach case files">
+                      <Paperclip size={18} />
                     </button>
                     <textarea
                       value={localInput}
                       onChange={(e) => setLocalInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          sendMessage(localInput);
-                        }
-                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(localInput); } }}
                       placeholder="Ask anything about Indian law..."
-                      className="flex-1 resize-none bg-transparent text-[16px] text-slate-800 outline-none py-2 max-h-[200px] placeholder:text-slate-400"
+                      className="flex-1 resize-none bg-transparent text-[15px] outline-none py-2 max-h-[200px]"
+                      style={{ color: "#ededed" }}
                       rows={1}
-                      ref={(el) => {
-                        if (el) {
-                          el.style.height = 'auto';
-                          el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
-                        }
-                      }}
+                      ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 200)}px`; } }}
                     />
                     <div className="flex items-center gap-1 mt-0.5 shrink-0">
                       {!localInput.trim() ? (
-                        <button type="button" className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
-                          <Mic size={18} />
+                        <button type="button" className="w-10 h-10 flex items-center justify-center rounded-xl transition-colors" style={{ color: "#4a4a62" }}
+                          onMouseEnter={e => (e.currentTarget.style.color="#a1a1aa")} onMouseLeave={e => (e.currentTarget.style.color="#4a4a62")}>
+                          <Mic size={17} />
                         </button>
                       ) : (
-                        <button
-                          type="submit"
-                          disabled={isLoading}
-                          className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#0f172a] text-[#d4af37] hover:bg-[#1e293b] transition-colors disabled:opacity-50 shadow-sm"
-                        >
-                          {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                        <button type="submit" disabled={isLoading}
+                          className="w-10 h-10 flex items-center justify-center rounded-xl transition-all disabled:opacity-50"
+                          style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}>
+                          {isLoading ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                         </button>
                       )}
                     </div>
                   </div>
                 </form>
               </div>
-              <div className="mt-8 flex flex-wrap justify-center gap-3 max-w-[760px]">
-                <button onClick={() => sendMessage('Explain Article 21 of the Constitution of India — Protection of life and personal liberty. What does it guarantee?')} className="px-4 py-2.5 bg-white border border-[#e2e8f0] rounded-xl text-[13px] font-medium hover:border-[#cbd5e1] hover:bg-[#f8fafc] text-[#475569] transition-all shadow-sm flex items-center gap-2"><Scale size={14} className="text-[#d4af37]"/> Constitution Art. 21</button>
-                <button onClick={() => sendMessage('What is Section 103 of the Bharatiya Nyaya Sanhita (BNS) 2023 — Punishment for murder? How has it changed from the old IPC?')} className="px-4 py-2.5 bg-white border border-[#e2e8f0] rounded-xl text-[13px] font-medium hover:border-[#cbd5e1] hover:bg-[#f8fafc] text-[#475569] transition-all shadow-sm flex items-center gap-2"><BookOpen size={14} className="text-[#d4af37]"/> BNS Sec. 103 — Murder</button>
-                <button onClick={() => sendMessage('Explain Section 66 of the IT Act 2000 — Computer related offences. What constitutes an offence and what is the penalty?')} className="px-4 py-2.5 bg-white border border-[#e2e8f0] rounded-xl text-[13px] font-medium hover:border-[#cbd5e1] hover:bg-[#f8fafc] text-[#475569] transition-all shadow-sm flex items-center gap-2"><FileText size={14} className="text-[#d4af37]"/> IT Act Sec. 66</button>
-                <button onClick={() => sendMessage('What are the rights of a consumer under Section 2 of the Consumer Protection Act, 2019?')} className="px-4 py-2.5 bg-white border border-[#e2e8f0] rounded-xl text-[13px] font-medium hover:border-[#cbd5e1] hover:bg-[#f8fafc] text-[#475569] transition-all shadow-sm flex items-center gap-2"><Briefcase size={14} className="text-[#d4af37]"/> Consumer Rights</button>
-                <button onClick={() => sendMessage('Explain Section 173 of the BNSS 2023 — Information in cognizable cases. How does the FIR filing process work?')} className="px-4 py-2.5 bg-white border border-[#e2e8f0] rounded-xl text-[13px] font-medium hover:border-[#cbd5e1] hover:bg-[#f8fafc] text-[#475569] transition-all shadow-sm flex items-center gap-2"><Hash size={14} className="text-[#d4af37]"/> BNSS Sec. 173 — FIR</button>
+
+              {/* Quick prompts */}
+              <div className="mt-6 flex flex-wrap justify-center gap-2.5 max-w-[760px] z-10">
+                {[
+                  { icon: <Scale size={13} />, label: "Constitution Art. 21", msg: "Explain Article 21 of the Constitution of India — Protection of life and personal liberty. What does it guarantee?" },
+                  { icon: <BookOpen size={13} />, label: "BNS Sec. 103 — Murder", msg: "What is Section 103 of the Bharatiya Nyaya Sanhita (BNS) 2023 — Punishment for murder?" },
+                  { icon: <FileText size={13} />, label: "IT Act Sec. 66", msg: "Explain Section 66 of the IT Act 2000 — Computer related offences." },
+                  { icon: <Briefcase size={13} />, label: "Consumer Rights", msg: "What are the rights of a consumer under Section 2 of the Consumer Protection Act, 2019?" },
+                  { icon: <Hash size={13} />, label: "BNSS Sec. 173 — FIR", msg: "Explain Section 173 of the BNSS 2023 — Information in cognizable cases." },
+                ].map((p, i) => (
+                  <button key={i} onClick={() => sendMessage(p.msg)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all"
+                    style={{ background: "rgba(13,18,36,0.8)", border: "1px solid rgba(30,38,66,1)", color: "#6a6a82" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor="rgba(212,175,55,0.3)"; (e.currentTarget as HTMLButtonElement).style.color="#d4af37"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor="rgba(30,38,66,1)"; (e.currentTarget as HTMLButtonElement).style.color="#6a6a82"; }}>
+                    <span style={{ color: "#d4af37" }}>{p.icon}</span>{p.label}
+                  </button>
+                ))}
               </div>
             </div>
           ) : (
-            /* Populated Chat Thread */
-            <div className="w-full max-w-[760px] flex flex-col gap-8 py-8 px-4 flex-1">
+            /* Populated Chat Thread — Dark */
+            <div className="w-full max-w-[760px] flex flex-col gap-6 py-8 px-4 flex-1">
               {messages.map((m: ChatMessage, idx: number) => {
                 const isUser = m.role === 'user';
                 const { text, citations } = isUser
@@ -619,39 +594,47 @@ export default function AskNyayaPage() {
                 const idSeed = m.id ? Array.from(m.id).reduce((acc, char) => acc + char.charCodeAt(0), 0) : 0;
                 const confidenceScore = 85 + (idSeed % 14);
                 return isUser ? (
-                  <div key={m.id || idx} className="flex gap-4 msg-enter w-full">
-                    <div className="shrink-0 mt-0.5">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-[10px] border border-slate-200 shadow-sm uppercase tracking-wide">{user?.email ? user.email.substring(0,2) : 'NK'}</div>
+                  <div key={m.id || idx} className="flex gap-3 msg-enter w-full justify-end">
+                    <div className="max-w-[70%] px-5 py-3.5 rounded-3xl rounded-tr-sm text-sm font-medium leading-relaxed"
+                      style={{ background: "linear-gradient(135deg,#7c6ef7,#5b52cc)", color: "#fff" }}>
+                      {text}
                     </div>
-                    <div className="flex-1 min-w-0 pr-4">
-                      <h3 className="font-semibold text-[14px] text-slate-700 mb-1">You</h3>
-                      <div className="prose prose-sm md:prose-base prose-slate max-w-none text-[#0d0d0d] leading-relaxed whitespace-pre-wrap">
-                        {text}
-                      </div>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-1"
+                      style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}>
+                      {user?.email ? user.email[0].toUpperCase() : "U"}
                     </div>
                   </div>
                 ) : (
-                  <div key={m.id || idx} className="flex w-full msg-enter">
-                    <div className="bg-white rounded-[16px] p-8 md:p-10 flex flex-col w-full shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100/60 max-w-[95%] mx-auto relative overflow-hidden">
-                      <div className="w-full flex justify-start mb-6">
-                        <div className="px-3.5 py-1.5 rounded-full bg-[#fcf8ef] text-[#b38a36] text-[13px] font-bold tracking-wide">
-                          Confidence {confidenceScore}%
-                        </div>
+                  <div key={m.id || idx} className="flex gap-3 w-full msg-enter">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1"
+                      style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}>
+                      <Scale size={14} />
+                    </div>
+                    <div className="flex-1 rounded-2xl p-5"
+                      style={{ background: "rgba(13,18,36,0.9)", border: "1px solid rgba(30,38,66,1)" }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold"
+                          style={{ background: "rgba(212,175,55,0.1)", color: "#d4af37" }}>Confidence {confidenceScore}%</span>
                       </div>
-                      <div className="prose prose-sm md:prose-base prose-slate text-[#64748b] max-w-[90%] mx-auto antialiased">
+                      <div className="prose prose-sm max-w-none text-sm leading-relaxed" style={{ color: "#a1a1aa" }}>
                         <ReactMarkdown>{text}</ReactMarkdown>
                       </div>
                       {citations.length > 0 && (
-                        <div className="mt-8 flex flex-col items-center w-full">
-                          <h4 className="text-[15px] font-extrabold text-[#0f172a] mb-5 tracking-wide">Citations</h4>
-                          <div className="flex flex-col gap-4 text-center w-full">
+                        <div className="mt-5 pt-4" style={{ borderTop: "1px solid rgba(30,38,66,1)" }}>
+                          <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "#4a4a62" }}>Citations</p>
+                          <div className="flex flex-col gap-2">
                             {citations.map((c, i) => {
                                const titlePart = [c.actTitle, c.sectionTitle].filter(Boolean).join(" - ");
                                const refPart = [c.actShortName, c.sectionNumber ? (c.sectionNumber.includes('§') ? c.sectionNumber : `§${c.sectionNumber}`) : ''].filter(Boolean).join(" ");
                                const display = refPart ? `${titlePart} · ${refPart}` : titlePart;
                                return (
-                                 <div key={i} className="text-[15px] text-[#64748b] antialiased">
-                                   {display}
+                                 <div key={i} className="citation-card">
+                                   <div className="citation-accent" />
+                                   <div className="citation-body">
+                                     <div className="citation-top-row"><Scale size={10} />{c.actShortName}</div>
+                                     <div className="citation-section-row">{c.sectionNumber && `§${c.sectionNumber}`} {c.sectionTitle}</div>
+                                     <div className="citation-act-full">{c.actTitle}</div>
+                                   </div>
                                  </div>
                                );
                             })}
@@ -664,16 +647,16 @@ export default function AskNyayaPage() {
               })}
 
               {isLoading && messages[messages.length - 1]?.role === 'assistant' && messages[messages.length - 1]?.content === '' && (
-                <div className="flex gap-4 w-full msg-enter">
-                  <div className="shrink-0 mt-0.5">
-                     <div className="w-8 h-8 rounded-lg border border-[#1e293b] bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-[#d4af37] flex items-center justify-center shadow-md">
-                        <Scale size={16} strokeWidth={1.5} />
-                     </div>
+                <div className="flex gap-3 w-full msg-enter">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1"
+                    style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}>
+                    <Scale size={14} />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-[14px] text-[#0f172a] mb-1">Nyaya Legal Assistant</h3>
-                    <div className="flex items-center gap-1.5 h-6">
-                       <Loader2 size={16} className="animate-spin text-slate-400" />
+                  <div className="flex-1 px-5 py-4 rounded-2xl" style={{ background: "rgba(13,18,36,0.9)", border: "1px solid rgba(30,38,66,1)" }}>
+                    <div className="flex gap-1.5 items-center">
+                      <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#d4af37" }} />
+                      <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#d4af37", animationDelay: "0.15s" }} />
+                      <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#d4af37", animationDelay: "0.3s" }} />
                     </div>
                   </div>
                 </div>
@@ -685,44 +668,38 @@ export default function AskNyayaPage() {
 
         {/* Bottom Input Area */}
         {messages.length > 0 && (
-          <div className="w-full max-w-[800px] mx-auto px-4 pb-6 pt-2 bg-gradient-to-t from-white via-white to-transparent shrink-0">
-            <form onSubmit={(e) => { e.preventDefault(); sendMessage(localInput); }} className="relative flex flex-col bg-white border border-[#e2e8f0] rounded-[16px] focus-within:border-[#cbd5e1] focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all px-4 py-2.5">
+          <div className="w-full max-w-[800px] mx-auto px-4 pb-6 pt-3 shrink-0"
+            style={{ background: "linear-gradient(to top,#070b16 60%,transparent)" }}>
+            <form onSubmit={(e) => { e.preventDefault(); sendMessage(localInput); }}
+              className="relative flex flex-col rounded-2xl px-4 py-2.5 transition-all"
+              style={{ background: "rgba(13,18,36,0.9)", border: "1px solid rgba(30,38,66,1)", backdropFilter: "blur(12px)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
               <div className="flex items-start gap-2">
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors mt-0.5 shrink-0" title="Attach case files">
-                  <Paperclip size={20} />
+                <button type="button" onClick={() => fileInputRef.current?.click()}
+                  className="p-2 rounded-xl transition-colors mt-0.5 shrink-0" style={{ color: "#4a4a62" }}
+                  onMouseEnter={e => (e.currentTarget.style.color="#a1a1aa")} onMouseLeave={e => (e.currentTarget.style.color="#4a4a62")} title="Attach case files">
+                  <Paperclip size={18} />
                 </button>
                 <textarea
                   value={localInput}
                   onChange={(e) => setLocalInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage(localInput);
-                    }
-                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(localInput); } }}
                   placeholder="Ask anything about Indian law..."
-                  className="flex-1 resize-none bg-transparent text-[16px] text-slate-800 outline-none py-1.5 max-h-[200px] placeholder:text-slate-400"
+                  className="flex-1 resize-none bg-transparent text-[15px] outline-none py-2 max-h-[200px]"
+                  style={{ color: "#ededed" }}
                   rows={1}
-                  ref={(el) => {
-                    if (el) {
-                      el.style.height = 'auto';
-                      el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
-                    }
-                  }}
+                  ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 200)}px`; } }}
                 />
                 <div className="flex items-center gap-1 mt-0.5 shrink-0">
-                  <button
-                    type="submit"
-                    disabled={isLoading || !localInput.trim()}
-                    className="w-10 h-10 flex items-center justify-center rounded-[12px] bg-[#0f172a] text-[#d4af37] hover:bg-[#1e293b] transition-colors disabled:opacity-50 disabled:bg-[#f1f5f9] disabled:text-[#94a3b8] shadow-sm"
-                  >
-                    {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  <button type="submit" disabled={isLoading || !localInput.trim()}
+                    className="w-10 h-10 flex items-center justify-center rounded-xl transition-all disabled:opacity-40"
+                    style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}>
+                    {isLoading ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                   </button>
                 </div>
               </div>
             </form>
-            <p className="text-center text-xs text-[#94a3b8] mt-3 font-medium">
-              Nyaya Legal Assistant can make mistakes. Always verify critical statutory information independently.
+            <p className="text-center text-xs mt-3 font-medium" style={{ color: "#4a4a62" }}>
+              Nyaya can make mistakes. Always verify statutory information independently.
             </p>
           </div>
         )}

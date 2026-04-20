@@ -3,53 +3,40 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Briefcase, Plus, User, Search, FileText, ArrowRight, X, Building2, Bell } from "lucide-react";
+import { Briefcase, Plus, ArrowRight, X, Building2, Scale, Calendar } from "lucide-react";
+import { Playfair_Display } from "next/font/google";
+import { useAuth } from "@/contexts/AuthContext";
+import NyayaNav from "@/components/NyayaNav";
+
+const playfair = Playfair_Display({ subsets: ["latin"], style: ["normal", "italic"] });
+
+const STATUS_COLORS: Record<string, { color: string; bg: string }> = {
+  OPEN:     { color: "#60a5fa", bg: "rgba(59,130,246,0.12)" },
+  PENDING:  { color: "#facc15", bg: "rgba(250,204,21,0.12)" },
+  CLOSED:   { color: "#34d399", bg: "rgba(52,211,153,0.12)" },
+  ARCHIVED: { color: "#94a3b8", bg: "rgba(100,116,139,0.12)" },
+  DRAFT:    { color: "#a78bfa", bg: "rgba(167,139,250,0.12)" },
+};
 
 export default function CasesPage() {
   const router = useRouter();
+  const { user, loading: authLoading, logout } = useAuth();
   const [cases, setCases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCaseModal, setShowCaseModal] = useState(false);
   const [showFirmModal, setShowFirmModal] = useState(false);
+  const [caseForm, setCaseForm] = useState({ title: "", description: "", caseNumber: "", court: "", judgeName: "", firmId: "" });
+  const [firmForm, setFirmForm] = useState({ name: "", description: "" });
 
-  // New Case Form
-  const [caseForm, setCaseForm] = useState({ title: '', description: '', caseNumber: '', court: '', judgeName: '', firmId: '' });
-  // New Firm Form
-  const [firmForm, setFirmForm] = useState({ name: '', description: '' });
-
-  // For multi-lawyer firm support
-  const [userContext, setUserContext] = useState<any>(null);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     try {
       const token = localStorage.getItem("token");
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-      
-      const userRes = await fetch("http://localhost:3001/api/auth/me", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const userData = await userRes.json();
-      setUserContext(userData.user);
-
-      const res = await fetch("http://localhost:3001/api/cases", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setCases(data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+      if (!token) { router.push("/login"); return; }
+      const res = await fetch("http://localhost:3001/api/cases", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setCases(await res.json());
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
   const handleCreateCase = async (e: React.FormEvent) => {
@@ -59,16 +46,10 @@ export default function CasesPage() {
       const res = await fetch("http://localhost:3001/api/cases", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(caseForm)
+        body: JSON.stringify(caseForm),
       });
-      if (res.ok) {
-        setShowCaseModal(false);
-        setCaseForm({ title: '', description: '', caseNumber: '', court: '', judgeName: '', firmId: '' });
-        fetchData();
-      }
-    } catch (err) {
-      console.error(err);
-    }
+      if (res.ok) { setShowCaseModal(false); setCaseForm({ title: "", description: "", caseNumber: "", court: "", judgeName: "", firmId: "" }); fetchData(); }
+    } catch (err) { console.error(err); }
   };
 
   const handleCreateFirm = async (e: React.FormEvent) => {
@@ -78,163 +59,225 @@ export default function CasesPage() {
       const res = await fetch("http://localhost:3001/api/cases/firms", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(firmForm)
+        body: JSON.stringify(firmForm),
       });
-      if (res.ok) {
-        setShowFirmModal(false);
-        setFirmForm({ name: '', description: '' });
-        // Can reload user fetching or something
-      }
-    } catch (err) {
-      console.error(err);
-    }
+      if (res.ok) { setShowFirmModal(false); setFirmForm({ name: "", description: "" }); }
+    } catch (err) { console.error(err); }
   };
 
+  if (authLoading || !user) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center" style={{ background: "#070b16" }}>
+        <div className="w-12 h-12 rounded-2xl animate-spin" style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", boxShadow: "0 0 30px rgba(124,110,247,0.4)" }} />
+      </div>
+    );
+  }
+
+  const inputClass = "w-full rounded-xl px-4 py-2.5 text-sm text-white outline-none transition-all";
+  const inputStyle = { background:"rgba(255,255,255,0.04)", border:"1px solid rgba(30,38,66,1)", color:"#ededed" };
+
   return (
-    <div className="min-h-screen bg-[#0a0f1d] text-[#ededed] p-8 pt-24 font-sans relative overflow-x-hidden">
-      {/* Background glow effects */}
-      <div className="absolute top-[20%] left-[10%] w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[20%] right-[10%] w-[300px] h-[300px] bg-yellow-600/10 rounded-full blur-[100px] pointer-events-none" />
+    <div className="min-h-screen font-sans" style={{ background: "#070b16", color: "#ededed" }}>
+      {/* Ambient orbs */}
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <motion.div animate={{ scale:[1,1.2,1], opacity:[0.1,0.2,0.1] }} transition={{ duration:12, repeat:Infinity }}
+          style={{ position:"absolute", top:"5%", left:"5%", width:"40vw", height:"40vw", background:"#1a2b58", borderRadius:"50%", filter:"blur(140px)" }} />
+        <motion.div animate={{ scale:[1,1.3,1], opacity:[0.04,0.1,0.04] }} transition={{ duration:9, repeat:Infinity, delay:4 }}
+          style={{ position:"absolute", bottom:"5%", right:"5%", width:"30vw", height:"30vw", background:"#d4af37", borderRadius:"50%", filter:"blur(160px)" }} />
+      </div>
 
-      <div className="max-w-6xl mx-auto relative z-10">
-        
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+      <NyayaNav user={user} logout={logout} active="cases" />
+
+      <div className="relative z-10 max-w-5xl mx-auto px-6 py-10">
+        {/* Header */}
+        <motion.header initial={{ opacity:0, y:-16 }} animate={{ opacity:1, y:0 }} className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div>
-            <h1 className="text-4xl font-extrabold tracking-tight mb-2 text-white flex items-center gap-3">
-              <Briefcase className="text-blue-500" size={32} />
-              Case Management
+            <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color:"#7c6ef7" }}>LEGAL WORKSPACE</p>
+            <h1 className={`${playfair.className} text-4xl md:text-5xl font-medium text-white`}>
+              Case <span style={{ color:"#d4af37", fontStyle:"italic" }}>Management</span>
             </h1>
-            <p className="text-slate-400 text-lg">Manage your entire legal lifecycle dynamically in one place.</p>
+            <p className="mt-2 text-sm" style={{ color:"#6a6a82" }}>Track hearings, documents, and milestones across all your matters.</p>
           </div>
-
-          <div className="flex gap-4">
-            {userContext?.role === 'LAWYER' && (
-              <button onClick={() => setShowFirmModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-[#141b2e] border border-slate-700 rounded-xl hover:bg-[#1a233a] hover:border-slate-500 transition-all font-medium text-sm text-slate-200">
-                <Building2 size={16} className="text-amber-400" /> New Firm
-              </button>
+          <div className="flex gap-3">
+            {user.role === "LAWYER" && (
+              <motion.button whileHover={{ scale:1.04 }} whileTap={{ scale:0.97 }}
+                onClick={() => setShowFirmModal(true)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
+                style={{ background:"rgba(212,175,55,0.08)", border:"1px solid rgba(212,175,55,0.2)", color:"#d4af37" }}>
+                <Building2 size={15} /> New Firm
+              </motion.button>
             )}
-            <button onClick={() => setShowCaseModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)] font-medium text-sm text-white">
-              <Plus size={16} /> Open New Case
-            </button>
+            <motion.button whileHover={{ scale:1.04, boxShadow:"0 0 25px rgba(124,110,247,0.4)" }} whileTap={{ scale:0.97 }}
+              onClick={() => setShowCaseModal(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold"
+              style={{ background:"linear-gradient(135deg,#7c6ef7,#d4af37)", color:"#070b16" }}>
+              <Plus size={15} /> Open New Case
+            </motion.button>
           </div>
-        </header>
+        </motion.header>
 
+        {/* Case list */}
         {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="flex justify-center items-center py-24">
+            <div className="w-10 h-10 rounded-full animate-spin" style={{ border:"2px solid rgba(212,175,55,0.2)", borderTop:"2px solid #d4af37" }} />
           </div>
         ) : (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 gap-4">
+          <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} className="space-y-4">
             {cases.length === 0 ? (
-              <div className="text-center py-20 bg-[#111827] border border-slate-800 rounded-2xl">
-                <Briefcase size={40} className="mx-auto text-slate-600 mb-4" />
-                <h3 className="text-xl font-semibold text-white mb-2">No active cases</h3>
-                <p className="text-slate-400 max-w-sm mx-auto mb-6">Create your first case to track hearings, documents, and manage timeline milestones.</p>
-                <button onClick={() => setShowCaseModal(true)} className="text-blue-400 hover:text-blue-300 font-medium">Create a case →</button>
+              <div className="flex flex-col items-center justify-center py-24 rounded-3xl"
+                style={{ background:"rgba(13,18,36,0.8)", border:"1px solid rgba(30,38,66,1)" }}>
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
+                  style={{ background:"rgba(212,175,55,0.08)", border:"1px solid rgba(212,175,55,0.15)" }}>
+                  <Briefcase size={28} style={{ color:"#d4af37" }} />
+                </div>
+                <h3 className={`${playfair.className} text-2xl text-white mb-2`}>No active matters</h3>
+                <p className="text-sm mb-6 text-center max-w-sm" style={{ color:"#4a4a62" }}>Create your first case to track hearings, link documents, and manage timelines.</p>
+                <motion.button whileHover={{ boxShadow:"0 0 25px rgba(212,175,55,0.3)" }}
+                  onClick={() => setShowCaseModal(true)}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold"
+                  style={{ background:"linear-gradient(135deg,#7c6ef7,#d4af37)", color:"#070b16" }}>
+                  <Plus size={14} /> Create Case
+                </motion.button>
               </div>
-            ) : (
-              cases.map(c => (
-                <div onClick={() => router.push(`/cases/${c.id}`)} key={c.id} className="group bg-[#111827] hover:bg-[#151c2d] border border-slate-800 hover:border-slate-600 rounded-2xl p-6 transition-all cursor-pointer flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  
+            ) : cases.map((c, i) => {
+              const sc = STATUS_COLORS[c.status] ?? STATUS_COLORS["OPEN"];
+              return (
+                <motion.div key={c.id}
+                  initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay: i*0.07 }}
+                  whileHover={{ y:-3, boxShadow:"0 12px 40px rgba(0,0,0,0.4)" }}
+                  onClick={() => router.push(`/cases/${c.id}`)}
+                  className="group flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-6 rounded-2xl cursor-pointer relative overflow-hidden transition-all"
+                  style={{ background:"rgba(13,18,36,0.8)", border:"1px solid rgba(30,38,66,1)" }}>
+                  {/* gold left bar */}
+                  <motion.div
+                    className="absolute left-0 top-0 bottom-0 w-0.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
+                    style={{ background:"linear-gradient(to bottom,#7c6ef7,#d4af37)" }} />
+
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="px-2.5 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-300 uppercase font-semibold tracking-wider">
-                        {c.caseNumber || 'DRAFT'}
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider" style={{ background:"rgba(255,255,255,0.04)", color:"#6a6a82" }}>
+                        {c.caseNumber || "DRAFT"}
                       </span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-[10px] text-blue-400 border border-blue-500/20 uppercase font-semibold tracking-wider">
-                        {c.status}
-                      </span>
+                      <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider"
+                        style={{ background: sc.bg, color: sc.color }}>{c.status}</span>
                     </div>
-                    <h2 className="text-xl font-bold text-white mb-1 truncate group-hover:text-amber-400 transition-colors">{c.title}</h2>
-                    <p className="text-sm text-slate-400 line-clamp-2">{c.description || 'No description provided.'}</p>
+                    <h2 className={`${playfair.className} text-xl font-medium text-white mb-1 truncate group-hover:text-[#d4af37] transition-colors`}>{c.title}</h2>
+                    <p className="text-sm line-clamp-2" style={{ color:"#4a4a62" }}>{c.description || "No description provided."}</p>
                   </div>
-                  
-                  <div className="flex items-center gap-8 shrink-0">
+
+                  <div className="flex items-center gap-6 shrink-0">
                     {c.court && (
-                      <div className="text-sm hidden md:block">
-                        <p className="text-slate-500 text-xs mb-1">Court</p>
-                        <p className="font-medium text-slate-200">{c.court}</p>
+                      <div className="hidden md:block text-sm">
+                        <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color:"#4a4a62" }}>Court</p>
+                        <p className="font-medium" style={{ color:"#a1a1aa" }}>{c.court}</p>
                       </div>
                     )}
                     <div className="text-sm">
-                      <p className="text-slate-500 text-xs mb-1">Last Updated</p>
-                      <p className="font-medium text-slate-200">{new Date(c.updatedAt).toLocaleDateString()}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color:"#4a4a62" }}>Updated</p>
+                      <div className="flex items-center gap-1.5 font-medium" style={{ color:"#a1a1aa" }}>
+                        <Calendar size={12} />{new Date(c.updatedAt).toLocaleDateString("en-IN")}
+                      </div>
                     </div>
-                    <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center group-hover:bg-amber-500/10 group-hover:text-amber-400 transition-colors">
-                      <ArrowRight size={18} />
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center transition-all"
+                      style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(30,38,66,1)" }}>
+                      <ArrowRight size={16} style={{ color:"#4a4a62" }} className="group-hover:text-[#d4af37] transition-colors" />
                     </div>
                   </div>
-                </div>
-              ))
-            )}
+                </motion.div>
+              );
+            })}
           </motion.div>
         )}
-
       </div>
 
-      {/* Case Creation Modal */}
+      {/* ─ Modals ─ */}
       <AnimatePresence>
         {showCaseModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#111827] border border-slate-700 rounded-3xl p-8 w-full max-w-lg shadow-2xl relative">
-               <button onClick={() => setShowCaseModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-white"><X size={20} /></button>
-               <h2 className="text-2xl font-bold text-white mb-6">Open New Case</h2>
-               <form onSubmit={handleCreateCase} className="space-y-4">
-                 <div>
-                   <label className="block text-xs font-medium text-slate-400 mb-1">Case Title *</label>
-                   <input required value={caseForm.title} onChange={e => setCaseForm({...caseForm, title: e.target.value})} className="w-full bg-[#0a0f1d] border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-blue-500 outline-none transition-colors" />
-                 </div>
-                 <div>
-                   <label className="block text-xs font-medium text-slate-400 mb-1">Description</label>
-                   <textarea value={caseForm.description} onChange={e => setCaseForm({...caseForm, description: e.target.value})} className="w-full bg-[#0a0f1d] border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-blue-500 outline-none transition-colors h-24 resize-none" />
-                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                   <div>
-                     <label className="block text-xs font-medium text-slate-400 mb-1">Case Number</label>
-                     <input value={caseForm.caseNumber} onChange={e => setCaseForm({...caseForm, caseNumber: e.target.value})} className="w-full bg-[#0a0f1d] border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-blue-500 outline-none transition-colors" />
-                   </div>
-                   <div>
-                     <label className="block text-xs font-medium text-slate-400 mb-1">Court</label>
-                     <input value={caseForm.court} onChange={e => setCaseForm({...caseForm, court: e.target.value})} className="w-full bg-[#0a0f1d] border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-blue-500 outline-none transition-colors" />
-                   </div>
-                 </div>
-                 
-                 {userContext?.role === 'LAWYER' && (
-                  <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1">Firm ID (Optional)</label>
-                    <input placeholder="Assign this case to a firm" value={caseForm.firmId} onChange={e => setCaseForm({...caseForm, firmId: e.target.value})} className="w-full bg-[#0a0f1d] border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-blue-500 outline-none transition-colors" />
+          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowCaseModal(false)}>
+            <motion.div initial={{ scale:0.93, opacity:0 }} animate={{ scale:1, opacity:1 }} exit={{ scale:0.93, opacity:0 }}
+              className="w-full max-w-lg rounded-3xl p-8 relative"
+              style={{ background:"#0d1224", border:"1px solid rgba(30,38,66,1)", boxShadow:"0 20px 60px rgba(0,0,0,0.6)" }}
+              onClick={e => e.stopPropagation()}>
+              <button onClick={() => setShowCaseModal(false)} className="absolute top-6 right-6" style={{ color:"#4a4a62" }}
+                onMouseEnter={e => (e.currentTarget.style.color="#a1a1aa")} onMouseLeave={e => (e.currentTarget.style.color="#4a4a62")}>
+                <X size={18} />
+              </button>
+              <h2 className={`${playfair.className} text-2xl text-white font-medium mb-6`}>Open New Case</h2>
+              <form onSubmit={handleCreateCase} className="space-y-4">
+                {[
+                  { label:"Case Title *", key:"title", required:true },
+                  { label:"Case Number", key:"caseNumber" },
+                  { label:"Court", key:"court" },
+                ].map(f => (
+                  <div key={f.key}>
+                    <label className="block text-xs font-bold mb-1" style={{ color:"#4a4a62" }}>{f.label}</label>
+                    <input required={f.required} value={(caseForm as any)[f.key]}
+                      onChange={e => setCaseForm({...caseForm, [f.key]: e.target.value})}
+                      className={inputClass} style={inputStyle}
+                      onFocus={e => (e.currentTarget.style.borderColor="rgba(212,175,55,0.4)")}
+                      onBlur={e => (e.currentTarget.style.borderColor="rgba(30,38,66,1)")} />
                   </div>
-                 )}
-
-                 <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 rounded-xl mt-4 transition-colors">
-                   Save Case
-                 </button>
-               </form>
+                ))}
+                <div>
+                  <label className="block text-xs font-bold mb-1" style={{ color:"#4a4a62" }}>Description</label>
+                  <textarea value={caseForm.description} onChange={e => setCaseForm({...caseForm, description: e.target.value})}
+                    className={`${inputClass} h-24 resize-none`} style={inputStyle}
+                    onFocus={e => (e.currentTarget.style.borderColor="rgba(212,175,55,0.4)")}
+                    onBlur={e => (e.currentTarget.style.borderColor="rgba(30,38,66,1)")} />
+                </div>
+                <motion.button type="submit" whileHover={{ boxShadow:"0 0 20px rgba(212,175,55,0.3)" }}
+                  className="w-full py-3 rounded-xl text-sm font-bold"
+                  style={{ background:"linear-gradient(135deg,#7c6ef7,#d4af37)", color:"#070b16" }}>
+                  Save Case
+                </motion.button>
+              </form>
             </motion.div>
           </motion.div>
         )}
 
         {showFirmModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#111827] border border-slate-700 rounded-3xl p-8 w-full max-w-md shadow-2xl relative">
-               <button onClick={() => setShowFirmModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-white"><X size={20} /></button>
-               <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><Building2 className="text-amber-400" /> New Firm setup</h2>
-               <p className="text-slate-400 text-sm mb-6">Create a shared workspace for your multi-lawyer team.</p>
-               <form onSubmit={handleCreateFirm} className="space-y-4">
-                 <div>
-                   <label className="block text-xs font-medium text-slate-400 mb-1">Firm Name *</label>
-                   <input required value={firmForm.name} onChange={e => setFirmForm({...firmForm, name: e.target.value})} className="w-full bg-[#0a0f1d] border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-amber-500 outline-none transition-colors" />
-                 </div>
-                 <div>
-                   <label className="block text-xs font-medium text-slate-400 mb-1">Description</label>
-                   <textarea value={firmForm.description} onChange={e => setFirmForm({...firmForm, description: e.target.value})} className="w-full bg-[#0a0f1d] border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-amber-500 outline-none transition-colors h-24 resize-none" />
-                 </div>
-                 
-                 <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-xl mt-4 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.3)]">
-                   Create Firm Profile
-                 </button>
-               </form>
+          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowFirmModal(false)}>
+            <motion.div initial={{ scale:0.93, opacity:0 }} animate={{ scale:1, opacity:1 }} exit={{ scale:0.93, opacity:0 }}
+              className="w-full max-w-md rounded-3xl p-8 relative"
+              style={{ background:"#0d1224", border:"1px solid rgba(30,38,66,1)", boxShadow:"0 20px 60px rgba(0,0,0,0.6)" }}
+              onClick={e => e.stopPropagation()}>
+              <button onClick={() => setShowFirmModal(false)} className="absolute top-6 right-6" style={{ color:"#4a4a62" }}>
+                <X size={18} />
+              </button>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background:"rgba(212,175,55,0.1)", border:"1px solid rgba(212,175,55,0.2)" }}>
+                  <Building2 size={18} style={{ color:"#d4af37" }} />
+                </div>
+                <div>
+                  <h2 className={`${playfair.className} text-xl text-white font-medium`}>New Firm Setup</h2>
+                  <p className="text-xs" style={{ color:"#4a4a62" }}>Create a shared workspace for your team.</p>
+                </div>
+              </div>
+              <form onSubmit={handleCreateFirm} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold mb-1" style={{ color:"#4a4a62" }}>Firm Name *</label>
+                  <input required value={firmForm.name} onChange={e => setFirmForm({...firmForm, name: e.target.value})}
+                    className={inputClass} style={inputStyle}
+                    onFocus={e => (e.currentTarget.style.borderColor="rgba(212,175,55,0.4)")}
+                    onBlur={e => (e.currentTarget.style.borderColor="rgba(30,38,66,1)")} />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold mb-1" style={{ color:"#4a4a62" }}>Description</label>
+                  <textarea value={firmForm.description} onChange={e => setFirmForm({...firmForm, description: e.target.value})}
+                    className={`${inputClass} h-24 resize-none`} style={inputStyle}
+                    onFocus={e => (e.currentTarget.style.borderColor="rgba(212,175,55,0.4)")}
+                    onBlur={e => (e.currentTarget.style.borderColor="rgba(30,38,66,1)")} />
+                </div>
+                <motion.button type="submit" whileHover={{ boxShadow:"0 0 20px rgba(212,175,55,0.3)" }}
+                  className="w-full py-3 rounded-xl text-sm font-bold"
+                  style={{ background:"linear-gradient(135deg,rgba(212,175,55,0.12),rgba(212,175,55,0.04))", color:"#d4af37", border:"1px solid rgba(212,175,55,0.3)" }}>
+                  Create Firm Profile
+                </motion.button>
+              </form>
             </motion.div>
           </motion.div>
         )}
