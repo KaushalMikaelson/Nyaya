@@ -337,7 +337,7 @@ export async function startDocumentWorker(): Promise<Worker | null> {
     await conn.ping();
   } catch (err) {
     console.warn('[DocProcessor] Redis failed to respond to ping. Skipping worker.');
-    conn.disconnect();
+    try { conn.disconnect(); } catch { /* ignore */ }
     return null;
   }
 

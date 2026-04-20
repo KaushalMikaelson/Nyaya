@@ -44,10 +44,10 @@ export const notificationQueue = {
     retryStrategy: () => null // don't retry the initial connection check
   });
 
-  try {
-    // Silence unhandled connection errors to prevent node crashes
-    connection.on('error', () => {}); 
+  // Swallow all Redis connection errors — prevents process crash when Redis is offline
+  connection.on('error', () => {});
 
+  try {
     // Check if Redis is actually running
     await connection.ping();
 
@@ -132,9 +132,12 @@ export const notificationQueue = {
 
   } catch (err) {
     console.warn("⚠️ Redis not detected running on localhost. BullMQ Notifications will be mocked/disabled.");
-    connection.disconnect();
+    try { connection.disconnect(); } catch { /* ignore */ }
   }
-})();
+})().catch((err) => {
+  // Swallow top-level IIFE errors — prevents Node.js 25+ from killing the process
+  console.warn("[Notifications] Worker init error (non-fatal):", err?.message || err);
+});
 
 export const scheduleFollowUp = async (userId: string, email: string, caseSnippet: string) => {
   try {
