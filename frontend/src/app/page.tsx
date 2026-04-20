@@ -12,6 +12,7 @@ import {
 import WorkspaceDashboard from "@/components/WorkspaceDashboard";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
+import LandingPage from "./landing/page";
 
 interface Message {
   id: string;
@@ -87,9 +88,7 @@ export default function Home() {
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) router.push("/landing");
-  }, [authLoading, user, router]);
+  // No redirect needed — unauthenticated users see the landing page inline
 
   useEffect(() => {
     if (user) fetchConversations();
@@ -329,7 +328,7 @@ export default function Home() {
 
   const activeConv = conversations.find(c => c.id === activeChat);
 
-  if (authLoading || !user) {
+  if (authLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center" style={{ background: "#070b16" }}>
         <div className="flex flex-col items-center gap-5">
@@ -350,6 +349,10 @@ export default function Home() {
         </div>
       </div>
     );
+  }
+
+  if (!user) {
+    return <LandingPage />;
   }
 
   return (
