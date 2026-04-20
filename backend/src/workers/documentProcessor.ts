@@ -20,6 +20,8 @@ import pdf from 'pdf-parse';
 import Tesseract from 'tesseract.js';
 import https from 'https';
 import http from 'http';
+import fs from 'fs';
+import path from 'path';
 
 // ─── Redis connection ────────────────────────────────────────────────────────
 
@@ -90,6 +92,10 @@ async function fetchBuffer(url: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https') ? https : http;
     lib.get(url, (res) => {
+      if (res.statusCode && res.statusCode >= 400) {
+        reject(new Error(`HTTP error ${res.statusCode}`));
+        return;
+      }
       const chunks: Buffer[] = [];
       res.on('data', (c) => chunks.push(c));
       res.on('end', () => resolve(Buffer.concat(chunks)));
@@ -140,7 +146,13 @@ async function processDocument(docId: string): Promise<void> {
   // ── Step 1: Fetch file buffer ──────────────────────────────────────────────
   let fileBuffer: Buffer;
   try {
-    fileBuffer = await fetchBuffer(doc.s3Url);
+    if (doc.s3Url.includes('/api/documents/files/')) {
+      const filename = doc.s3Url.split('/').pop();
+      const localPath = path.join(process.cwd(), 'uploads', 'documents', filename!);
+      fileBuffer = await fs.promises.readFile(localPath);
+    } else {
+      fileBuffer = await fetchBuffer(doc.s3Url);
+    }
   } catch (err) {
     throw new Error(`Failed to fetch document from storage: ${(err as Error).message}`);
   }
