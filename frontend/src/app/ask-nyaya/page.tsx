@@ -26,7 +26,8 @@ import {
   Briefcase,
   Users,
   Bell,
-  CreditCard
+  CreditCard,
+  Trash2
 } from 'lucide-react';
 
 import { useRouter } from 'next/navigation';
@@ -197,6 +198,20 @@ export default function AskNyayaPage() {
   const startNewChat = () => {
     setConversationId(null);
     setMessages([]);
+  };
+
+  const deleteConversation = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await api.delete(`/chat/conversations/${id}`);
+      if (conversationId === id) {
+        setConversationId(null);
+        setMessages([]);
+      }
+      setConversations(prev => prev.filter(c => c.id !== id));
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -466,10 +481,17 @@ export default function AskNyayaPage() {
                   <div key={conv.id} className="relative group">
                     <button 
                       onClick={() => loadConversation(conv.id)}
-                      className={`flex items-center px-3 py-2 rounded-lg text-sm transition-colors w-full text-left ${conversationId === conv.id ? 'bg-slate-200 text-slate-800' : 'hover:bg-slate-200 text-slate-600'}`}
+                      className={`flex items-center px-3 py-2 rounded-lg text-sm transition-colors w-full text-left pr-8 ${conversationId === conv.id ? 'bg-slate-200 text-slate-800' : 'hover:bg-slate-200 text-slate-600'}`}
                     >
                       <MessageSquare size={14} className="shrink-0 mr-2.5 opacity-60" />
                       <span className="truncate w-full font-medium" title={conv.title}>{conv.title}</span>
+                    </button>
+                    <button
+                      onClick={(e) => deleteConversation(conv.id, e)}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                      title="Delete chat"
+                    >
+                      <Trash2 size={13} />
                     </button>
                   </div>
                 ))}
