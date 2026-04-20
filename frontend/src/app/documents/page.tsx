@@ -6,13 +6,13 @@ import { useRouter } from "next/navigation";
 import {
   FileText, Upload, Trash2, AlertCircle, CheckCircle,
   Clock, Loader2, Scale, X, RefreshCw,
-  FileSearch, Sparkles, Briefcase, Search, ArrowLeft, ChevronRight
+  FileSearch, Sparkles, Briefcase, Search, ArrowLeft, ChevronRight,
+  PanelLeftClose, PanelLeftOpen, LayoutGrid, Zap, FileStack, Users
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Playfair_Display } from "next/font/google";
 import api from "@/lib/api";
 import ReactMarkdown from "react-markdown";
-import NyayaNav from "@/components/NyayaNav";
 
 const playfair = Playfair_Display({ subsets: ["latin"], style: ["normal", "italic"] });
 
@@ -92,6 +92,7 @@ export default function DocumentsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [language, setLanguage] = useState<"english" | "hindi">("english");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => { if (!authLoading && !user) router.push("/landing"); }, [authLoading, user, router]);
   useEffect(() => { if (user) fetchDocuments(); }, [user, statusFilter]);// eslint-disable-line
@@ -202,21 +203,73 @@ export default function DocumentsPage() {
           style={{ position:"absolute", bottom:"10%", right:"5%", width:"30vw", height:"30vw", background:"#d4af37", borderRadius:"50%", filter:"blur(160px)" }} />
       </div>
 
-      <NyayaNav user={user} logout={logout} active="documents" onBilling={() => {}} onUpgrade={() => {}} />
+      {/* ── Sidebar ── */}
+      {sidebarOpen && (
+        <div className="flex flex-col w-[260px] shrink-0 transition-all duration-300 relative z-20"
+          style={{ background: "#0a0f1d", borderRight: "1px solid rgba(30,38,66,0.8)" }}>
+          {/* Logo row */}
+          <div className="flex items-center gap-2.5 px-4 h-[64px] shrink-0" style={{ borderBottom: "1px solid rgba(30,38,66,0.8)" }}>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", boxShadow: "0 0 14px rgba(124,110,247,0.35)" }}>
+              <Scale size={15} className="text-white" />
+            </div>
+            <span className="text-sm font-bold tracking-widest uppercase flex-1" style={{ color: "#f2d680" }}>Nyaya AI</span>
+            <button className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors" style={{ color: "#4a4a62" }} onClick={() => setSidebarOpen(false)}
+              onMouseEnter={e => (e.currentTarget.style.color="#a1a1aa")} onMouseLeave={e => (e.currentTarget.style.color="#4a4a62")}>
+              <PanelLeftClose size={15} />
+            </button>
+          </div>
+
+          {/* Nav items */}
+          <div className="px-3 py-4 flex flex-col gap-0.5 flex-1 overflow-y-auto">
+            {[
+              { label: "Dashboard", icon: <LayoutGrid size={15} />, action: () => router.push("/"), active: false },
+              { label: "Ask Nyaya", icon: <Zap size={15} />, action: () => router.push("/ask-nyaya"), active: false },
+              { label: "Documents", icon: <FileStack size={15} />, action: () => {}, active: true },
+              { label: "Cases", icon: <Briefcase size={15} />, action: () => router.push("/cases"), active: false },
+              { label: "Marketplace", icon: <Users size={15} />, action: () => router.push("/marketplace"), active: false },
+            ].map((item) => (
+              <button key={item.label} onClick={item.action}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={item.active
+                  ? { background: "rgba(212,175,55,0.1)", color: "#d4af37", border: "1px solid rgba(212,175,55,0.15)" }
+                  : { color: "#4a4a62", border: "1px solid transparent" }}
+                onMouseEnter={e => { if (!item.active) { (e.currentTarget as HTMLButtonElement).style.background="rgba(255,255,255,0.04)"; (e.currentTarget as HTMLButtonElement).style.color="#a1a1aa"; } }}
+                onMouseLeave={e => { if (!item.active) { (e.currentTarget as HTMLButtonElement).style.background="transparent"; (e.currentTarget as HTMLButtonElement).style.color="#4a4a62"; } }}>
+                {item.icon}{item.label}
+              </button>
+            ))}
+          </div>
+
+          {/* User footer */}
+          <div className="px-3 pb-4 pt-3" style={{ borderTop: "1px solid rgba(30,38,66,0.8)" }}>
+            <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 cursor-pointer group transition-all"
+              style={{ border: "1px solid rgba(30,38,66,0.8)" }}
+              onClick={logout}
+              onMouseEnter={e => (e.currentTarget.style.background="rgba(255,255,255,0.04)")} onMouseLeave={e => (e.currentTarget.style.background="transparent")}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}>
+                {(user?.email?.[0] || "N").toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="truncate text-sm font-medium text-white">{user?.email?.split("@")[0] ?? "User"}</div>
+                <div className="text-[10px]" style={{ color: "#4a4a62" }}>Sign out</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col flex-1 min-w-0 relative z-10">
         {/* Topbar */}
         <header className="flex items-center justify-between h-14 px-4 md:px-6 shrink-0 sticky top-0 z-30"
           style={{ background: "rgba(7,11,22,0.88)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(30,38,66,0.8)" }}>
           <div className="flex items-center gap-3">
-            <button className="p-2 -ml-2 rounded-lg" style={{ color: "#4a4a62" }}
-              onMouseEnter={e => (e.currentTarget.style.color="#a1a1aa")} onMouseLeave={e => (e.currentTarget.style.color="#4a4a62")}>
-              {/* hamburger via NyayaNav */}
-            </button>
-            <button onClick={() => router.push("/")} className="flex items-center gap-1.5" style={{ color: "#4a4a62" }}
-              onMouseEnter={e => (e.currentTarget.style.color="#a1a1aa")} onMouseLeave={e => (e.currentTarget.style.color="#4a4a62")}>
-              <ArrowLeft size={16} />
-            </button>
+            {!sidebarOpen && (
+              <button className="p-2 -ml-2 rounded-xl transition-colors" style={{ color: "#4a4a62" }}
+                onMouseEnter={e => (e.currentTarget.style.color="#a1a1aa")} onMouseLeave={e => (e.currentTarget.style.color="#4a4a62")}
+                onClick={() => setSidebarOpen(true)}>
+                <PanelLeftOpen size={18} />
+              </button>
+            )}
             <div className="flex items-center gap-2">
               <FileSearch size={17} style={{ color: "#d4af37" }} />
               <h1 className="text-sm font-bold text-white">Document Intelligence</h1>
