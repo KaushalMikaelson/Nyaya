@@ -207,7 +207,7 @@ async function processDocument(docId: string): Promise<void> {
     });
 
     const classificationPrompt = ChatPromptTemplate.fromMessages([
-      ['system', 'Analyze the following Indian legal document extract and classify it precisely.'],
+      ['system', 'Analyze the following Indian legal document extract and classify it precisely. You must choose exactly one of the following document types: "Contract/Agreement", "Legal Notice", "Court Judgment/Order", "FIR/Police Report", "Identity/KYC Document", "Petition", "Affidavit", "Power of Attorney", "Will/Testament", or "Other".'],
       ['user', '{text}'],
     ]);
 

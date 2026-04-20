@@ -78,3 +78,4 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 app.listen(PORT, () => {
   console.log(`🚀 Nyaya server running on port ${PORT}`);
 });
+// Trigger nodemon restart

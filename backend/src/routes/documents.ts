@@ -473,7 +473,7 @@ router.post('/analyze', upload.single('file'), async (req: AuthRequest, res): Pr
     // AI Classification
     const groqClassifier = new ChatGroq({ model: 'llama-3.1-8b-instant', temperature: 0, apiKey: process.env.GROQ_API_KEY });
     const classificationPrompt = ChatPromptTemplate.fromMessages([
-      ['system', 'Analyze the following Indian legal document and classify it.'],
+      ['system', 'Analyze the following Indian legal document and classify it. You must choose exactly one of the following document types: "Contract/Agreement", "Legal Notice", "Court Judgment/Order", "FIR/Police Report", "Identity/KYC Document", "Petition", "Affidavit", "Power of Attorney", "Will/Testament", or "Other".'],
       ['user', '{text}'],
     ]);
 
