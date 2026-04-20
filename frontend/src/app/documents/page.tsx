@@ -25,6 +25,7 @@ interface UserDocument {
   status: "PENDING" | "PROCESSING" | "READY" | "FAILED";
   documentType: string | null;
   summary: string | null;
+  summaryHi?: string | null;
   partiesInvolved: string[];
   caseId: string | null;
   case?: { id: string; title: string } | null;
@@ -34,6 +35,7 @@ interface UserDocument {
 
 interface FullDocument extends UserDocument {
   analysisReport: string | null;
+  analysisReportHi?: string | null;
   s3Url: string;
   consentGrantedAt: string | null;
 }
@@ -98,6 +100,7 @@ export default function DocumentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [consentGiven, setConsentGiven] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [language, setLanguage] = useState<"english" | "hindi">("english");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -219,7 +222,7 @@ export default function DocumentsPage() {
     }
   };
 
-  const viewDocument = async (doc: UserDocument) => {
+  const viewDocument = async (doc: UserDocument | FullDocument) => {
     setViewLoading(true);
     try {
       const { data } = await api.get(`/documents/${doc.id}`);
@@ -228,6 +231,14 @@ export default function DocumentsPage() {
       alert("Failed to load document details.");
     } finally {
       setViewLoading(false);
+    }
+  };
+
+  const switchLanguage = async (lang: "english" | "hindi") => {
+    setLanguage(lang);
+    // If switching to Hindi but current selectedDoc has no Hindi content, re-fetch
+    if (lang === "hindi" && selectedDoc && !selectedDoc.analysisReportHi) {
+      await viewDocument(selectedDoc);
     }
   };
 
@@ -507,7 +518,9 @@ export default function DocumentsPage() {
                         )}
 
                         {doc.summary && (
-                          <p className="mt-1.5 text-xs text-slate-500 line-clamp-2 leading-relaxed">{doc.summary}</p>
+                          <p className="mt-1.5 text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                            {(language === 'hindi' && doc.summaryHi) ? doc.summaryHi : doc.summary}
+                          </p>
                         )}
 
                         <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400 font-medium">
@@ -569,6 +582,10 @@ export default function DocumentsPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 mr-2">
+                       <button onClick={() => switchLanguage('english')} className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${language === 'english' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>English</button>
+                       <button onClick={() => switchLanguage('hindi')} className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${language === 'hindi' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>हिंदी</button>
+                    </div>
                     {selectedDoc.status === "FAILED" && (
                       <button onClick={() => reanalyzeDoc(selectedDoc.id)}
                         className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors" title="Retry">
@@ -596,13 +613,17 @@ export default function DocumentsPage() {
                   ) : (
                     <div className="space-y-5">
                       {/* Summary */}
-                      {selectedDoc.summary && (
+                      {(selectedDoc.summary || selectedDoc.summaryHi) && (
                         <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
                           <div className="flex items-center gap-2 mb-2">
                             <Sparkles size={14} className="text-[#d4af37]" />
-                            <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">AI Summary</span>
+                            <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                               {language === 'hindi' ? 'AI सारांश' : 'AI Summary'}
+                            </span>
                           </div>
-                          <p className="text-sm text-slate-700 leading-relaxed">{selectedDoc.summary}</p>
+                          <p className="text-sm text-slate-700 leading-relaxed">
+                             {(language === 'hindi' && selectedDoc.summaryHi) ? selectedDoc.summaryHi : selectedDoc.summary}
+                          </p>
                         </div>
                       )}
 
@@ -632,14 +653,18 @@ export default function DocumentsPage() {
                       )}
 
                       {/* Full Analysis */}
-                      {selectedDoc.status === "READY" && selectedDoc.analysisReport ? (
+                      {selectedDoc.status === "READY" && (selectedDoc.analysisReport || selectedDoc.analysisReportHi) ? (
                         <div>
                           <div className="flex items-center gap-2 mb-3">
                             <FileSearch size={14} className="text-[#0f172a]" />
-                            <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">Full Legal Analysis</p>
+                            <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                               {language === 'hindi' ? 'पूर्ण कानूनी विश्लेषण' : 'Full Legal Analysis'}
+                            </p>
                           </div>
                           <div className="prose prose-sm prose-slate max-w-none bg-white rounded-xl p-4 border border-slate-100 text-[13px] leading-relaxed">
-                            <ReactMarkdown>{selectedDoc.analysisReport}</ReactMarkdown>
+                            <ReactMarkdown>
+                              {(language === 'hindi' && selectedDoc.analysisReportHi) ? selectedDoc.analysisReportHi : (selectedDoc.analysisReport || "")}
+                            </ReactMarkdown>
                           </div>
                           <p className="mt-3 text-[11px] text-slate-400 italic">
                             ⚠️ This is AI-generated analysis, not legal advice. Always consult a qualified lawyer before taking action.

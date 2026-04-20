@@ -511,9 +511,11 @@ model UserDocument {
 
   // AI Classification & Analysis
   documentType    String?   // "Contract/Agreement", "FIR", "Legal Notice", etc.
-  summary         String?   // 1-2 sentence AI summary
+  summary         String?   // 1-2 sentence AI summary (English)
+  summaryHi       String?   // 1-2 sentence AI summary (Hindi)
   partiesInvolved String[]  // Extracted party names
-  analysisReport  String?   @db.Text  // Full markdown AI analysis
+  analysisReport  String?   @db.Text  // Full markdown AI analysis (English)
+  analysisReportHi String?  @db.Text  // Full markdown AI analysis (Hindi)
 
   // Case linkage (optional)
   caseId          String?

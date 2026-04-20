@@ -219,7 +219,19 @@ async function processDocument(docId: string): Promise<void> {
 
   // ── Step 4: RAG-augmented AI Legal Analysis ───────────────────────────────
   let analysisReport = 'Analysis could not be generated.';
+  let analysisReportHi = 'Hindi analysis could not be generated.';
+  let summaryHi = docClass.summary;
   try {
+    // Translate summary quickly
+    try {
+      const groqSpeed = new Groq({ apiKey: groqKey });
+      const transResponse = await groqSpeed.chat.completions.create({
+         model: 'llama-3.1-8b-instant',
+         messages: [{ role: 'user', content: `Translate this single sentence strictly into plain Hindi, returning only the translation without quotes: "${docClass.summary}"` }]
+      });
+      if (transResponse.choices[0]?.message?.content) summaryHi = transResponse.choices[0].message.content.trim();
+    } catch { /* ignore and fallback to english summary */ }
+
     // Build legal context from top chunks in DB
     const allChunks = await prisma.legalChunk.findMany({
       take: 50,
@@ -236,7 +248,7 @@ async function processDocument(docId: string): Promise<void> {
     const docChunks = chunkText(extractedText);
     const docSelection = docChunks.slice(0, 6).join('\n\n');
 
-    const systemPrompt = [
+    const systemPromptEn = [
       `You are Nyaya, an elite legal document analyzer for Indian law.`,
       `Document Type: **${docClass.documentType}**`,
       `Summary: ${docClass.summary}`,
@@ -252,16 +264,41 @@ async function processDocument(docId: string): Promise<void> {
       relevantLawsContext || 'No specific laws retrieved. Apply general Indian legal principles.',
     ].join('\n');
 
-    const response = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      max_tokens: 2048,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Analyze this document:\n\n${docSelection}` },
-      ],
-    });
+    const systemPromptHi = [
+      `You are Nyaya, an elite legal document analyzer for Indian law.`,
+      `Document Type: **${docClass.documentType}**`,
+      `Parties: ${docClass.partiesInvolved.join(', ') || 'Unknown'}`,
+      ``,
+      `TASK: ${typeSpecificInstructions(docClass.documentType)}`,
+      ``,
+      `Produce a structured legal analysis report in Markdown. YOU MUST WRITE THE ENTIRE REPORT EXCLUSIVELY IN HINDI.`,
+      `Cite applicable Indian laws. Note potential risks. End with a plain-language summary. DO NOT give binding legal advice.`,
+      ``,
+      `RELEVANT INDIAN LAWS:`,
+      relevantLawsContext || 'No specific laws retrieved. Apply general Indian legal principles.',
+    ].join('\n');
 
-    analysisReport = response.choices[0]?.message?.content || 'Analysis could not be generated.';
+    const [responseEn, responseHi] = await Promise.all([
+      groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 2048,
+        messages: [
+          { role: 'system', content: systemPromptEn },
+          { role: 'user', content: `Analyze this document:\n\n${docSelection}` },
+        ],
+      }),
+      groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 2048,
+        messages: [
+          { role: 'system', content: systemPromptHi },
+          { role: 'user', content: `Analyze this document. Your output MUST be completely in Hindi:\n\n${docSelection}` },
+        ],
+      })
+    ]);
+
+    analysisReport = responseEn.choices[0]?.message?.content || 'Analysis could not be generated.';
+    analysisReportHi = responseHi.choices[0]?.message?.content || 'Hindi analysis could not be generated.';
   } catch (err) {
     console.warn(`[DocProcessor] Analysis failed for ${docId}:`, (err as Error).message);
     analysisReport = `Analysis encountered an error: ${(err as Error).message}`;
@@ -274,8 +311,10 @@ async function processDocument(docId: string): Promise<void> {
       status: 'READY',
       documentType: docClass.documentType,
       summary: docClass.summary,
+      summaryHi,
       partiesInvolved: docClass.partiesInvolved,
       analysisReport,
+      analysisReportHi,
     },
   });
 
