@@ -32,7 +32,7 @@ import {
 
 import { useRouter } from 'next/navigation';
 import { useAuth } from "@/contexts/AuthContext";
-import api, { getAccessToken } from "@/lib/api";
+import api, { getValidAccessToken } from "@/lib/api";
 import ReactMarkdown from 'react-markdown';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -273,11 +273,12 @@ export default function AskNyayaPage() {
     setIsLoading(true);
 
     try {
+      const validToken = await getValidAccessToken();
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${getAccessToken()}`,
+          Authorization: `Bearer ${validToken}`,
         },
         body: JSON.stringify({
           messages: [...messages, userMsg],

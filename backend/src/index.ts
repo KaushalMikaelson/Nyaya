@@ -94,9 +94,12 @@ const server = app.listen(PORT, () => {
 
 server.on('error', (err: any) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} is already in use. Stop other servers first (npm run dev / nodemon) then retry.`);
+    // Exit code 0 = clean exit, so nodemon does NOT enter crash-restart loop.
+    // This happens when nodemon restarts before the old process releases the port.
+    console.warn(`⚠️  Port ${PORT} is already in use — another instance may still be shutting down. Exiting cleanly.`);
+    process.exit(0);
   } else {
     console.error('[Server Error]', err.message);
+    process.exit(1);
   }
-  process.exit(1);
 });

@@ -67,8 +67,10 @@ Strict 300-word buckets risk splitting critical legal context right down the mid
 
 ```typescript
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import { VoyageAIClient } from 'voyageai';
+import { pipeline, env } from '@xenova/transformers';
 import { prisma } from '../src/prisma';
+
+env.allowLocalModels = true;
 
 const splitter = new RecursiveCharacterTextSplitter({
   chunkSize: 1200,       // characters, not words (~300 tokens)
@@ -85,14 +87,17 @@ async function processSection(act: any, section: any) {
   }]);
 
   const texts = chunks.map(c => c.pageContent);
-  // Batch embed with Voyage (Handles max 128 elements per batch conventionally)
-  const embeddings = await getEmbeddings(texts); 
-
+  
+  // Local batched embedding using Xenova/gte-large (1024 dims)
+  const pipe = await pipeline('feature-extraction', 'Xenova/gte-large', { quantized: false });
+  const output = await pipe(texts, { pooling: 'mean', normalize: true });
+  
   for (let i = 0; i < chunks.length; i++) {
+    const embedding = Array.from(output[i].data);
     // Insert using Raw SQL to handle the Unsupported(vector) type
     await prisma.$executeRaw`
       INSERT INTO "LegalChunk" ("id", "actId", "sectionId", "content", "embedding")
-      VALUES (gen_random_uuid(), ${act.id}, ${section.id}, ${texts[i]}, ${embeddings[i]}::vector)
+      VALUES (gen_random_uuid(), ${act.id}, ${section.id}, ${texts[i]}, ${embedding}::vector)
     `;
   }
 }
@@ -212,7 +217,7 @@ const prompt = ChatPromptTemplate.fromMessages([
 ```mermaid
 graph TD
     A[User Query] --> B(Router/Guardrails Check)
-    B --> C{Query Vectorization - VoyageAI}
+    B --> C{Query Vectorization - Local Xenova/gte-large}
     
     C -->|Vector [1024d]| D_pgvector[(Postgres pgvector\nExact kNN/HNSW)]
     C -->|Keywords| D_bm25[(Postgres BM25\ntsvector GIN)]

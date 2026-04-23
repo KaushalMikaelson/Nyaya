@@ -27,6 +27,51 @@ export const getAccessToken = () => {
   return '';
 };
 
+/**
+ * Returns a guaranteed-valid access token.
+ * If the stored token is missing, expired, or within 60s of expiry,
+ * it silently calls /auth/refresh (via the httpOnly cookie) to get a fresh one.
+ */
+export const getValidAccessToken = async (): Promise<string> => {
+  const token = getAccessToken();
+
+  // Check expiry by decoding the JWT payload (no signature verification needed client-side)
+  if (token) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(window.atob(base64));
+      const expiresAt = payload.exp * 1000; // convert to ms
+      const now = Date.now();
+      const bufferMs = 60 * 1000; // refresh if within 60s of expiry
+
+      if (expiresAt - now > bufferMs) {
+        // Token is still valid and not close to expiry
+        return token;
+      }
+    } catch {
+      // Malformed token — fall through to refresh
+    }
+  }
+
+  // Token is missing, expired, or expiring soon — refresh silently
+  try {
+    const { data } = await axios.post(
+      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/refresh`,
+      {},
+      { withCredentials: true }
+    );
+    if (data.accessToken) {
+      setAccessToken(data.accessToken);
+      return data.accessToken;
+    }
+  } catch {
+    // Refresh failed — return whatever we have (will result in a 401 that the interceptor handles)
+  }
+
+  return token;
+};
+
 // Request interceptor to add the access token
 api.interceptors.request.use((config) => {
   const token = getAccessToken();

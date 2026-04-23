@@ -141,7 +141,8 @@ async function main() {
 
     for (const section of act.sections) {
       // Build combined text for section + its clauses
-      const sectionRaw = `[${act.shortName}] Article ${section.number}: ${section.title ?? ''}\n${section.content}`;
+      const prefix = act.shortName === 'Constitution' ? 'Article' : 'Section';
+      const sectionRaw = `[${act.shortName}] ${prefix} ${section.number}: ${section.title ?? ''}\n${section.content}`;
       const sectionDocs  = await splitter.createDocuments([sectionRaw]);
       const sectionTexts = sectionDocs.map(d => d.pageContent);
 

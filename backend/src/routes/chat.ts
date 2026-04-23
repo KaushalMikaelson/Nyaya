@@ -6,9 +6,8 @@ import { VoyageAIClient } from 'voyageai';
 import { CohereClient } from 'cohere-ai';
 
 import { ChatGroq } from '@langchain/groq';
-import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
-import { HumanMessage, AIMessage } from '@langchain/core/messages';
+import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
 import { hybridSearch, rerankCandidates } from '../services/retrieval';
 
 const router = Router();
@@ -145,45 +144,73 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
     );
 
     // ── Step D: LLM generation ───────────────────────────────────────────────
-    // IMPORTANT: context is interpolated at build-time (not a LangChain template var)
-    // Only {query} and {history} are LangChain template vars — no conflicts.
+    // NOTE: We deliberately avoid ChatPromptTemplate here.
+    // Legal text chunks often contain curly-brace patterns like {resolvedLabel}
+    // which LangChain's template parser mistakes for unbound input variables.
+    // Instead we construct a concrete message array and call the model directly.
     const groq = new ChatGroq({
       apiKey: process.env.GROQ_API_KEY!,
       model: 'llama-3.3-70b-versatile',
       temperature: 0.1,
     });
 
-    const systemMessage = [
-      'You are Nyaya, a Senior Legal AI Assistant specializing in Indian law.',
-      'You assist practicing lawyers, judges, and legal scholars.',
-      '',
-      'RULES:',
-      '1. Answer STRICTLY based on the LEGAL CONTEXT provided below.',
-      '2. If context is insufficient, clearly state what information is missing.',
-      '3. Cite every legal claim using the source tags provided, e.g. [Source 1: BNS Sec 103].',
-      '4. Use precise legal language. Structure your response with clear headings.',
-      '5. End with a plain-language summary prefixed with "Summary:" for client briefings.',
-      language === 'hindi' ? '6. CRITICAL RULE: YOU MUST RESPOND ENTIRELY IN THE HINDI LANGUAGE using Devanagari script. Do NOT use English except for exact legal case names or section numbers.' : '6. Respond in English.',
-      '',
-      'LEGAL CONTEXT:',
-      retrievedContext,
-    ].join('\n');
+    const hindiInstruction = language === 'hindi'
+      ? '\nCRITICAL RULE: YOU MUST RESPOND ENTIRELY IN THE HINDI LANGUAGE USING DEVANAGARI SCRIPT. Maintain formatting.\n'
+      : '';
 
-    const ragPrompt = ChatPromptTemplate.fromMessages([
-      ['system', systemMessage],
-      new MessagesPlaceholder('history'),
-      ['human', '{query}'],
-    ]);
+    // Build a fully-resolved system string — no LangChain placeholders involved.
+    const systemPromptText = `You are a legal assistant for Indian law.
 
-    const chain = ragPrompt.pipe(groq).pipe(new StringOutputParser());
+You MUST answer ONLY using the provided context.
+Do NOT use outside knowledge.
+
+STRICT RULES:
+1. Do NOT mix different legal domains (e.g., Constitution vs BNS vs IPC).
+2. Always identify the correct Act (e.g., Bharatiya Nyaya Sanhita, Constitution of India).
+3. Always mention the correct Section/Article.
+4. If the context is insufficient or unclear, say:
+   "Insufficient legal context to answer accurately."
+5. Do NOT hallucinate or assume missing information.
+
+OUTPUT FORMAT (MANDATORY):
+
+\u{1F539} Act:
+<Act Name>
+
+\u{1F539} Section:
+<Section / Article Number>
+
+\u{1F539} Explanation:
+<Clear explanation of the law>
+
+\u{1F539} Punishment (if applicable):
+- Point 1
+- Point 2
+
+\u{1F539} Source:
+<Exact reference from context>
+${hindiInstruction}
+---
+CONTEXT:
+${retrievedContext}
+---`;
+
+    const finalQuery = language === 'hindi'
+      ? `[TRANSLATE AND RESPOND TO THE FOLLOWING STRICTLY IN HINDI USING DEVANAGARI SCRIPT]:\n\n${content}`
+      : content;
+
+    // Assemble the complete message list: system + history + new human turn.
+    const messages = [
+      new SystemMessage(systemPromptText),
+      ...history,
+      new HumanMessage(finalQuery),
+    ];
 
     let aiResponseContent: string;
     try {
       console.log('🤖 Calling Groq LLM...');
-      const finalQuery = language === 'hindi' 
-        ? `[TRANSLATE AND RESPOND TO THE FOLLOWING STRICTLY IN HINDI USING DEVANAGARI SCRIPT]:\n\n${content}`
-        : content;
-      aiResponseContent = await chain.invoke({ history, query: finalQuery });
+      const result = await groq.pipe(new StringOutputParser()).invoke(messages);
+      aiResponseContent = result;
       console.log('✅ Groq response received, length:', aiResponseContent.length);
     } catch (e) {
       console.error('❌ LLM generation error:', e);

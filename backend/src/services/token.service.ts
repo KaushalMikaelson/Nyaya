@@ -33,7 +33,7 @@ export interface RefreshTokenPayload {
 // ─────────────────────────────────────────
 
 export function signAccessToken(payload: AccessTokenPayload): string {
-  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: '15m' });
+  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: '2h' });
 }
 
 export function signRefreshToken(payload: RefreshTokenPayload): string {
