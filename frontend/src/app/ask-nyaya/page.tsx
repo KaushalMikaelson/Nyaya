@@ -48,6 +48,7 @@ interface LegalCitation {
 interface ParsedMessage {
   text: string;
   citations: LegalCitation[];
+  confidence: number | null;
 }
 
 interface Conversation {
@@ -72,17 +73,26 @@ function getMessageContent(message: any): string {
 }
 
 function parseMessage(raw: string): ParsedMessage {
-  const idx = raw.indexOf(CITATION_SENTINEL);
-  if (idx === -1) return { text: raw, citations: [] };
+  let text = raw;
+  let confidence: number | null = null;
+  
+  const confMatch = text.match(/\[\[NYAYA_CONFIDENCE:(\d+)\]\]\s*/);
+  if (confMatch) {
+    confidence = parseInt(confMatch[1], 10);
+    text = text.replace(confMatch[0], '');
+  }
 
-  const text = raw.slice(0, idx).trimEnd();
+  const idx = text.indexOf(CITATION_SENTINEL);
+  if (idx === -1) return { text, citations: [], confidence };
+
+  const parsedText = text.slice(0, idx).trimEnd();
   try {
     const citations: LegalCitation[] = JSON.parse(
-      raw.slice(idx + CITATION_SENTINEL.length),
+      text.slice(idx + CITATION_SENTINEL.length),
     );
-    return { text, citations };
+    return { text: parsedText, citations, confidence };
   } catch {
-    return { text, citations: [] };
+    return { text: parsedText, citations: [], confidence };
   }
 }
 
@@ -588,12 +598,10 @@ export default function AskNyayaPage() {
             <div className="w-full max-w-[760px] flex flex-col gap-6 py-8 px-4 flex-1">
               {messages.map((m: ChatMessage, idx: number) => {
                 const isUser = m.role === 'user';
-                const { text, citations } = isUser
-                  ? { text: m.content, citations: [] as LegalCitation[] }
+                const { text, citations, confidence } = isUser
+                  ? { text: m.content, citations: [] as LegalCitation[], confidence: null }
                   : parseMessage(m.content);
 
-                const idSeed = m.id ? Array.from(m.id).reduce((acc, char) => acc + char.charCodeAt(0), 0) : 0;
-                const confidenceScore = 85 + (idSeed % 14);
                 return isUser ? (
                   <div key={m.id || idx} className="flex gap-3 msg-enter w-full justify-end">
                     <div className="max-w-[70%] px-5 py-3.5 rounded-3xl rounded-tr-sm text-sm font-medium leading-relaxed"
@@ -613,10 +621,14 @@ export default function AskNyayaPage() {
                     </div>
                     <div className="flex-1 rounded-2xl p-5"
                       style={{ background: "rgba(13,18,36,0.9)", border: "1px solid rgba(30,38,66,1)" }}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold"
-                          style={{ background: "rgba(212,175,55,0.1)", color: "#d4af37" }}>Confidence {confidenceScore}%</span>
-                      </div>
+                      {confidence !== null && (
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold"
+                            style={{ background: "rgba(212,175,55,0.1)", color: "#d4af37" }}>
+                            Confidence {confidence}%
+                          </span>
+                        </div>
+                      )}
                       <div className="prose prose-sm max-w-none text-sm leading-relaxed" style={{ color: "#a1a1aa" }}>
                         <ReactMarkdown>{text}</ReactMarkdown>
                       </div>

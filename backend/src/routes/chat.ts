@@ -15,8 +15,17 @@ const router = Router();
 const voyageKey = process.env.VOYAGE_API_KEY;
 const cohereKey = process.env.COHERE_API_KEY;
 
-const voyageClient = voyageKey ? new VoyageAIClient({ apiKey: voyageKey }) : null;
 const cohereClient = cohereKey ? new CohereClient({ token: cohereKey }) : null;
+
+let _pipeline: any = null;
+async function getPipeline() {
+  if (_pipeline) return _pipeline;
+  // Dynamic import for ESM package
+  const { pipeline, env } = await import('@xenova/transformers');
+  env.allowLocalModels = true;
+  _pipeline = await pipeline('feature-extraction', 'Xenova/gte-large', { quantized: false });
+  return _pipeline;
+}
 
 router.use(authenticate);
 
@@ -103,28 +112,24 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
 
     // ── Step A: Embed query ──────────────────────────────────────────────────
     let queryEmbedding: number[];
-    if (voyageClient) {
-      try {
-        const response = await voyageClient.embed({ input: [content], model: 'voyage-law-2' });
-        queryEmbedding = response.data?.[0]?.embedding || generateMockEmbedding(content);
-        console.log('✅ Voyage embedding generated');
-      } catch (e) {
-        console.warn('⚠️ Voyage embed failed, using mock:', (e as Error).message);
-        queryEmbedding = generateMockEmbedding(content);
-      }
-    } else {
+    try {
+      const pipe = await getPipeline();
+      const output = await pipe([content], { pooling: 'mean', normalize: true });
+      queryEmbedding = Array.from(output[0].data as Float32Array);
+      console.log('✅ Xenova local embedding generated');
+    } catch (e) {
+      console.warn('⚠️ Local embed failed, using mock:', (e as Error).message);
       queryEmbedding = generateMockEmbedding(content);
-      console.log('⚠️ No Voyage key — using mock embedding');
     }
 
     // ── Step B: Hybrid retrieval + reranking ─────────────────────────────────
     // Context string is interpolated into system prompt (not a template var)
     let retrievedContext = 'No relevant legal context was found in the database for this query.';
     try {
-      const hybridCandidates = await hybridSearch(content, queryEmbedding, 15);
+      const hybridCandidates = await hybridSearch(content, queryEmbedding, 20);
       console.log(`✅ hybridSearch returned ${hybridCandidates.length} candidates`);
 
-      const finalDocuments = await rerankCandidates(content, hybridCandidates, 5);
+      const finalDocuments = await rerankCandidates(content, hybridCandidates, 8);
       console.log(`✅ reranked to ${finalDocuments.length} documents`);
 
       if (finalDocuments.length > 0) {
@@ -159,7 +164,7 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
       : '';
 
     // Build a fully-resolved system string — no LangChain placeholders involved.
-    const systemPromptText = `You are a legal assistant for Indian law.
+    const systemPromptText = `You are Nyaya, a precise legal assistant for Indian law.
 
 You MUST answer ONLY using the provided context.
 Do NOT use outside knowledge.
@@ -167,28 +172,38 @@ Do NOT use outside knowledge.
 STRICT RULES:
 1. Do NOT mix different legal domains (e.g., Constitution vs BNS vs IPC).
 2. Always identify the correct Act (e.g., Bharatiya Nyaya Sanhita, Constitution of India).
-3. Always mention the correct Section/Article.
-4. If the context is insufficient or unclear, say:
+3. Always mention the correct Section/Article number.
+4. If the context is insufficient or unclear, say exactly:
    "Insufficient legal context to answer accurately."
-5. Do NOT hallucinate or assume missing information.
+5. Do NOT hallucinate, infer, or assume missing information.
 
-OUTPUT FORMAT (MANDATORY):
+CONFIDENCE SCORING GUIDE (be precise and honest):
+- 90-100: Context directly answers the question with explicit section/article text.
+- 70-89:  Context is relevant but only partially covers the question.
+- 50-69:  Context is loosely related; the answer requires some inference.
+- 20-49:  Context is marginally related; the answer is mostly uncertain.
+- 0-19:   Context is irrelevant or insufficient to answer the question at all.
 
-\u{1F539} Act:
-<Act Name>
+OUTPUT FORMAT (MANDATORY — follow this exactly):
 
-\u{1F539} Section:
-<Section / Article Number>
+🔹 Confidence:
+<integer 0–100 only, no other text>
 
-\u{1F539} Explanation:
-<Clear explanation of the law>
+🔹 Act:
+<Full Act Name>
 
-\u{1F539} Punishment (if applicable):
-- Point 1
-- Point 2
+🔹 Section / Article:
+<Number only, e.g. "Section 14" or "Article 21">
 
-\u{1F539} Source:
-<Exact reference from context>
+🔹 Explanation:
+<Clear, concise explanation of what the law says>
+
+🔹 Punishment (if applicable):
+- <point 1>
+- <point 2>
+
+🔹 Source:
+<Exact source reference from context, e.g. "[Constitution] Article 15">
 ${hindiInstruction}
 ---
 CONTEXT:
@@ -212,9 +227,27 @@ ${retrievedContext}
       const result = await groq.pipe(new StringOutputParser()).invoke(messages);
       aiResponseContent = result;
       console.log('✅ Groq response received, length:', aiResponseContent.length);
+      
+      // Extract confidence score — match the 🔹 Confidence: line
+      const confidenceMatch = aiResponseContent.match(/🔹\s*Confidence:\s*(\d+)/);
+      let confidenceScore = 0;
+      if (confidenceMatch) {
+        confidenceScore = Math.min(100, Math.max(0, parseInt(confidenceMatch[1], 10)));
+        // Strip the confidence line from the visible response
+        aiResponseContent = aiResponseContent.replace(/🔹\s*Confidence:\s*\d+\s*\n?/, '').trimStart();
+      } else if (aiResponseContent.toLowerCase().includes('insufficient legal context')) {
+        confidenceScore = 0;
+      } else {
+        confidenceScore = 75; // Fallback if model forgot to include it
+      }
+      console.log(`📊 Confidence score parsed: ${confidenceScore}`);
+
+      // Prepend sentinel for frontend
+      aiResponseContent = `[[NYAYA_CONFIDENCE:${confidenceScore}]]\n` + aiResponseContent;
+
     } catch (e) {
       console.error('❌ LLM generation error:', e);
-      aiResponseContent = `I encountered an error generating a legal response. Please try again.\n\nError: ${e instanceof Error ? e.message : String(e)}`;
+      aiResponseContent = `[[NYAYA_CONFIDENCE:0]] I encountered an error generating a legal response. Please try again.\n\nError: ${e instanceof Error ? e.message : String(e)}`;
     }
 
     // ── Step E: Persist and respond ──────────────────────────────────────────

@@ -20,8 +20,8 @@ dotenv.config();
 // ──────────────────────────────────────────────────────────────
 
 const MODEL_NAME   = 'Xenova/gte-large';   // 1024 dims — matches vector(1024)
-const CHUNK_SIZE   = 1200;
-const CHUNK_OVERLAP = 150;
+const CHUNK_SIZE   = 600;                  // Tighter chunks = more precise similarity
+const CHUNK_OVERLAP = 100;
 const BATCH_SIZE   = 16;                   // texts per local inference batch
 
 // ──────────────────────────────────────────────────────────────
