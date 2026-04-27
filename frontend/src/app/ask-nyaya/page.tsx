@@ -75,12 +75,14 @@ function getMessageContent(message: any): string {
 function parseMessage(raw: string): ParsedMessage {
   let text = raw;
   let confidence: number | null = null;
-  
-  const confMatch = text.match(/\[\[NYAYA_CONFIDENCE:(\d+)\]\]\s*/);
+
+  // Extract confidence from FIRST sentinel, then strip ALL sentinels with global flag
+  const confMatch = text.match(/\[\[NYAYA_CONFIDENCE:(\d+)\]\]\n?/);
   if (confMatch) {
     confidence = parseInt(confMatch[1], 10);
-    text = text.replace(confMatch[0], '');
   }
+  // Strip every occurrence so none leaks into rendered text
+  text = text.replace(/\[\[NYAYA_CONFIDENCE:\d+\]\]\n?/g, '').trimStart();
 
   const idx = text.indexOf(CITATION_SENTINEL);
   if (idx === -1) return { text, citations: [], confidence };

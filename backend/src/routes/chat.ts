@@ -144,9 +144,14 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
     }
 
     // ── Step C: Build conversation history ───────────────────────────────────
-    const history = conversation.messages.map(m =>
-      m.role === 'user' ? new HumanMessage(m.content) : new AIMessage(m.content)
-    );
+    // Strip any stored sentinels from assistant messages so the LLM doesn't
+    // learn to repeat the [[NYAYA_CONFIDENCE:X]] pattern in its output.
+    const SENTINEL_RE = /\[\[NYAYA_CONFIDENCE:\d+\]\]\n?/g;
+    const history = conversation.messages.map(m => {
+      if (m.role === 'user') return new HumanMessage(m.content);
+      const cleanContent = m.content.replace(SENTINEL_RE, '').trimStart();
+      return new AIMessage(cleanContent);
+    });
 
     // ── Step D: LLM generation ───────────────────────────────────────────────
     // NOTE: We deliberately avoid ChatPromptTemplate here.
