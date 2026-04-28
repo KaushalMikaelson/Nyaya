@@ -313,6 +313,7 @@ async function processDocument(docId: string): Promise<void> {
       summary: docClass.summary,
       summaryHi,
       partiesInvolved: docClass.partiesInvolved,
+      extractedText, // Save the raw text for chat Q&A
       analysisReport,
       analysisReportHi,
     },

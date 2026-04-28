@@ -12,7 +12,7 @@ import {
 import WorkspaceDashboard from "@/components/WorkspaceDashboard";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
-import LandingPage from "./landing/page";
+
 
 interface Message {
   id: string;
@@ -88,9 +88,12 @@ export default function Home() {
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
 
-  // No redirect needed — unauthenticated users see the landing page inline
-
+  // Redirect unauthenticated users to the landing page
   useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace('/landing');
+      return;
+    }
     if (user) fetchConversations();
 
     // Check for prompt from Search Engine Phase 2
@@ -103,7 +106,7 @@ export default function Home() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [authLoading, user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -352,7 +355,8 @@ export default function Home() {
   }
 
   if (!user) {
-    return <LandingPage />;
+    // Redirect is handled in the useEffect above; show nothing while redirecting
+    return null;
   }
 
   return (

@@ -7,7 +7,8 @@ import {
   FileText, Upload, Trash2, AlertCircle, CheckCircle,
   Clock, Loader2, Scale, X, RefreshCw,
   FileSearch, Sparkles, Briefcase, Search, ArrowLeft, ChevronRight,
-  PanelLeftClose, PanelLeftOpen, LayoutGrid, Zap, FileStack, Users
+  PanelLeftClose, PanelLeftOpen, LayoutGrid, Zap, FileStack, Users,
+  MessageSquare, Send
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Playfair_Display } from "next/font/google";
@@ -94,6 +95,13 @@ export default function DocumentsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Chat states
+  const [activeTab, setActiveTab] = useState<"analysis" | "chat">("analysis");
+  const [chatMessages, setChatMessages] = useState<{role: string, content: string}[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isChatting, setIsChatting] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => { if (!authLoading && !user) router.push("/landing"); }, [authLoading, user, router]);
   useEffect(() => { if (user) fetchDocuments(); }, [user, statusFilter]);// eslint-disable-line
 
@@ -142,10 +150,40 @@ export default function DocumentsPage() {
     } finally { setUploading(false); }
   };
 
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+  useEffect(() => { scrollToBottom(); }, [chatMessages]);
+
   const viewDocument = async (doc: UserDocument | FullDocument) => {
     setViewLoading(true);
+    setActiveTab("analysis");
+    setChatMessages([]);
     try { const { data } = await api.get(`/documents/${doc.id}`); setSelectedDoc(data.data); }
     catch { alert("Failed to load document details."); } finally { setViewLoading(false); }
+  };
+
+  const handleChatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !selectedDoc) return;
+    
+    const newMsg = { role: "user", content: chatInput };
+    setChatMessages(prev => [...prev, newMsg]);
+    setChatInput("");
+    setIsChatting(true);
+    
+    try {
+      const { data } = await api.post(`/documents/${selectedDoc.id}/chat`, {
+        message: newMsg.content,
+        history: chatMessages
+      });
+      setChatMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
+    } catch (err: any) {
+      alert(err.response?.data?.error || "Failed to send message.");
+      setChatMessages(prev => prev.slice(0, -1));
+    } finally {
+      setIsChatting(false);
+    }
   };
 
   const switchLanguage = async (lang: "english" | "hindi") => {
@@ -464,147 +502,224 @@ export default function DocumentsPage() {
                 className="flex-1 flex flex-col overflow-hidden"
                 style={{ background: "rgba(10,15,29,0.8)" }}>
                 {/* Detail header */}
-                <div className="flex items-start justify-between px-6 py-4 shrink-0"
-                  style={{ borderBottom: "1px solid rgba(30,38,66,0.8)" }}>
-                  <div className="flex-1 min-w-0 pr-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <StatusBadge status={selectedDoc.status} />
-                      {selectedDoc.documentType && (
-                        <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide"
-                          style={{ background: (TYPE_COLORS[selectedDoc.documentType] ?? TYPE_COLORS["Other"]).bg, color: (TYPE_COLORS[selectedDoc.documentType] ?? TYPE_COLORS["Other"]).color }}>
-                          {selectedDoc.documentType}
-                        </span>
+                <div className="flex flex-col shrink-0" style={{ borderBottom: "1px solid rgba(30,38,66,0.8)" }}>
+                  <div className="flex items-start justify-between px-6 py-4">
+                    <div className="flex-1 min-w-0 pr-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <StatusBadge status={selectedDoc.status} />
+                        {selectedDoc.documentType && (
+                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide"
+                            style={{ background: (TYPE_COLORS[selectedDoc.documentType] ?? TYPE_COLORS["Other"]).bg, color: (TYPE_COLORS[selectedDoc.documentType] ?? TYPE_COLORS["Other"]).color }}>
+                            {selectedDoc.documentType}
+                          </span>
+                        )}
+                      </div>
+                      <h2 className={`${playfair.className} text-base font-medium text-white truncate`}>{selectedDoc.title}</h2>
+                      <p className="text-xs mt-0.5" style={{ color: "#4a4a62" }}>
+                        {selectedDoc.originalName} · {formatBytes(selectedDoc.sizeBytes)} · {formatDate(selectedDoc.createdAt)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Language toggle */}
+                      {activeTab === "analysis" && (
+                        <div className="flex rounded-xl p-0.5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)" }}>
+                          {(["english","hindi"] as const).map(lang => (
+                            <button key={lang} onClick={() => switchLanguage(lang)}
+                              className="px-3 py-1 rounded-lg text-xs font-semibold transition-all"
+                              style={language === lang
+                                ? { background: "rgba(212,175,55,0.15)", color: "#d4af37" }
+                                : { color: "#4a4a62" }}>
+                              {lang === "english" ? "English" : "हिंदी"}
+                            </button>
+                          ))}
+                        </div>
                       )}
-                    </div>
-                    <h2 className={`${playfair.className} text-base font-medium text-white truncate`}>{selectedDoc.title}</h2>
-                    <p className="text-xs mt-0.5" style={{ color: "#4a4a62" }}>
-                      {selectedDoc.originalName} · {formatBytes(selectedDoc.sizeBytes)} · {formatDate(selectedDoc.createdAt)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {/* Language toggle */}
-                    <div className="flex rounded-xl p-0.5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)" }}>
-                      {(["english","hindi"] as const).map(lang => (
-                        <button key={lang} onClick={() => switchLanguage(lang)}
-                          className="px-3 py-1 rounded-lg text-xs font-semibold transition-all"
-                          style={language === lang
-                            ? { background: "rgba(212,175,55,0.15)", color: "#d4af37" }
-                            : { color: "#4a4a62" }}>
-                          {lang === "english" ? "English" : "हिंदी"}
+                      {selectedDoc.status === "FAILED" && (
+                        <button onClick={() => reanalyzeDoc(selectedDoc.id)} className="p-2 rounded-xl transition-colors" style={{ color: "#60a5fa" }} title="Retry">
+                          <RefreshCw size={14} />
                         </button>
-                      ))}
-                    </div>
-                    {selectedDoc.status === "FAILED" && (
-                      <button onClick={() => reanalyzeDoc(selectedDoc.id)} className="p-2 rounded-xl transition-colors" style={{ color: "#60a5fa" }} title="Retry">
-                        <RefreshCw size={14} />
+                      )}
+                      <button onClick={() => setShowDeleteConfirm(selectedDoc.id)} className="p-2 rounded-xl transition-colors" style={{ color: "#f87171" }} title="Delete">
+                        <Trash2 size={14} />
                       </button>
-                    )}
-                    <button onClick={() => setShowDeleteConfirm(selectedDoc.id)} className="p-2 rounded-xl transition-colors" style={{ color: "#f87171" }} title="Delete">
-                      <Trash2 size={14} />
-                    </button>
-                    <button onClick={() => setSelectedDoc(null)} className="p-2 rounded-xl transition-colors" style={{ color: "#4a4a62" }}>
-                      <X size={14} />
-                    </button>
+                      <button onClick={() => setSelectedDoc(null)} className="p-2 rounded-xl transition-colors" style={{ color: "#4a4a62" }}>
+                        <X size={14} />
+                      </button>
+                    </div>
                   </div>
+                  {/* Tabs */}
+                  {selectedDoc.status === "READY" && (
+                    <div className="flex items-center gap-6 px-6 pt-2">
+                      <button onClick={() => setActiveTab("analysis")} 
+                        className={`pb-3 text-sm font-semibold transition-all relative ${activeTab === "analysis" ? "text-[#d4af37]" : "text-[#4a4a62] hover:text-[#a1a1aa]"}`}>
+                        <span className="flex items-center gap-2"><Sparkles size={14}/> Analysis</span>
+                        {activeTab === "analysis" && <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#d4af37]" />}
+                      </button>
+                      <button onClick={() => setActiveTab("chat")} 
+                        className={`pb-3 text-sm font-semibold transition-all relative ${activeTab === "chat" ? "text-[#d4af37]" : "text-[#4a4a62] hover:text-[#a1a1aa]"}`}>
+                        <span className="flex items-center gap-2"><MessageSquare size={14}/> Chat with Doc</span>
+                        {activeTab === "chat" && <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#d4af37]" />}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Detail body */}
-                <div className="flex-1 overflow-y-auto px-6 py-5">
-                  {viewLoading ? (
-                    <div className="flex items-center justify-center h-32 gap-3">
-                      <div className="w-8 h-8 animate-spin rounded-full" style={{ border: "2px solid rgba(212,175,55,0.2)", borderTop: "2px solid #d4af37" }} />
-                      <span className="text-sm" style={{ color: "#4a4a62" }}>Loading analysis...</span>
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {activeTab === "analysis" ? (
+                    <div className="flex-1 overflow-y-auto px-6 py-5">
+                      {viewLoading ? (
+                        <div className="flex items-center justify-center h-32 gap-3">
+                          <div className="w-8 h-8 animate-spin rounded-full" style={{ border: "2px solid rgba(212,175,55,0.2)", borderTop: "2px solid #d4af37" }} />
+                          <span className="text-sm" style={{ color: "#4a4a62" }}>Loading analysis...</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-5">
+                          {/* Summary */}
+                          {(selectedDoc.summary || selectedDoc.summaryHi) && (
+                            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                              className="p-4 rounded-2xl" style={{ background: "rgba(212,175,55,0.06)", border: "1px solid rgba(212,175,55,0.15)" }}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <Sparkles size={13} style={{ color: "#d4af37" }} />
+                                <span className="text-xs font-bold uppercase tracking-wide" style={{ color: "#d4af37" }}>
+                                  {language === "hindi" ? "AI सारांश" : "AI Summary"}
+                                </span>
+                              </div>
+                              <p className="text-sm leading-relaxed" style={{ color: "#a1a1aa" }}>
+                                {language === "hindi" && selectedDoc.summaryHi ? selectedDoc.summaryHi : selectedDoc.summary}
+                              </p>
+                            </motion.div>
+                          )}
+
+                          {/* Parties */}
+                          {selectedDoc.partiesInvolved?.length > 0 && (
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#4a4a62" }}>Parties Involved</p>
+                              <div className="flex flex-wrap gap-2">
+                                {selectedDoc.partiesInvolved.map((p, i) => (
+                                  <span key={i} className="px-2.5 py-1 rounded-lg text-xs font-medium"
+                                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)", color: "#a1a1aa" }}>{p}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Case link */}
+                          {selectedDoc.case && (
+                            <div className="flex items-center gap-2 p-3 rounded-xl"
+                              style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                              <Briefcase size={13} style={{ color: "#818cf8" }} />
+                              <span className="text-xs" style={{ color: "#818cf8" }}>Linked: <strong>{selectedDoc.case.title}</strong></span>
+                              <button onClick={() => router.push("/cases")} className="ml-auto" style={{ color: "#818cf8" }}>
+                                <ChevronRight size={13} />
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Full analysis */}
+                          {selectedDoc.status === "READY" && (selectedDoc.analysisReport || selectedDoc.analysisReportHi) ? (
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: "#4a4a62" }}>
+                                {language === "hindi" ? "पूर्ण कानूनी विश्लेषण" : "Full Legal Analysis"}
+                              </p>
+                              <div className="prose prose-sm max-w-none rounded-2xl p-5 text-[13px] leading-relaxed"
+                                style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(30,38,66,1)", color: "#a1a1aa" }}>
+                                <ReactMarkdown>{language === "hindi" && selectedDoc.analysisReportHi ? selectedDoc.analysisReportHi : (selectedDoc.analysisReport || "")}</ReactMarkdown>
+                              </div>
+                              <p className="mt-3 text-[11px] italic" style={{ color: "#4a4a62" }}>
+                                ⚠️ AI-generated analysis. Always consult a qualified lawyer before taking action.
+                              </p>
+                            </div>
+                          ) : (selectedDoc.status === "PENDING" || selectedDoc.status === "PROCESSING") ? (
+                            <div className="flex flex-col items-center justify-center py-12 gap-4">
+                              <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                                style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>
+                                <Loader2 size={24} style={{ color: "#60a5fa" }} className="animate-spin" />
+                              </div>
+                              <div className="text-center">
+                                <p className="font-semibold text-white">AI Analysis in Progress</p>
+                                <p className="text-sm mt-1" style={{ color: "#4a4a62" }}>This may take 30–60 seconds.</p>
+                              </div>
+                              <button onClick={() => viewDocument(selectedDoc)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl transition-colors"
+                                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)", color: "#a1a1aa" }}>
+                                <RefreshCw size={12} /> Check Status
+                              </button>
+                            </div>
+                          ) : selectedDoc.status === "FAILED" ? (
+                            <div className="flex flex-col items-center justify-center py-12 gap-4">
+                              <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                                style={{ background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)" }}>
+                                <AlertCircle size={24} style={{ color: "#f87171" }} />
+                              </div>
+                              <div className="text-center">
+                                <p className="font-semibold text-white">Analysis Failed</p>
+                                <p className="text-sm mt-1" style={{ color: "#4a4a62" }}>{selectedDoc.summary || "Document could not be processed."}</p>
+                              </div>
+                              <button onClick={() => reanalyzeDoc(selectedDoc.id)}
+                                className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-xl transition-colors"
+                                style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.25)", color: "#f87171" }}>
+                                <RefreshCw size={13} /> Retry Analysis
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <div className="space-y-5">
-                      {/* Summary */}
-                      {(selectedDoc.summary || selectedDoc.summaryHi) && (
-                        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                          className="p-4 rounded-2xl" style={{ background: "rgba(212,175,55,0.06)", border: "1px solid rgba(212,175,55,0.15)" }}>
-                          <div className="flex items-center gap-2 mb-2">
-                            <Sparkles size={13} style={{ color: "#d4af37" }} />
-                            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: "#d4af37" }}>
-                              {language === "hindi" ? "AI सारांश" : "AI Summary"}
-                            </span>
+                    <div className="flex-1 flex flex-col overflow-hidden relative">
+                      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 scroll-smooth">
+                        {chatMessages.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+                            <div className="w-16 h-16 rounded-3xl flex items-center justify-center shadow-lg" style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.1), rgba(124,110,247,0.1))", border: "1px solid rgba(212,175,55,0.15)" }}>
+                              <MessageSquare size={28} style={{ color: "#d4af37" }} />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-white">Ask anything about this document</p>
+                              <p className="text-sm mt-1 max-w-xs" style={{ color: "#4a4a62" }}>Nyaya will use only the document's content to answer your questions accurately.</p>
+                            </div>
                           </div>
-                          <p className="text-sm leading-relaxed" style={{ color: "#a1a1aa" }}>
-                            {language === "hindi" && selectedDoc.summaryHi ? selectedDoc.summaryHi : selectedDoc.summary}
-                          </p>
-                        </motion.div>
-                      )}
-
-                      {/* Parties */}
-                      {selectedDoc.partiesInvolved?.length > 0 && (
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#4a4a62" }}>Parties Involved</p>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedDoc.partiesInvolved.map((p, i) => (
-                              <span key={i} className="px-2.5 py-1 rounded-lg text-xs font-medium"
-                                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)", color: "#a1a1aa" }}>{p}</span>
-                            ))}
+                        ) : (
+                          chatMessages.map((msg, i) => (
+                            <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                              <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                                msg.role === "user" 
+                                ? "bg-gradient-to-br from-[#7c6ef7] to-[#5b4ed7] text-white rounded-br-sm" 
+                                : "bg-[#13182a] border border-[#1e2642] text-[#ededed] rounded-bl-sm"
+                              }`}>
+                                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                        {isChatting && (
+                          <div className="flex justify-start">
+                            <div className="bg-[#13182a] border border-[#1e2642] rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#d4af37] animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#d4af37] animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#d4af37] animate-bounce" style={{ animationDelay: '300ms' }} />
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      )}
-
-                      {/* Case link */}
-                      {selectedDoc.case && (
-                        <div className="flex items-center gap-2 p-3 rounded-xl"
-                          style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)" }}>
-                          <Briefcase size={13} style={{ color: "#818cf8" }} />
-                          <span className="text-xs" style={{ color: "#818cf8" }}>Linked: <strong>{selectedDoc.case.title}</strong></span>
-                          <button onClick={() => router.push("/cases")} className="ml-auto" style={{ color: "#818cf8" }}>
-                            <ChevronRight size={13} />
+                        )}
+                        <div ref={messagesEndRef} className="h-2" />
+                      </div>
+                      
+                      {/* Chat Input */}
+                      <div className="p-4 bg-[#0a0f1d] border-t border-[#1e2642] shrink-0">
+                        <form onSubmit={handleChatSubmit} className="relative flex items-center">
+                          <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
+                            placeholder="Ask a question about this document..."
+                            disabled={isChatting}
+                            className="w-full pl-4 pr-12 py-3.5 rounded-xl outline-none text-sm bg-white/5 border border-[#1e2642] text-white focus:border-[#d4af37]/50 focus:bg-white/10 transition-all disabled:opacity-50 shadow-inner"
+                          />
+                          <button type="submit" disabled={!chatInput.trim() || isChatting}
+                            className="absolute right-2 p-2 rounded-lg bg-gradient-to-br from-[#7c6ef7] to-[#d4af37] text-[#070b16] disabled:opacity-50 transition-all shadow-md hover:shadow-lg disabled:hover:shadow-md">
+                            <Send size={16} />
                           </button>
-                        </div>
-                      )}
-
-                      {/* Full analysis */}
-                      {selectedDoc.status === "READY" && (selectedDoc.analysisReport || selectedDoc.analysisReportHi) ? (
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: "#4a4a62" }}>
-                            {language === "hindi" ? "पूर्ण कानूनी विश्लेषण" : "Full Legal Analysis"}
-                          </p>
-                          <div className="prose prose-sm max-w-none rounded-2xl p-5 text-[13px] leading-relaxed"
-                            style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(30,38,66,1)", color: "#a1a1aa" }}>
-                            <ReactMarkdown>{language === "hindi" && selectedDoc.analysisReportHi ? selectedDoc.analysisReportHi : (selectedDoc.analysisReport || "")}</ReactMarkdown>
-                          </div>
-                          <p className="mt-3 text-[11px] italic" style={{ color: "#4a4a62" }}>
-                            ⚠️ AI-generated analysis. Always consult a qualified lawyer before taking action.
-                          </p>
-                        </div>
-                      ) : (selectedDoc.status === "PENDING" || selectedDoc.status === "PROCESSING") ? (
-                        <div className="flex flex-col items-center justify-center py-12 gap-4">
-                          <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                            style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>
-                            <Loader2 size={24} style={{ color: "#60a5fa" }} className="animate-spin" />
-                          </div>
-                          <div className="text-center">
-                            <p className="font-semibold text-white">AI Analysis in Progress</p>
-                            <p className="text-sm mt-1" style={{ color: "#4a4a62" }}>This may take 30–60 seconds.</p>
-                          </div>
-                          <button onClick={() => viewDocument(selectedDoc)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl transition-colors"
-                            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(30,38,66,1)", color: "#a1a1aa" }}>
-                            <RefreshCw size={12} /> Check Status
-                          </button>
-                        </div>
-                      ) : selectedDoc.status === "FAILED" ? (
-                        <div className="flex flex-col items-center justify-center py-12 gap-4">
-                          <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                            style={{ background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)" }}>
-                            <AlertCircle size={24} style={{ color: "#f87171" }} />
-                          </div>
-                          <div className="text-center">
-                            <p className="font-semibold text-white">Analysis Failed</p>
-                            <p className="text-sm mt-1" style={{ color: "#4a4a62" }}>{selectedDoc.summary || "Document could not be processed."}</p>
-                          </div>
-                          <button onClick={() => reanalyzeDoc(selectedDoc.id)}
-                            className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-xl transition-colors"
-                            style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.25)", color: "#f87171" }}>
-                            <RefreshCw size={13} /> Retry Analysis
-                          </button>
-                        </div>
-                      ) : null}
+                        </form>
+                      </div>
                     </div>
                   )}
                 </div>

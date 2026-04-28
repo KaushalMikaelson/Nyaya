@@ -619,4 +619,76 @@ router.post('/analyze', upload.single('file'), async (req: AuthRequest, res): Pr
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /:id/chat — Chat with the document's content
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/:id/chat', async (req: AuthRequest, res): Promise<void> => {
+  const { id } = req.params;
+  const { message, history = [] } = req.body;
+
+  if (!message) {
+    res.status(400).json({ error: 'Message is required.' });
+    return;
+  }
+
+  try {
+    const doc = await prisma.userDocument.findFirst({
+      where: { id, userId: req.user!.userId, deletedAt: null },
+    });
+
+    if (!doc) {
+      res.status(404).json({ error: 'Document not found.' });
+      return;
+    }
+
+    if (!doc.extractedText) {
+      res.status(400).json({ error: 'Document text not available. Please re-analyze the document.' });
+      return;
+    }
+
+    const groq = getGroq();
+    
+    // Truncate text to roughly 15000 words to fit safely in LLM context limits
+    const textChunk = doc.extractedText.slice(0, 80000);
+
+    const systemPrompt = `You are Nyaya, an expert legal assistant. 
+You are helping the user understand their uploaded document titled "${doc.title}".
+Document Type: ${doc.documentType}
+
+CRITICAL RULES:
+1. Answer the user's question using ONLY the provided document text.
+2. If the answer is not in the document, say "I cannot find this information in the document."
+3. Do not make up information or use outside knowledge.
+4. Keep answers clear, concise, and easy to understand.
+
+DOCUMENT TEXT:
+---
+${textChunk}
+---`;
+
+    const formattedHistory = history.map((msg: any) => ({
+      role: msg.role === 'user' ? 'user' : 'assistant',
+      content: msg.content,
+    }));
+
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 1024,
+      temperature: 0.2,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...formattedHistory,
+        { role: 'user', content: message },
+      ],
+    });
+
+    const reply = response.choices[0]?.message?.content || 'Sorry, I could not generate an answer.';
+    
+    res.json({ reply });
+  } catch (err) {
+    console.error('[POST /documents/:id/chat]', err);
+    res.status(500).json({ error: 'Failed to chat with document.' });
+  }
+});
+
 export default router;

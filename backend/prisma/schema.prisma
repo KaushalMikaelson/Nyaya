@@ -514,6 +514,7 @@ model UserDocument {
   summary         String?   // 1-2 sentence AI summary (English)
   summaryHi       String?   // 1-2 sentence AI summary (Hindi)
   partiesInvolved String[]  // Extracted party names
+  extractedText   String?   @db.Text  // Raw text extracted from the document (for Q&A)
   analysisReport  String?   @db.Text  // Full markdown AI analysis (English)
   analysisReportHi String?  @db.Text  // Full markdown AI analysis (Hindi)
 

@@ -110,23 +110,36 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
       data: { role: 'user', content, conversationId: id }
     });
 
-    // ── Step A: Embed query ──────────────────────────────────────────────────
+    // ── Step A: Build expanded RAG query from conversation context ────────────
+    // When the user asks a follow-up like "what does that mean?", we need to
+    // enrich the query with prior context so the vector search retrieves the
+    // right chunks — not random unrelated ones.
+    const priorUserMessages = conversation.messages
+      .filter(m => m.role === 'user')
+      .slice(-2)   // last 2 user turns (excluding the current one)
+      .map(m => m.content);
+    const expandedQuery = priorUserMessages.length > 0
+      ? [...priorUserMessages, content].join(' | ')
+      : content;
+    console.log(`🔍 Expanded RAG query: "${expandedQuery.substring(0, 120)}..."`);
+
+    // ── Step B: Embed expanded query ─────────────────────────────────────────
     let queryEmbedding: number[];
     try {
       const pipe = await getPipeline();
-      const output = await pipe([content], { pooling: 'mean', normalize: true });
+      const output = await pipe([expandedQuery], { pooling: 'mean', normalize: true });
       queryEmbedding = Array.from(output[0].data as Float32Array);
       console.log('✅ Xenova local embedding generated');
     } catch (e) {
       console.warn('⚠️ Local embed failed, using mock:', (e as Error).message);
-      queryEmbedding = generateMockEmbedding(content);
+      queryEmbedding = generateMockEmbedding(expandedQuery);
     }
 
-    // ── Step B: Hybrid retrieval + reranking ─────────────────────────────────
+    // ── Step C: Hybrid retrieval + reranking ─────────────────────────────────
     // Context string is interpolated into system prompt (not a template var)
     let retrievedContext = 'No relevant legal context was found in the database for this query.';
     try {
-      const hybridCandidates = await hybridSearch(content, queryEmbedding, 20);
+      const hybridCandidates = await hybridSearch(expandedQuery, queryEmbedding, 20);
       console.log(`✅ hybridSearch returned ${hybridCandidates.length} candidates`);
 
       const finalDocuments = await rerankCandidates(content, hybridCandidates, 8);
