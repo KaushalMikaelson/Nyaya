@@ -641,15 +641,17 @@ router.post('/:id/chat', async (req: AuthRequest, res): Promise<void> => {
       return;
     }
 
-    if (!doc.extractedText) {
-      res.status(400).json({ error: 'Document text not available. Please re-analyze the document.' });
+    // Graceful fallback: use analysisReport if extractedText not yet populated
+    const documentContext = doc.extractedText || doc.analysisReport;
+    if (!documentContext) {
+      res.status(400).json({ error: 'Document has not been analyzed yet. Please wait for analysis to complete or click Retry Analysis.' });
       return;
     }
 
     const groq = getGroq();
     
     // Truncate text to roughly 15000 words to fit safely in LLM context limits
-    const textChunk = doc.extractedText.slice(0, 80000);
+    const textChunk = documentContext.slice(0, 80000);
 
     const systemPrompt = `You are Nyaya, an expert legal assistant. 
 You are helping the user understand their uploaded document titled "${doc.title}".
