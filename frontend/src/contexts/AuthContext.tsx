@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const isPublicRoute = PUBLIC_ROUTES.some(r => pathname?.startsWith(r));
+  const isPublicRoute = PUBLIC_ROUTES.some(r => r === '/' ? pathname === '/' : pathname?.startsWith(r));
 
   // ── Auto-login via refresh token cookie ──
   useEffect(() => {
@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch {
         setUser(null);
         if (!isPublicRoute) {
-          router.push('/login');
+          router.push('/');
         }
       } finally {
         setLoading(false);

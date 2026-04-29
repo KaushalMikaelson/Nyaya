@@ -75,7 +75,7 @@ export default function AadhaarKycPage() {
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "CITIZEN")) {
-      router.push("/login");
+      router.push("/");
     }
     // Check if already verified
     if (user) {

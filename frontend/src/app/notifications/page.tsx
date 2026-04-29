@@ -24,7 +24,7 @@ export default function NotificationsPage() {
   const fetchNotifications = async () => {
     try {
       const token = localStorage.getItem("token");
-      if (!token) { router.push("/login"); return; }
+      if (!token) { router.push("/"); return; }
       const res = await fetch("http://localhost:3001/api/notifications", { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) setNotifications(await res.json());
     } catch (err) { console.error(err); } finally { setLoading(false); }

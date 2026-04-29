@@ -106,7 +106,7 @@ export default function ProfilePage() {
   const [form, setForm] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!authLoading && !user) router.push("/login");
+    if (!authLoading && !user) router.push("/");
   }, [authLoading, user, router]);
 
   const fetchProfile = useCallback(async () => {
