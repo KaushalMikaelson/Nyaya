@@ -18,6 +18,9 @@ import uploadRoutes from './routes/uploads';
 import caseRoutes from './routes/cases';
 import notificationRoutes from './routes/notifications';
 import marketplaceRoutes from './routes/marketplace';
+import predictRoutes from './routes/predict';
+import ecourtsRoutes from './routes/ecourts';
+import analyticsRoutes from './routes/analytics';
 
 // ─── Safety net for Node.js 25+ (unhandled rejections = fatal by default) ───
 process.on('unhandledRejection', (reason: any) => {
@@ -77,6 +80,9 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/cases', caseRoutes);
+app.use('/api/predict', predictRoutes);
+app.use('/api/ecourts', ecourtsRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

@@ -102,7 +102,7 @@ export default function DocumentsPage() {
   const [isChatting, setIsChatting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { if (!authLoading && !user) router.push("/landing"); }, [authLoading, user, router]);
+
   useEffect(() => { if (user) fetchDocuments(); }, [user, statusFilter]);// eslint-disable-line
 
   const fetchDocuments = useCallback(async () => {

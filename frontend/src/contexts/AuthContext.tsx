@@ -98,7 +98,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch {
         setUser(null);
         if (!isPublicRoute) {
-          router.push('/login');
+          if (pathname === '/') {
+            router.replace('/landing');
+          } else {
+            router.push('/login');
+          }
         }
       } finally {
         setLoading(false);

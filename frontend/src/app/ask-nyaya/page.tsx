@@ -191,7 +191,6 @@ export default function AskNyayaPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && !user) router.push("/login");
     if (user) fetchConversations();
   }, [authLoading, user, router]);
 
@@ -345,7 +344,7 @@ export default function AskNyayaPage() {
       if (q && !hasAppendedRef.current) {
         hasAppendedRef.current = true;
         sendMessage(q);
-        window.history.replaceState({}, '', '/ask-nyaya');
+        router.replace('/ask-nyaya');
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

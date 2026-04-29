@@ -179,9 +179,9 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
         <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { icon: <Zap size={22} style={{ color: "#d4af37" }} />, bg: "rgba(212,175,55,0.1)", border: "rgba(212,175,55,0.2)", label: "New AI Consult",    sub: "Chat with Nyaya AI",       action: triggerChat,                        glow: "rgba(212,175,55,0.3)" },
-            { icon: <Search size={22} style={{ color: "#818cf8" }} />, bg: "rgba(129,140,248,0.1)", border: "rgba(129,140,248,0.2)", label: "Legal Database",   sub: "Search IPC, CrPC & Acts",  action: () => router.push("/search"),       glow: "rgba(99,102,241,0.3)" },
-            { icon: <FileSignature size={22} style={{ color: "#34d399" }} />, bg: "rgba(52,211,153,0.1)", border: "rgba(52,211,153,0.2)", label: "Analyze Document", sub: "Extract insights from PDF", action: () => {},                           glow: "rgba(16,185,129,0.3)" },
-            { icon: <Briefcase size={22} style={{ color: "#f43f5e" }} />, bg: "rgba(244,63,94,0.1)", border: "rgba(244,63,94,0.2)", label: "Case Management",  sub: "Manage active dockets",    action: () => router.push("/cases"),       glow: "rgba(244,63,94,0.3)" },
+            { icon: <Search size={22} style={{ color: "#818cf8" }} />, bg: "rgba(129,140,248,0.1)", border: "rgba(129,140,248,0.2)", label: "eCourts Tracking",   sub: "Sync National Grid",  action: () => router.push("/ecourts"),       glow: "rgba(99,102,241,0.3)" },
+            { icon: <FileSignature size={22} style={{ color: "#34d399" }} />, bg: "rgba(52,211,153,0.1)", border: "rgba(52,211,153,0.2)", label: "Predict Duration", sub: "Forecast AI Case Timelines", action: () => router.push("/predict"),                           glow: "rgba(16,185,129,0.3)" },
+            { icon: <Briefcase size={22} style={{ color: "#f43f5e" }} />, bg: "rgba(244,63,94,0.1)", border: "rgba(244,63,94,0.2)", label: "Analytics",  sub: "Judge Workloads",    action: () => router.push("/analytics"),       glow: "rgba(244,63,94,0.3)" },
           ].map((item, i) => (
             <motion.button
               key={i}

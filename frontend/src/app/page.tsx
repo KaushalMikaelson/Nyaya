@@ -91,7 +91,6 @@ export default function Home() {
   // Redirect unauthenticated users to the landing page
   useEffect(() => {
     if (!authLoading && !user) {
-      router.replace('/landing');
       return;
     }
     if (user) fetchConversations();
@@ -101,7 +100,7 @@ export default function Home() {
       const params = new URLSearchParams(window.location.search);
       const p = params.get('prompt');
       if (p) {
-        window.history.replaceState({}, '', '/');
+        router.replace('/');
         setTimeout(() => handleSuggestedClick(p), 500);
       }
     }
