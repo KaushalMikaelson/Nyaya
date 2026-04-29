@@ -45,10 +45,6 @@ const PUBLIC_ROUTES = [
   '/forgot-password',
 ];
 
-// Note: /admin, /profile/lawyer, /profile/judge, /profile/citizen
-// each enforce their own role checks internally via useEffect.
-
-
 // ─────────────────────────────────────────
 // CONTEXT
 // ─────────────────────────────────────────
@@ -94,16 +90,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data } = await api.post('/auth/refresh');
         setAccessToken(data.accessToken);
+
         const decoded = decodeJwt(data.accessToken);
         if (decoded) {
           setUser(decoded);
-          if (pathname === '/') {
+
+          // ✅ FIX: Only redirect if user is on login page
+          if (pathname === '/login') {
             if (decoded.role === 'ADMIN') router.replace('/admin');
             else router.replace('/dashboard');
           }
         }
       } catch {
         setUser(null);
+
         if (!isPublicRoute) {
           router.push('/');
         }
@@ -111,20 +111,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     };
+
     init();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Refresh full user profile from /me ──
   const refreshUser = useCallback(async () => {
     try {
       const { data } = await api.get('/auth/me');
       const u = data.user;
-      // Merge profile data with current user state
+
       setUser(prev => prev ? {
         ...prev,
-        verificationStatus: u.lawyerProfile?.verificationStatus
-          || u.judgeProfile?.verificationStatus
-          || u.citizenProfile?.verificationStatus,
+        verificationStatus:
+          u.lawyerProfile?.verificationStatus ||
+          u.judgeProfile?.verificationStatus ||
+          u.citizenProfile?.verificationStatus,
       } : prev);
     } catch {
       // Silent
@@ -134,18 +137,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback((token: string, userData: AuthUser) => {
     setAccessToken(token);
     setUser(userData);
-    // Role-based redirect
+
     if (userData.role === 'ADMIN') {
       router.push('/admin');
     } else if (userData.role === 'LAWYER') {
-      // Lawyers who are not yet verified should complete their profile
       if (userData.verificationStatus !== 'VERIFIED') {
         router.push('/profile/lawyer');
       } else {
         router.push('/dashboard');
       }
     } else if (userData.role === 'JUDGE') {
-      // Judges must wait for admin approval — show status page
       router.push('/profile/judge');
     } else {
       router.push('/dashboard');
@@ -187,7 +188,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, logoutAll, refreshUser, isRole, isVerified }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        logout,
+        logoutAll,
+        refreshUser,
+        isRole,
+        isVerified
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
