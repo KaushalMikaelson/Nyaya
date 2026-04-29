@@ -732,7 +732,7 @@ export default function Register() {
               <Link href={
                 role === "LAWYER" ? "/profile/lawyer"
                 : role === "JUDGE" ? "/profile/judge"
-                : "/"
+                : "/dashboard"
               }>
                 <motion.button whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.975 }}
                   className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2"

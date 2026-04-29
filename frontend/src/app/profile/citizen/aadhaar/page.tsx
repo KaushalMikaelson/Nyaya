@@ -155,7 +155,7 @@ export default function AadhaarKycPage() {
           </div>
           <span className="text-base font-bold text-white">Nyaya</span>
         </div>
-        <Link href="/" className="text-xs flex items-center gap-1.5 transition-colors"
+        <Link href="/dashboard" className="text-xs flex items-center gap-1.5 transition-colors"
           style={{ color: "#6a6a80" }}
           onMouseOver={e => (e.currentTarget.style.color = "#9d8fff")}
           onMouseOut={e => (e.currentTarget.style.color = "#6a6a80")}>
@@ -367,7 +367,7 @@ export default function AadhaarKycPage() {
                     Your profile is now verified and you have full access to all Nyaya legal services.
                   </p>
                 )}
-                <Link href="/">
+                <Link href="/dashboard">
                   <motion.button whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.975 }}
                     className="w-full rounded-xl py-3 font-semibold text-white text-sm flex items-center justify-center gap-2"
                     style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>

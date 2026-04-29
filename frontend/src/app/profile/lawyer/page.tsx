@@ -263,7 +263,7 @@ export default function LawyerProfilePage() {
           </div>
           <span className="text-base font-bold text-white">Nyaya</span>
         </div>
-        <Link href="/" className="text-xs flex items-center gap-1.5 transition-colors"
+        <Link href="/dashboard" className="text-xs flex items-center gap-1.5 transition-colors"
           style={{ color: "#6a6a80" }}
           onMouseOver={e => (e.currentTarget.style.color = "#9d8fff")}
           onMouseOut={e => (e.currentTarget.style.color = "#6a6a80")}>
@@ -312,7 +312,7 @@ export default function LawyerProfilePage() {
             <p className="text-sm mb-6" style={{ color: "#6a6a80" }}>
               Your documents are under admin review. You&apos;ll receive an email notification within 2-3 business days.
             </p>
-            <Link href="/">
+            <Link href="/dashboard">
               <button className="w-full rounded-xl py-3 font-semibold text-white text-sm"
                 style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)" }}>
                 Go to Dashboard

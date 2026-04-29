@@ -36,6 +36,7 @@ interface AuthContextType {
 // ─────────────────────────────────────────
 
 const PUBLIC_ROUTES = [
+  '/',
   '/login',
   '/signup',
   '/auth/admin/register',
@@ -94,15 +95,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data } = await api.post('/auth/refresh');
         setAccessToken(data.accessToken);
         const decoded = decodeJwt(data.accessToken);
-        if (decoded) setUser(decoded);
+        if (decoded) {
+          setUser(decoded);
+          if (pathname === '/') {
+            if (decoded.role === 'ADMIN') router.replace('/admin');
+            else router.replace('/dashboard');
+          }
+        }
       } catch {
         setUser(null);
         if (!isPublicRoute) {
-          if (pathname === '/') {
-            router.replace('/landing');
-          } else {
-            router.push('/login');
-          }
+          router.push('/login');
         }
       } finally {
         setLoading(false);
@@ -139,13 +142,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (userData.verificationStatus !== 'VERIFIED') {
         router.push('/profile/lawyer');
       } else {
-        router.push('/');
+        router.push('/dashboard');
       }
     } else if (userData.role === 'JUDGE') {
       // Judges must wait for admin approval — show status page
       router.push('/profile/judge');
     } else {
-      router.push('/');
+      router.push('/dashboard');
     }
   }, [router]);
 

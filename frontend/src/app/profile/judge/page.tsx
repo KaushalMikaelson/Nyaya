@@ -170,7 +170,7 @@ export default function JudgeProfilePage() {
           </div>
           <span className="text-base font-bold text-white">Nyaya</span>
         </div>
-        <Link href="/" className="text-xs flex items-center gap-1.5 transition-colors"
+        <Link href="/dashboard" className="text-xs flex items-center gap-1.5 transition-colors"
           style={{ color: "#6a6a80" }}
           onMouseOver={e => (e.currentTarget.style.color = "#9d8fff")}
           onMouseOut={e => (e.currentTarget.style.color = "#6a6a80")}>
