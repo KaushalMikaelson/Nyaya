@@ -160,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setAccessToken('');
       setUser(null);
-      router.push('/login');
+      router.push('/');
     }
   }, [router]);
 
@@ -172,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setAccessToken('');
       setUser(null);
-      router.push('/login');
+      router.push('/');
     }
   }, [router]);
 
