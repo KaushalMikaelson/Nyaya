@@ -14,6 +14,9 @@ import {
   passwordResetLimiter, refreshLimiter
 } from '../middleware/rateLimiter';
 import { UserRole } from '@prisma/client';
+import { OAuth2Client } from 'google-auth-library';
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const router = Router();
 
@@ -735,6 +738,174 @@ router.post('/login', loginLimiter, async (req: Request, res: Response): Promise
   } catch (err) {
     console.error('[login]', err);
     res.status(500).json({ error: 'Login failed.' });
+  }
+});
+
+/**
+ * GOOGLE LOGIN (OAuth)
+ */
+router.post('/google', loginLimiter, async (req: Request, res: Response): Promise<void> => {
+  const { credential } = req.body;
+  if (!credential) {
+    res.status(400).json({ error: 'Credential is required.' });
+    return;
+  }
+  
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      res.status(400).json({ error: 'Invalid Google token.' });
+      return;
+    }
+    
+    const email = payload.email.toLowerCase().trim();
+    let user = await prisma.user.findUnique({ where: { email } });
+    
+    if (!user) {
+      // Create user as citizen by default
+      user = await prisma.user.create({
+        data: {
+          email,
+          role: UserRole.CITIZEN,
+          isEmailVerified: true,
+          citizenProfile: {
+            create: { fullName: payload.name || null },
+          },
+        },
+      });
+    }
+    
+    if (!user.isActive) {
+      res.status(403).json({ error: 'Account suspended.' });
+      return;
+    }
+    
+    if (!user.isEmailVerified) {
+       user = await prisma.user.update({
+         where: { id: user.id },
+         data: { isEmailVerified: true },
+       });
+    }
+
+    const { accessToken, refreshToken } = await issueTokenPair(user.id, getMeta(req));
+    setRefreshCookie(res, refreshToken);
+
+    let verificationStatus = null;
+    if (user.role === UserRole.LAWYER) {
+      const lp = await prisma.lawyerProfile.findUnique({ where: { userId: user.id } });
+      verificationStatus = lp?.verificationStatus;
+    } else if (user.role === UserRole.JUDGE) {
+      const jp = await prisma.judgeProfile.findUnique({ where: { userId: user.id } });
+      verificationStatus = jp?.verificationStatus;
+    }
+
+    res.json({
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        isPro: user.isPro,
+        isEmailVerified: user.isEmailVerified,
+        verificationStatus,
+      },
+    });
+  } catch (err) {
+    console.error('[google]', err);
+    res.status(500).json({ error: 'Google login failed.' });
+  }
+});
+
+/**
+ * GOOGLE TOKEN LOGIN (access_token from popup flow)
+ * Used by @react-oauth/google's useGoogleLogin hook.
+ */
+router.post('/google/token', loginLimiter, async (req: Request, res: Response): Promise<void> => {
+  const { access_token, email: emailFromClient, name } = req.body;
+  if (!access_token) {
+    res.status(400).json({ error: 'access_token is required.' });
+    return;
+  }
+
+  try {
+    // Verify token with Google's userinfo endpoint
+    const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+
+    if (!googleRes.ok) {
+      res.status(401).json({ error: 'Invalid Google access token.' });
+      return;
+    }
+
+    const googleUser = await googleRes.json();
+    const email = (googleUser.email || emailFromClient || '').toLowerCase().trim();
+
+    if (!email) {
+      res.status(400).json({ error: 'Could not retrieve email from Google.' });
+      return;
+    }
+
+    let user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      // Auto-register as CITIZEN
+      user = await prisma.user.create({
+        data: {
+          email,
+          role: UserRole.CITIZEN,
+          isEmailVerified: true,
+          citizenProfile: {
+            create: { fullName: googleUser.name || name || null },
+          },
+        },
+      });
+    }
+
+    if (!user.isActive) {
+      res.status(403).json({ error: 'Account suspended.' });
+      return;
+    }
+
+    if (!user.isEmailVerified) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { isEmailVerified: true },
+      });
+    }
+
+    const { accessToken, refreshToken } = await issueTokenPair(user.id, getMeta(req));
+    setRefreshCookie(res, refreshToken);
+
+    let verificationStatus = null;
+    if (user.role === UserRole.LAWYER) {
+      const lp = await prisma.lawyerProfile.findUnique({ where: { userId: user.id } });
+      verificationStatus = lp?.verificationStatus;
+    } else if (user.role === UserRole.JUDGE) {
+      const jp = await prisma.judgeProfile.findUnique({ where: { userId: user.id } });
+      verificationStatus = jp?.verificationStatus;
+    }
+
+    res.json({
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        isPro: user.isPro,
+        isEmailVerified: user.isEmailVerified,
+        verificationStatus,
+      },
+    });
+  } catch (err) {
+    console.error('[google/token]', err);
+    res.status(500).json({ error: 'Google login failed.' });
   }
 });
 

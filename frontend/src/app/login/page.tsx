@@ -5,6 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
+import { useGoogleLogin } from "@react-oauth/google";
 import {
   Scale, Mail, Lock, ArrowRight, Eye, EyeOff, Shield, BookOpen,
   Gavel, AlertCircle, Smartphone, CheckCircle2, Fingerprint
@@ -86,6 +87,7 @@ export default function Login() {
 
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const { login } = useAuth();
 
   const startCooldown = () => {
@@ -172,6 +174,35 @@ export default function Login() {
   const switchMode = (m: "password" | "otp" | "biometric") => {
     setMode(m); setError(""); setOtpStep("request"); setOtp("");
   };
+
+  const handleGoogleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setGoogleLoading(true);
+      setError("");
+      try {
+        // Exchange access_token for user info, then send credential to backend
+        const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+        });
+        const userInfo = await userInfoRes.json();
+        // Use the sub as a unique identifier + email to create/login
+        const { data } = await api.post("/auth/google/token", {
+          access_token: tokenResponse.access_token,
+          email: userInfo.email,
+          name: userInfo.name,
+          googleId: userInfo.sub,
+        });
+        login(data.accessToken, data.user);
+      } catch (err: any) {
+        setError(err.response?.data?.error || "Google sign-in failed. Please try again.");
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+    onError: () => {
+      setError("Google sign-in was cancelled or failed.");
+    },
+  });
 
   return (
     <div className="min-h-screen w-full flex" style={{ background: "#070b16" }}>
@@ -470,7 +501,44 @@ export default function Login() {
             )}
           </AnimatePresence>
 
-          <div className="mt-6 text-center">
+          {/* ─── Divider ─── */}
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
+            <span className="text-xs font-medium" style={{ color: "#4a4a62" }}>or continue with</span>
+            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
+          </div>
+
+          {/* ─── Google Sign In ─── */}
+          <motion.button
+            id="login-google"
+            type="button"
+            onClick={() => handleGoogleLogin()}
+            disabled={googleLoading}
+            whileHover={{ scale: googleLoading ? 1 : 1.015 }}
+            whileTap={{ scale: googleLoading ? 1 : 0.975 }}
+            className="w-full flex items-center justify-center gap-3 rounded-xl py-3 text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              background: "#0e0e18",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "#e0e0e0",
+            }}
+            onMouseOver={e => { if (!googleLoading) { e.currentTarget.style.borderColor = "rgba(124,110,247,0.4)"; e.currentTarget.style.background = "rgba(124,110,247,0.06)"; } }}
+            onMouseOut={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.background = "#0e0e18"; }}
+          >
+            {googleLoading ? (
+              <span className="h-5 w-5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M47.532 24.552c0-1.636-.138-3.2-.395-4.704H24.48v8.898h13.004c-.562 2.986-2.24 5.516-4.772 7.214v5.998h7.724c4.516-4.158 7.096-10.282 7.096-17.406z" fill="#4285F4"/>
+                <path d="M24.48 48c6.516 0 11.986-2.16 15.982-5.842l-7.724-5.998c-2.146 1.44-4.89 2.29-8.258 2.29-6.348 0-11.724-4.286-13.646-10.054H2.934v6.19C6.914 42.792 15.062 48 24.48 48z" fill="#34A853"/>
+                <path d="M10.834 28.396A14.88 14.88 0 0 1 9.96 24c0-1.524.26-3.002.874-4.396v-6.19H2.934A23.956 23.956 0 0 0 .48 24c0 3.864.924 7.518 2.454 10.586l7.9-6.19z" fill="#FBBC05"/>
+                <path d="M24.48 9.548c3.574 0 6.778 1.226 9.302 3.634l6.976-6.976C36.454 2.382 30.986 0 24.48 0 15.062 0 6.914 5.208 2.934 13.414l7.9 6.19c1.922-5.768 7.298-10.056 13.646-10.056z" fill="#EA4335"/>
+              </svg>
+            )}
+            {googleLoading ? "Signing in..." : "Sign in with Google"}
+          </motion.button>
+
+          <div className="mt-5 text-center">
             <p className="text-sm" style={{ color: "#4a4a62" }}>
               Don&apos;t have an account?{" "}
               <Link href="/signup" className="font-semibold transition-colors" style={{ color: "#9d8fff" }}

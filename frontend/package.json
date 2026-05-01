@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.166",
+    "@react-oauth/google": "^0.13.5",
     "ai": "^6.0.164",
     "axios": "^1.14.0",
     "clsx": "^2.1.1",
