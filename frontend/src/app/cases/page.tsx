@@ -361,7 +361,7 @@ export default function CasesPage() {
             </p>
             {!search && statusFilter === "ALL" && (
               <motion.button whileHover={{ boxShadow:"0 0 30px rgba(212,175,55,0.25)" }}
-                onClick={() => setShowSlideOver(true)}
+                onClick={() => router.push('/cases/new')}
                 className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold"
                 style={{ background:"linear-gradient(135deg,#7c6ef7,#d4af37)", color:"#070b16" }}>
                 <Plus size={14}/> Open First Case
