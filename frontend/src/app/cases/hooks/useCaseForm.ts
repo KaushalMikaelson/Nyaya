@@ -3,8 +3,37 @@
 import { useState, useCallback } from "react";
 import api from "@/lib/api";
 
+// ─────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────
+
+export type PartyData = {
+  partyType: string;
+  fullName: string;
+  gender: string;
+  dateOfBirth: string;
+  email: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  pincode: string;
+  aadhaarRaw: string;
+  aadhaarConsent: boolean;
+};
+
+export type AdvocateData = {
+  fullName: string;
+  enrollmentNo: string;
+  barCouncilState: string;
+  phone: string;
+  email: string;
+  represents: string;
+};
+
 export type CaseFormData = {
-  // Basic
+  // Step 1 — Case Info
   title: string;
   description: string;
   caseType: string;
@@ -18,14 +47,28 @@ export type CaseFormData = {
   courtState: string;
   benchType: string;
   judgeName: string;
-  // Parties
-  opponentName: string;
-  opponentCounsel: string;
-  firmId: string;
+  // Legal details
+  actSection: string;
+  firNumber: string;
+  policeStation: string;
+  courtFeeAmount: string;
   // Timeline
   filedAt: string;
   limitationDate: string;
-  // AI
+
+  // Step 2 — Plaintiff
+  plaintiff: PartyData;
+
+  // Step 3 — Defendant
+  defendant: PartyData;
+
+  // Step 4 — Extra Parties
+  extraParties: PartyData[];
+
+  // Step 5 — Advocate
+  advocate: AdvocateData;
+
+  // Step 6 — AI
   factSummary: string;
   reliefSought: string;
   actsInvolved: string[];
@@ -41,75 +84,162 @@ export type AiAnalysis = {
   limitationWarning?: string;
 };
 
-const defaultForm: CaseFormData = {
+// ─────────────────────────────────────────
+// DEFAULTS
+// ─────────────────────────────────────────
+
+const emptyParty = (type: string): PartyData => ({
+  partyType: type,
+  fullName: "", gender: "", dateOfBirth: "",
+  email: "", phone: "",
+  addressLine1: "", addressLine2: "", city: "", state: "", pincode: "",
+  aadhaarRaw: "", aadhaarConsent: false,
+});
+
+const emptyAdvocate = (): AdvocateData => ({
+  fullName: "", enrollmentNo: "", barCouncilState: "",
+  phone: "", email: "", represents: "PLAINTIFF",
+});
+
+const defaultForm = (): CaseFormData => ({
   title: "", description: "", caseType: "", priority: "MEDIUM", status: "OPEN", tags: [],
   caseNumber: "", court: "", courtLevel: "", courtState: "", benchType: "", judgeName: "",
-  opponentName: "", opponentCounsel: "", firmId: "",
+  actSection: "", firNumber: "", policeStation: "", courtFeeAmount: "",
   filedAt: "", limitationDate: "",
+  plaintiff: emptyParty("PLAINTIFF"),
+  defendant: emptyParty("DEFENDANT"),
+  extraParties: [],
+  advocate: emptyAdvocate(),
   factSummary: "", reliefSought: "", actsInvolved: [],
-};
+});
 
-const STEP_FIELDS: Record<number, (keyof CaseFormData)[]> = {
-  1: ["title", "caseType"],
-  2: [],
-  3: [],
-};
+// ─────────────────────────────────────────
+// HOOK
+// ─────────────────────────────────────────
 
 export function useCaseForm(onSuccess: () => void) {
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState<CaseFormData>(defaultForm);
-  const [errors, setErrors] = useState<Partial<Record<keyof CaseFormData, string>>>({});
+  const [form, setForm] = useState<CaseFormData>(defaultForm());
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<AiAnalysis | null>(null);
   const [submitError, setSubmitError] = useState("");
 
-  const setField = useCallback(
-    <K extends keyof CaseFormData>(key: K, value: CaseFormData[K]) => {
-      setForm((f) => ({ ...f, [key]: value }));
-      setErrors((e) => ({ ...e, [key]: undefined }));
-    },
-    []
+  // Generic field setter (top-level)
+  const setField = useCallback(<K extends keyof CaseFormData>(key: K, value: CaseFormData[K]) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    setErrors((e) => { const n = { ...e }; delete n[key as string]; return n; });
+  }, []);
+
+  // Nested party field setter
+  const setPartyField = useCallback(
+    (role: "plaintiff" | "defendant", field: keyof PartyData, value: string | boolean) => {
+      setForm((f) => ({ ...f, [role]: { ...f[role], [field]: value } }));
+    }, []
   );
 
+  // Extra parties
+  const addExtraParty = () =>
+    setForm((f) => ({ ...f, extraParties: [...f.extraParties, emptyParty("WITNESS")] }));
+
+  const removeExtraParty = (idx: number) =>
+    setForm((f) => ({ ...f, extraParties: f.extraParties.filter((_, i) => i !== idx) }));
+
+  const setExtraPartyField = useCallback(
+    (idx: number, field: keyof PartyData, value: string | boolean) => {
+      setForm((f) => {
+        const updated = [...f.extraParties];
+        updated[idx] = { ...updated[idx], [field]: value };
+        return { ...f, extraParties: updated };
+      });
+    }, []
+  );
+
+  // Advocate field setter
+  const setAdvocateField = useCallback(
+    (field: keyof AdvocateData, value: string) => {
+      setForm((f) => ({ ...f, advocate: { ...f.advocate, [field]: value } }));
+    }, []
+  );
+
+  // Step validation
   const validate = (stepNum: number): boolean => {
-    const newErrors: Partial<Record<keyof CaseFormData, string>> = {};
+    const newErrors: Record<string, string> = {};
     if (stepNum === 1) {
       if (!form.title.trim() || form.title.trim().length < 3)
-        newErrors.title = "Title must be at least 3 characters";
+        newErrors["title"] = "Title must be at least 3 characters";
       if (!form.caseType)
-        newErrors.caseType = "Please select a case type";
+        newErrors["caseType"] = "Please select a case type";
+    }
+    if (stepNum === 2) {
+      if (!form.plaintiff.fullName.trim())
+        newErrors["plaintiff.fullName"] = "Plaintiff name is required";
+    }
+    if (stepNum === 3) {
+      if (!form.defendant.fullName.trim())
+        newErrors["defendant.fullName"] = "Defendant name is required";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const next = () => {
-    if (validate(step)) setStep((s) => Math.min(s + 1, 3));
-  };
-
-  const back = () => {
-    setStep((s) => Math.max(s - 1, 1));
-    setErrors({});
-  };
+  const next = () => { if (validate(step)) setStep((s) => Math.min(s + 1, 6)); };
+  const back = () => { setStep((s) => Math.max(s - 1, 1)); setErrors({}); };
 
   const reset = () => {
-    setForm(defaultForm);
+    setForm(defaultForm());
     setStep(1);
     setErrors({});
     setAiResult(null);
     setSubmitError("");
   };
 
+  // Submit — creates case then POSTs parties & advocate
   const submit = async () => {
     setSubmitting(true);
     setSubmitError("");
     try {
-      await api.post("/cases", {
-        ...form,
-        tags: form.tags,
+      // 1. Create the case
+      const { data: newCase } = await api.post("/cases", {
+        title: form.title, description: form.description,
+        caseType: form.caseType, priority: form.priority, status: form.status, tags: form.tags,
+        caseNumber: form.caseNumber || undefined,
+        court: form.court, courtLevel: form.courtLevel, courtState: form.courtState,
+        benchType: form.benchType, judgeName: form.judgeName,
+        actSection: form.actSection, firNumber: form.firNumber,
+        policeStation: form.policeStation,
+        courtFeeAmount: form.courtFeeAmount ? parseFloat(form.courtFeeAmount) : undefined,
+        filedAt: form.filedAt || undefined,
+        limitationDate: form.limitationDate || undefined,
+        factSummary: form.factSummary, reliefSought: form.reliefSought,
         actsInvolved: form.actsInvolved,
       });
+
+      const caseId = newCase.id;
+
+      // 2. Add plaintiff (if name provided)
+      if (form.plaintiff.fullName.trim()) {
+        await api.post(`/cases/${caseId}/parties`, form.plaintiff).catch(() => {});
+      }
+
+      // 3. Add defendant (if name provided)
+      if (form.defendant.fullName.trim()) {
+        await api.post(`/cases/${caseId}/parties`, form.defendant).catch(() => {});
+      }
+
+      // 4. Add extra parties
+      for (const ep of form.extraParties) {
+        if (ep.fullName.trim()) {
+          await api.post(`/cases/${caseId}/parties`, ep).catch(() => {});
+        }
+      }
+
+      // 5. Add advocate (if name provided)
+      if (form.advocate.fullName.trim()) {
+        await api.post(`/cases/${caseId}/advocates`, form.advocate).catch(() => {});
+      }
+
       reset();
       onSuccess();
     } catch (err: any) {
@@ -121,7 +251,7 @@ export function useCaseForm(onSuccess: () => void) {
 
   const analyzeWithAI = async () => {
     if (!form.factSummary || form.factSummary.trim().length < 20) {
-      setErrors((e) => ({ ...e, factSummary: "Please provide at least 20 characters of facts for analysis." }));
+      setErrors((e) => ({ ...e, factSummary: "Please provide at least 20 characters of facts." }));
       return;
     }
     setAnalyzing(true);
@@ -143,6 +273,8 @@ export function useCaseForm(onSuccess: () => void) {
 
   return {
     step, form, errors, submitting, analyzing, aiResult, submitError,
-    setField, next, back, reset, submit, analyzeWithAI,
+    setField, setPartyField, setExtraPartyField, setAdvocateField,
+    addExtraParty, removeExtraParty,
+    next, back, reset, submit, analyzeWithAI,
   };
 }

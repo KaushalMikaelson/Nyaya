@@ -405,6 +405,12 @@ model Case {
   benchType        String?      // SINGLE, DIVISION, FULL
   judgeName        String?
 
+  // Legal details (from paper form)
+  actSection       String?      // Primary Act/Section e.g. "IPC 420, CrPC 482"
+  firNumber        String?      // FIR number — criminal cases
+  policeStation    String?      // Jurisdictional police station
+  courtFeeAmount   Float?       // Court fee / stamp duty paid (₹)
+
   // Parties
   opponentName     String?
   opponentCounsel  String?
@@ -432,6 +438,8 @@ model Case {
   timeline         CaseTimeline[]
   documents        CaseDocument[]
   userDocuments    UserDocument[]
+  parties          CaseParty[]
+  advocates        CaseAdvocate[]
 
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
@@ -441,6 +449,62 @@ model Case {
   @@index([priority])
   @@index([clientId])
   @@index([primaryCounselId])
+}
+
+// ─────────────────────────────────────────
+// CASE PARTIES (Plaintiff, Defendant, Extra)
+// ─────────────────────────────────────────
+
+model CaseParty {
+  id              String    @id @default(uuid())
+  caseId          String
+  case            Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  partyType       String    // PLAINTIFF, PETITIONER, DEFENDANT, RESPONDENT, WITNESS, INTERVENER, CO_PETITIONER, CO_DEFENDANT, OTHER
+  fullName        String
+  gender          String?   // MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY
+  dateOfBirth     DateTime?
+
+  email           String?
+  phone           String?
+
+  addressLine1    String?
+  addressLine2    String?
+  city            String?
+  state           String?
+  pincode         String?
+
+  // Aadhaar — only last 4 digits stored after masking
+  aadhaarMasked       String?   // Stored as "XXXX XXXX 1234"
+  aadhaarConsentAt    DateTime? // DPDP Act compliance — consent timestamp
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([caseId])
+  @@index([partyType])
+}
+
+// ─────────────────────────────────────────
+// CASE ADVOCATES
+// ─────────────────────────────────────────
+
+model CaseAdvocate {
+  id              String   @id @default(uuid())
+  caseId          String
+  case            Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  fullName        String
+  enrollmentNo    String?  // Bar Council enrollment number
+  barCouncilState String?
+  phone           String?
+  email           String?
+  represents      String   @default("PLAINTIFF") // PLAINTIFF, DEFENDANT, BOTH
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([caseId])
 }
 
 model Hearing {
