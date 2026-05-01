@@ -390,12 +390,37 @@ model Case {
   id               String       @id @default(uuid())
   title            String
   description      String?
-  caseNumber       String?      @unique // Official court case number if available
+  caseNumber       String?      @unique // Official court CNR / case number
   status           CaseStatus   @default(OPEN)
-  court            String? 
+
+  // Classification
+  caseType         String?      // CIVIL, CRIMINAL, FAMILY, CONSTITUTIONAL, LABOUR, CONSUMER, TAX, IP
+  priority         String       @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  tags             String[]
+
+  // Court & jurisdiction
+  court            String?
+  courtLevel       String?      // DISTRICT, HIGH_COURT, SUPREME_COURT, TRIBUNAL
+  courtState       String?
+  benchType        String?      // SINGLE, DIVISION, FULL
   judgeName        String?
+
+  // Parties
+  opponentName     String?
+  opponentCounsel  String?
+
+  // Timeline
   filedAt          DateTime?
-  
+  limitationDate   DateTime?    // Statute of limitations deadline
+
+  // AI-assisted fields
+  factSummary      String?      @db.Text
+  reliefSought     String?      @db.Text
+  actsInvolved     String[]
+  aiAnalysis       String?      @db.Text  // Cached JSON from last RAG analysis
+  aiAnalyzedAt     DateTime?
+
+  // Relations
   clientId         String?
   client           User?        @relation("ClientCases", fields: [clientId], references: [id], onDelete: SetNull)
   firmId           String?
@@ -410,6 +435,12 @@ model Case {
 
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+
+  @@index([status])
+  @@index([caseType])
+  @@index([priority])
+  @@index([clientId])
+  @@index([primaryCounselId])
 }
 
 model Hearing {
