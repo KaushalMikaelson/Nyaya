@@ -13,7 +13,7 @@ import { Playfair_Display } from "next/font/google";
 import { useAuth } from "@/contexts/AuthContext";
 import NyayaNav from "@/components/NyayaNav";
 import api from "@/lib/api";
-import { CaseSlideOver } from "./components/CaseSlideOver";
+
 
 const playfair = Playfair_Display({ subsets: ["latin"], style: ["normal", "italic"] });
 
@@ -185,7 +185,7 @@ export default function CasesPage() {
   const { user, loading: authLoading, logout } = useAuth();
   const [cases, setCases]           = useState<any[]>([]);
   const [loading, setLoading]       = useState(true);
-  const [showSlideOver, setShowSlideOver] = useState(false);
+
   const [showFirmModal, setShowFirmModal] = useState(false);
   const [firmForm, setFirmForm]     = useState({ name:"", description:"" });
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -259,7 +259,7 @@ export default function CasesPage() {
             <motion.button
               whileHover={{ scale:1.03, boxShadow:"0 0 30px rgba(124,110,247,0.45)" }}
               whileTap={{ scale:0.97 }}
-              onClick={() => setShowSlideOver(true)}
+              onClick={() => router.push('/cases/new')}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold"
               style={{ background:"linear-gradient(135deg,#7c6ef7,#d4af37)", color:"#070b16" }}>
               <Plus size={15}/> Open Case
@@ -382,7 +382,7 @@ export default function CasesPage() {
         )}
       </div>
 
-      <CaseSlideOver open={showSlideOver} onClose={() => setShowSlideOver(false)} onSuccess={fetchCases}/>
+
 
       {/* Firm modal */}
       <AnimatePresence>
