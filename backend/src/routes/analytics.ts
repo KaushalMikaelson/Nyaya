@@ -11,7 +11,10 @@ router.get('/judge-workload', async (req: AuthRequest, res): Promise<void> => {
     const { judgeName } = req.query;
 
     const casesQuery: any = {
-      judgeName: { not: null, not: '' }
+      AND: [
+        { judgeName: { not: null } },
+        { judgeName: { not: '' } },
+      ]
     };
 
     if (judgeName) {
