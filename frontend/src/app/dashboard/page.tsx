@@ -313,8 +313,16 @@ export default function Home() {
         },
       };
 
-      const paymentObject = new (window as unknown as { Razorpay: new (opts: object) => { open: () => void } }).Razorpay(options);
-      paymentObject.open();
+      if (options.order_id.startsWith("order_mock") || options.key === "rzp_test_placeholder") {
+        options.handler({
+          razorpay_order_id: options.order_id,
+          razorpay_payment_id: "pay_mock_" + Date.now(),
+          razorpay_signature: "signature_mock"
+        });
+      } else {
+        const paymentObject = new (window as unknown as { Razorpay: new (opts: object) => { open: () => void } }).Razorpay(options);
+        paymentObject.open();
+      }
 
     } catch (err) {
       console.error(err);
@@ -383,6 +391,7 @@ export default function Home() {
           >
             <Scale size={15} className="text-white" />
           </div>
+
           <span className="text-sm font-bold tracking-widest uppercase flex-1" style={{ color: "#f2d680" }}>Nyaya AI</span>
           <button
             className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
@@ -433,18 +442,20 @@ export default function Home() {
         </div>
 
         {/* Upgrade CTA */}
-        <div className="px-3 pb-3 pt-2" style={{ borderTop: "1px solid rgba(30,38,66,0.8)" }}>
-          <motion.button
-            whileHover={{ boxShadow: "0 0 25px rgba(212,175,55,0.3)" }}
-            onClick={handleRazorpayUpgrade}
-            disabled={isUpgrading}
-            className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-sm font-bold transition-all"
-            style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.12), rgba(212,175,55,0.04))", color: "#d4af37", border: "1px solid rgba(212,175,55,0.25)" }}
-          >
-            <Sparkles size={14} />
-            {isUpgrading ? "Loading..." : "Upgrade to PRO"}
-          </motion.button>
-        </div>
+        {!user?.isPro && (
+          <div className="px-3 pb-3 pt-2" style={{ borderTop: "1px solid rgba(30,38,66,0.8)" }}>
+            <motion.button
+              whileHover={{ boxShadow: "0 0 25px rgba(212,175,55,0.3)" }}
+              onClick={handleRazorpayUpgrade}
+              disabled={isUpgrading}
+              className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-sm font-bold transition-all"
+              style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.12), rgba(212,175,55,0.04))", color: "#d4af37", border: "1px solid rgba(212,175,55,0.25)" }}
+            >
+              <Sparkles size={14} />
+              {isUpgrading ? "Loading..." : "Upgrade to PRO"}
+            </motion.button>
+          </div>
+        )}
 
         {/* User Profile */}
         <div className="shrink-0 px-3 pb-4">

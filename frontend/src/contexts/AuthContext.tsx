@@ -119,11 +119,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Refresh full user profile from /me ──
   const refreshUser = useCallback(async () => {
     try {
+      // 1. Force a token refresh to update JWT payload (e.g., isPro status)
+      const { data: refreshData } = await api.post('/auth/refresh');
+      setAccessToken(refreshData.accessToken);
+      const decoded = decodeJwt(refreshData.accessToken);
+
+      // 2. Fetch extended profile info
       const { data } = await api.get('/auth/me');
       const u = data.user;
 
-      setUser(prev => prev ? {
-        ...prev,
+      setUser(prev => decoded ? {
+        ...decoded,
         verificationStatus:
           u.lawyerProfile?.verificationStatus ||
           u.judgeProfile?.verificationStatus ||

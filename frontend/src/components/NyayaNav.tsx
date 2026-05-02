@@ -113,16 +113,28 @@ export default function NyayaNav({ user, logout, active = "dashboard", onBilling
       </div>
 
       {/* Upgrade CTA */}
-      <div className="px-3 pb-3 pt-2" style={{ borderTop: "1px solid rgba(30,38,66,0.8)" }}>
-        <motion.button
-          whileHover={{ boxShadow: "0 0 25px rgba(212,175,55,0.3)" }}
-          onClick={() => { onUpgrade?.(); setOpen(false); }}
-          className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-sm font-bold"
-          style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.12), rgba(212,175,55,0.04))", color: "#d4af37", border: "1px solid rgba(212,175,55,0.25)" }}
-        >
-          <Sparkles size={14} /> Upgrade to PRO
-        </motion.button>
-      </div>
+      {!user?.isPro && (
+        <div className="px-3 pb-3 pt-2" style={{ borderTop: "1px solid rgba(30,38,66,0.8)" }}>
+          <motion.button
+            whileHover={{ boxShadow: "0 0 25px rgba(212,175,55,0.3)" }}
+            onClick={() => { onUpgrade?.(); setOpen(false); }}
+            className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-sm font-bold"
+            style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.12), rgba(212,175,55,0.04))", color: "#d4af37", border: "1px solid rgba(212,175,55,0.25)" }}
+          >
+            <Sparkles size={14} /> Upgrade to PRO
+          </motion.button>
+        </div>
+      )}
+      {user?.isPro && (
+        <div className="px-3 pb-3 pt-2" style={{ borderTop: "1px solid rgba(30,38,66,0.8)" }}>
+          <div
+            className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-sm font-bold opacity-80"
+            style={{ background: "rgba(212,175,55,0.1)", color: "#d4af37", border: "1px solid rgba(212,175,55,0.2)" }}
+          >
+            <Sparkles size={14} /> PRO Active
+          </div>
+        </div>
+      )}
 
       {/* User */}
       <div className="shrink-0 px-3 pb-4">

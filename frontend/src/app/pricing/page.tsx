@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Inter, Playfair_Display } from "next/font/google";
+import { useAuth } from "@/contexts/AuthContext";
 
 const inter = Inter({ subsets: ["latin"] });
 const playfair = Playfair_Display({ subsets: ["latin"], style: ["normal", "italic"] });
@@ -132,7 +133,7 @@ const PLANS = [
 import api from "@/lib/api";
 
 // ─── Razorpay Checkout ─────────────────────────────────────────────────────────
-async function openRazorpayCheckout(planId: string, onSuccess: () => void) {
+async function openRazorpayCheckout(planId: string, onSuccess: () => Promise<void> | void) {
   try {
     const orderRes = await api.post("/payment/create-order", { tier: planId });
     const orderData = orderRes.data;
@@ -150,19 +151,29 @@ async function openRazorpayCheckout(planId: string, onSuccess: () => void) {
             ...response,
             tier: planId,
           });
-          if (verifyRes.data.success) onSuccess();
-          else alert("Payment verification failed. Contact support.");
-        } catch {
-          alert("Payment verification failed. Contact support.");
+          if (verifyRes.data.success) await onSuccess();
+          else alert("Payment verification failed: " + JSON.stringify(verifyRes.data));
+        } catch (error: any) {
+          console.error("Verification error:", error);
+          alert("Payment verification failed. " + (error.response?.data?.error || error.message || "Contact support."));
         }
       },
       prefill: { name: "", email: "" },
       theme: { color: "#d4af37" },
     };
 
-    // @ts-ignore — Razorpay loaded via CDN script
-    const rzp = new window.Razorpay(options);
-    rzp.open();
+    if (orderData.orderId.startsWith("order_mock") || orderData.keyId === "rzp_test_placeholder") {
+      // Mock successful payment
+      await options.handler({
+        razorpay_order_id: orderData.orderId,
+        razorpay_payment_id: "pay_mock_" + Date.now(),
+        razorpay_signature: "signature_mock"
+      });
+    } else {
+      // @ts-ignore — Razorpay loaded via CDN script
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    }
   } catch (error: any) {
     alert(error.response?.data?.error || "Failed to create order. Please try again.");
   }
@@ -183,6 +194,7 @@ const COMPARISON_ROWS = [
 
 export default function PricingPage() {
   const router = useRouter();
+  const auth = useAuth();
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const [loading, setLoading] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -195,29 +207,36 @@ export default function PricingPage() {
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     document.body.appendChild(script);
 
-    // Fetch current subscription if logged in
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      fetch(`${API}/api/payment/subscription`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((r) => r.json())
-        .then((d) => setCurrentSub(d))
+    if (auth.user) {
+      api.get('/payment/subscription')
+        .then((res) => setCurrentSub(res.data.subscription || res.data))
         .catch(() => {});
     }
-    return () => { document.body.removeChild(script); };
-  }, []);
+
+    return () => {
+      try {
+        if (document.body.contains(script)) {
+          document.body.removeChild(script);
+        }
+      } catch (e) {}
+    };
+  }, [auth.user]);
 
   const handlePlanClick = async (plan: (typeof PLANS)[0]) => {
-    if (plan.id === "FREE") { router.push("/signup"); return; }
+    if (plan.id === "FREE") { 
+      if (auth.user) router.push("/dashboard");
+      else router.push("/signup");
+      return; 
+    }
     if (plan.id === "ENTERPRISE") { window.open("mailto:sales@nyaay.in", "_blank"); return; }
 
     setLoading(plan.id);
     try {
-      await openRazorpayCheckout(plan.id, () => {
+      await openRazorpayCheckout(plan.id, async () => {
         setSuccess(true);
         setCurrentSub((prev: any) => ({ ...prev, tier: plan.id }));
-        setTimeout(() => { setSuccess(false); router.push("/"); }, 3000);
+        if (auth.refreshUser) await auth.refreshUser();
+        setTimeout(() => { setSuccess(false); router.push("/dashboard"); }, 3000);
       });
     } finally {
       setLoading(null);
@@ -251,10 +270,18 @@ export default function PricingPage() {
             <span className="text-sm font-bold tracking-widest uppercase text-[#f2d680]">Nyaay AI</span>
           </button>
           <div className="flex items-center gap-4">
-            <button onClick={() => router.push("/login")} className="text-sm text-gray-400 hover:text-white transition-colors">Sign In</button>
-            <button onClick={() => router.push("/signup")} className="bg-[#d4af37] text-[#070b16] px-5 py-2 rounded-full text-sm font-bold hover:bg-[#f2d680] transition-colors">
-              Start Free
-            </button>
+            {auth.user ? (
+              <button onClick={() => router.push("/dashboard")} className="bg-[#d4af37] text-[#070b16] px-5 py-2 rounded-full text-sm font-bold hover:bg-[#f2d680] transition-colors">
+                Go to Dashboard
+              </button>
+            ) : (
+              <>
+                <button onClick={() => router.push("/login")} className="text-sm text-gray-400 hover:text-white transition-colors">Sign In</button>
+                <button onClick={() => router.push("/signup")} className="bg-[#d4af37] text-[#070b16] px-5 py-2 rounded-full text-sm font-bold hover:bg-[#f2d680] transition-colors">
+                  Start Free
+                </button>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -355,10 +382,15 @@ export default function PricingPage() {
                 >
                   {loading === plan.id ? (
                     <><Loader2 size={16} className="animate-spin" /> Processing…</>
-                  ) : isCurrent ? (
-                    <><CheckCircle2 size={16} /> Current Plan</>
                   ) : (
-                    <>{plan.cta} <ArrowRight size={14} /></>
+                    <>
+                      {isCurrent ? "Current Plan" : 
+                       plan.id === "FREE" && !auth.user ? "Get Started Free" :
+                       plan.id === "ENTERPRISE" ? "Contact Sales" : 
+                       currentSub && currentSub.tier !== "FREE" ? "Switch Plan" :
+                       "Upgrade Now"}
+                      {!isCurrent && !loading && plan.id !== "ENTERPRISE" && <ArrowRight size={16} />}
+                    </>
                   )}
                 </button>
 
@@ -481,10 +513,10 @@ export default function PricingPage() {
           </h2>
           <p className="text-gray-500 mb-10">Start with our free tier today. No credit card required.</p>
           <button
-            onClick={() => router.push("/signup")}
+            onClick={() => auth.user ? router.push("/dashboard") : router.push("/signup")}
             className="bg-[#d4af37] text-black px-10 py-4 rounded-full text-sm font-bold tracking-wider uppercase hover:scale-105 hover:shadow-[0_0_40px_rgba(212,175,55,0.3)] transition-all"
           >
-            Start Free — No Card Needed
+            {auth.user ? "Go to Dashboard" : "Start Free — No Card Needed"}
           </button>
           <p className="mt-10 text-xs text-gray-700">© {new Date().getFullYear()} Nyaay Technologies Pvt Ltd. All rights reserved.</p>
         </div>
