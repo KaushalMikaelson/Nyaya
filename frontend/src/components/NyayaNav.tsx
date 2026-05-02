@@ -23,7 +23,7 @@ const NAV = [
   { key: "cases",         label: "Case Management",   icon: Briefcase,       href: "/cases" },
   { key: "marketplace",   label: "Marketplace",        icon: Users,           href: "/marketplace" },
   { key: "notifications", label: "Notifications",      icon: Bell,            href: "/notifications", badge: "3" },
-  { key: "billing",       label: "Billing",            icon: CreditCard,      href: "#",             billing: true },
+  { key: "billing",       label: "Billing",            icon: CreditCard,      href: "/pricing" },
 ];
 
 interface Props {
@@ -76,7 +76,7 @@ export default function NyayaNav({ user, logout, active = "dashboard", onBilling
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
               onClick={() => {
-                if (item.billing) { onBilling?.(); setOpen(false); }
+                if (item.key === "billing" && onBilling) { onBilling(); setOpen(false); }
                 else { router.push(item.href); setOpen(false); }
               }}
               className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all"

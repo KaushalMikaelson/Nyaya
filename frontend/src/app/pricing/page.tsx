@@ -129,50 +129,43 @@ const PLANS = [
   },
 ];
 
+import api from "@/lib/api";
+
 // ─── Razorpay Checkout ─────────────────────────────────────────────────────────
 async function openRazorpayCheckout(planId: string, onSuccess: () => void) {
-  const token = localStorage.getItem("accessToken");
-  if (!token) {
-    alert("Please log in to purchase a plan.");
-    return;
+  try {
+    const orderRes = await api.post("/payment/create-order", { tier: planId });
+    const orderData = orderRes.data;
+
+    const options = {
+      key: orderData.keyId,
+      amount: orderData.amount,
+      currency: orderData.currency,
+      name: "Nyaay Legal AI",
+      description: `${planId} Plan – Monthly Subscription`,
+      order_id: orderData.orderId,
+      handler: async (response: any) => {
+        try {
+          const verifyRes = await api.post("/payment/verify-payment", {
+            ...response,
+            tier: planId,
+          });
+          if (verifyRes.data.success) onSuccess();
+          else alert("Payment verification failed. Contact support.");
+        } catch {
+          alert("Payment verification failed. Contact support.");
+        }
+      },
+      prefill: { name: "", email: "" },
+      theme: { color: "#d4af37" },
+    };
+
+    // @ts-ignore — Razorpay loaded via CDN script
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  } catch (error: any) {
+    alert(error.response?.data?.error || "Failed to create order. Please try again.");
   }
-
-  const orderRes = await fetch(`${API}/api/payment/create-order`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ tier: planId }),
-  });
-
-  const orderData = await orderRes.json();
-  if (!orderRes.ok) {
-    alert(orderData.error || "Failed to create order. Please try again.");
-    return;
-  }
-
-  const options = {
-    key: orderData.keyId,
-    amount: orderData.amount,
-    currency: orderData.currency,
-    name: "Nyaay Legal AI",
-    description: `${planId} Plan – Monthly Subscription`,
-    order_id: orderData.orderId,
-    handler: async (response: any) => {
-      const verifyRes = await fetch(`${API}/api/payment/verify-payment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...response, tier: planId }),
-      });
-      const verified = await verifyRes.json();
-      if (verified.success) onSuccess();
-      else alert("Payment verification failed. Contact support.");
-    },
-    prefill: { name: "", email: "" },
-    theme: { color: "#d4af37" },
-  };
-
-  // @ts-ignore — Razorpay loaded via CDN script
-  const rzp = new window.Razorpay(options);
-  rzp.open();
 }
 
 // ─── Comparison Table ──────────────────────────────────────────────────────────

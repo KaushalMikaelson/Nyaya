@@ -278,21 +278,22 @@ export default function Home() {
       }
 
       // 2. Obtain Order ID
-      const orderOptions = await api.post("/payment/orders");
+      const orderOptions = await api.post("/payment/create-order", { tier: "PRO" });
       
       const options = {
-        key: "rzp_test_mockedapi", // Using mock dummy or env dynamically mapped usually
+        key: orderOptions.data.keyId,
         amount: orderOptions.data.amount,
         currency: orderOptions.data.currency,
         name: "Nyaay AI",
         description: "Nyaay PRO Unlimited AI",
-        order_id: orderOptions.data.id.startsWith("order_mock") ? "" : orderOptions.data.id, 
+        order_id: orderOptions.data.orderId, 
         handler: async function (response: { razorpay_order_id?: string; razorpay_payment_id?: string; razorpay_signature?: string }) {
           try {
-            const verification = await api.post("/payment/verify", {
-              razorpay_order_id: response.razorpay_order_id || orderOptions.data.id,
-              razorpay_payment_id: response.razorpay_payment_id || "pay_mocked123",
-              razorpay_signature: response.razorpay_signature || "signature_mock"
+            const verification = await api.post("/payment/verify-payment", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              tier: "PRO"
             });
             if (verification.data.success) {
               alert("Successfully upgraded to PRO!");
@@ -312,13 +313,8 @@ export default function Home() {
         },
       };
 
-      // Mock checkout if keys absent
-      if (!options.order_id) {
-        options.handler({ razorpay_order_id: "order_mock", razorpay_payment_id: "pay_mock", razorpay_signature: "sig_mock" });
-      } else {
-        const paymentObject = new (window as unknown as { Razorpay: new (opts: object) => { open: () => void } }).Razorpay(options);
-        paymentObject.open();
-      }
+      const paymentObject = new (window as unknown as { Razorpay: new (opts: object) => { open: () => void } }).Razorpay(options);
+      paymentObject.open();
 
     } catch (err) {
       console.error(err);
@@ -410,7 +406,7 @@ export default function Home() {
             { label: "Case Management",   icon: <Briefcase size={17} />,       action: () => router.push('/cases'),        active: false },
             { label: "Marketplace",       icon: <Users size={17} />,           action: () => router.push('/marketplace'),  active: false },
             { label: "Notifications",     icon: <Bell size={17} />,            action: () => router.push('/notifications'),active: false, badge: "3" },
-            { label: "Billing",           icon: <CreditCard size={17} />,      action: handleRazorpayUpgrade,              active: false },
+            { label: "Billing",           icon: <CreditCard size={17} />,      action: () => router.push('/pricing'),              active: false },
           ].map((item) => (
             <button
               key={item.label}
