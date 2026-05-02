@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nyaya_backend
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/uploads:/app/uploads
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-955280427755-4m1eihj1ec20krcv22bpdb1fe1flmfm7.apps.googleusercontent.com}
+    container_name: nyaya_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-955280427755-4m1eihj1ec20krcv22bpdb1fe1flmfm7.apps.googleusercontent.com}
+    depends_on:
+      - backend
+    restart: unless-stopped
