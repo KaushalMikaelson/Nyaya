@@ -53,7 +53,7 @@ const fadeUp = {
 
 // ── component ─────────────────────────────────────────────────────────────────
 
-export default function WorkspaceDashboard({ user, router, triggerChat, triggerPro }: any) {
+export default function WorkspaceDashboard({ user, router, triggerChat, triggerPro, currentTier = 'FREE' }: any) {
   const hour     = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const username = user?.email ? user.email.split("@")[0] : "User";
@@ -111,7 +111,7 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            {!user?.isPro && (
+            {currentTier === 'FREE' && (
               <motion.button
                 whileHover={{ scale: 1.04, boxShadow: "0 0 30px rgba(212,175,55,0.4)" }}
                 whileTap={{ scale: 0.97 }}

@@ -13,9 +13,9 @@ const razorpay = new Razorpay({
 });
 
 const PLAN_PRICES = {
-  BASIC: { amount: 99900, currency: 'INR' }, // Rs 999
-  PRO: { amount: 249900, currency: 'INR' }, // Rs 2499
-  ENTERPRISE: { amount: 999900, currency: 'INR' } // Rs 9999
+  BASIC: { amount: 100, currency: 'INR' }, // Rs 1 (test)
+  PRO: { amount: 200, currency: 'INR' }, // Rs 2 (test)
+  ENTERPRISE: { amount: 300, currency: 'INR' } // Rs 3 (test)
 };
 
 // Create an order for a new subscription or top-up

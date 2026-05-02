@@ -87,6 +87,16 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
+  const [currentTier, setCurrentTier] = useState<string>("FREE");
+
+  // Fetch subscription tier when user loads
+  useEffect(() => {
+    if (user) {
+      api.get('/payment/subscription')
+        .then(res => setCurrentTier(res.data.subscription?.tier || 'FREE'))
+        .catch(() => {});
+    }
+  }, [user]);
 
   // Redirect unauthenticated users to the landing page
   useEffect(() => {
@@ -442,7 +452,7 @@ export default function Home() {
         </div>
 
         {/* Upgrade CTA */}
-        {!user?.isPro && (
+        {currentTier === 'FREE' && (
           <div className="px-3 pb-3 pt-2" style={{ borderTop: "1px solid rgba(30,38,66,0.8)" }}>
             <motion.button
               whileHover={{ boxShadow: "0 0 25px rgba(212,175,55,0.3)" }}
@@ -454,6 +464,17 @@ export default function Home() {
               <Sparkles size={14} />
               {isUpgrading ? "Loading..." : "Upgrade to PRO"}
             </motion.button>
+          </div>
+        )}
+        {currentTier !== 'FREE' && (
+          <div className="px-3 pb-3 pt-2" style={{ borderTop: "1px solid rgba(30,38,66,0.8)" }}>
+            <div
+              className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-sm font-bold opacity-80"
+              style={{ background: "rgba(212,175,55,0.08)", color: "#d4af37", border: "1px solid rgba(212,175,55,0.2)" }}
+            >
+              <Sparkles size={14} />
+              {currentTier === 'PRO' ? 'PRO Active' : currentTier === 'ENTERPRISE' ? 'Enterprise Active' : 'Practitioner Active'}
+            </div>
           </div>
         )}
 
@@ -512,9 +533,15 @@ export default function Home() {
           <div className="flex items-center gap-3 shrink-0">
             <div
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase"
-              style={{ background: "rgba(212,175,55,0.1)", color: "#d4af37", border: "1px solid rgba(212,175,55,0.2)" }}
+              style={currentTier === 'FREE'
+                ? { background: "rgba(148,163,184,0.1)", color: "#94a3b8", border: "1px solid rgba(148,163,184,0.2)" }
+                : currentTier === 'PRO' || currentTier === 'ENTERPRISE'
+                  ? { background: "rgba(212,175,55,0.1)", color: "#d4af37", border: "1px solid rgba(212,175,55,0.2)" }
+                  : { background: "rgba(99,102,241,0.1)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.2)" }
+              }
             >
-              <ShieldCheck size={11} /> {user.role}
+              <ShieldCheck size={11} />
+              {currentTier === 'FREE' ? 'Free' : currentTier === 'BASIC' ? 'Practitioner' : currentTier === 'PRO' ? 'PRO' : currentTier === 'ENTERPRISE' ? 'Enterprise' : currentTier}
             </div>
             <div className="w-px h-5 mx-1" style={{ background: "rgba(255,255,255,0.06)" }} />
             <button className="flex items-center gap-2">
@@ -533,7 +560,7 @@ export default function Home() {
         {/* Main Content Area */}
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
           {messages.length === 0 && !activeChat ? (
-             <WorkspaceDashboard user={user} router={router} triggerChat={() => router.push('/ask-nyaya')} triggerPro={handleRazorpayUpgrade} />
+             <WorkspaceDashboard user={user} router={router} triggerChat={() => router.push('/ask-nyaya')} triggerPro={handleRazorpayUpgrade} currentTier={currentTier} />
           ) : (
              <div className="mx-auto max-w-3xl px-4 py-6 pb-44">
                {messages.length === 0 && activeChat ? (
