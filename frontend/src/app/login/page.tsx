@@ -175,9 +175,18 @@ export default function Login() {
     setMode(m); setError(""); setOtpStep("request"); setOtp("");
   };
 
-  const handleGoogleLogin = useGoogleLogin({
-    ux_mode: "redirect",
-  });
+  const handleGoogleLogin = () => {
+    if (typeof window === "undefined") return;
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      setError("Google Client ID is missing.");
+      return;
+    }
+    const redirectUri = `${window.location.origin}/login`;
+    const scope = encodeURIComponent("openid email profile");
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}&prompt=select_account`;
+    window.location.href = url;
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
