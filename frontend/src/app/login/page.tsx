@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
@@ -176,33 +176,52 @@ export default function Login() {
   };
 
   const handleGoogleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      setGoogleLoading(true);
-      setError("");
-      try {
-        // Exchange access_token for user info, then send credential to backend
-        const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-        });
-        const userInfo = await userInfoRes.json();
-        // Use the sub as a unique identifier + email to create/login
-        const { data } = await api.post("/auth/google/token", {
-          access_token: tokenResponse.access_token,
-          email: userInfo.email,
-          name: userInfo.name,
-          googleId: userInfo.sub,
-        });
-        login(data.accessToken, data.user);
-      } catch (err: any) {
-        setError(err.response?.data?.error || "Google sign-in failed. Please try again.");
-      } finally {
-        setGoogleLoading(false);
-      }
-    },
-    onError: () => {
-      setError("Google sign-in was cancelled or failed.");
-    },
+    ux_mode: "redirect",
   });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash;
+    
+    if (hash && hash.includes("access_token=")) {
+      const params = new URLSearchParams(hash.substring(1));
+      const access_token = params.get("access_token");
+      
+      if (access_token) {
+        setGoogleLoading(true);
+        setError("");
+        
+        const processGoogleLogin = async () => {
+          try {
+            const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+              headers: { Authorization: `Bearer ${access_token}` },
+            });
+            const userInfo = await userInfoRes.json();
+            
+            const { data } = await api.post("/auth/google/token", {
+              access_token: access_token,
+              email: userInfo.email,
+              name: userInfo.name,
+              googleId: userInfo.sub,
+            });
+            
+            // Clean up the URL before redirecting/updating state
+            window.history.replaceState({}, document.title, window.location.pathname);
+            login(data.accessToken, data.user);
+          } catch (err: any) {
+            setError(err.response?.data?.error || "Google sign-in failed. Please try again.");
+            setGoogleLoading(false);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        };
+        
+        processGoogleLogin();
+      }
+    } else if (hash && hash.includes("error=")) {
+      setError("Google sign-in was cancelled or failed.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [login]);
 
   return (
     <div className="min-h-screen w-full flex" style={{ background: "#070b16" }}>
