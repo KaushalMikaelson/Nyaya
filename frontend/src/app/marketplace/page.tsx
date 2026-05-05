@@ -78,7 +78,7 @@ export default function MarketplacePage() {
 
       <div className="relative z-10 max-w-6xl mx-auto px-6 py-10">
         {/* Back */}
-        <button onClick={() => router.push("/")} className="flex items-center gap-1.5 mb-8 text-sm font-medium transition-colors group" style={{ color:"#4a4a62" }}
+        <button onClick={() => router.push("/dashboard")} className="flex items-center gap-1.5 mb-8 text-sm font-medium transition-colors group" style={{ color:"#4a4a62" }}
           onMouseEnter={e => (e.currentTarget.style.color="#a1a1aa")} onMouseLeave={e => (e.currentTarget.style.color="#4a4a62")}>
           <ArrowLeft size={15} className="group-hover:-translate-x-1 transition-transform" /> Back to Dashboard
         </button>

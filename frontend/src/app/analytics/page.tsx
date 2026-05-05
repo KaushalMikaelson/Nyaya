@@ -41,7 +41,7 @@ export default function AnalyticsDashboard() {
       <header className="flex items-center justify-between h-16 px-4 sticky top-0 z-10"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(7,7,13,0.8)", backdropFilter: "blur(12px)" }}>
         <div className="flex items-center">
-          <button onClick={() => router.push("/")} className="mr-4 p-2 rounded-xl transition-colors hover:bg-white/5" style={{ color: "#a0a0bd" }}>
+          <button onClick={() => router.push("/dashboard")} className="mr-4 p-2 rounded-xl transition-colors hover:bg-white/5" style={{ color: "#a0a0bd" }}>
             <ArrowLeft size={20} />
           </button>
           <div className="flex items-center gap-2.5">

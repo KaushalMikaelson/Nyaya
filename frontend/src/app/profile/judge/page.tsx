@@ -84,7 +84,7 @@ export default function JudgeProfilePage() {
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "JUDGE")) {
-      router.push("/");
+      router.replace("/");
       return;
     }
     if (user) {

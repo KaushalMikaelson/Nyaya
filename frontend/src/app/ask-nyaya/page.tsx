@@ -408,7 +408,7 @@ export default function AskNyayaPage() {
           <div className="px-3 py-4 flex flex-col gap-0.5" style={{ borderBottom: "1px solid rgba(30,38,66,0.8)" }}>
             {[
               { label: "New Chat", icon: <Plus size={15} />, action: startNewChat, active: !conversationId },
-              { label: "Dashboard", icon: <LayoutGrid size={15} />, action: () => router.push("/"), active: false },
+              { label: "Dashboard", icon: <LayoutGrid size={15} />, action: () => router.push("/dashboard"), active: false },
               { label: "Documents", icon: <FileStack size={15} />, action: () => router.push("/documents"), active: false },
               { label: "Cases", icon: <Briefcase size={15} />, action: () => router.push("/cases"), active: false },
               { label: "Marketplace", icon: <Users size={15} />, action: () => router.push("/marketplace"), active: false },
@@ -459,7 +459,7 @@ export default function AskNyayaPage() {
           <div className="px-3 pb-4" style={{ borderTop: "1px solid rgba(30,38,66,0.8)" }}>
             <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 mt-3 cursor-pointer group transition-all"
               style={{ border: "1px solid rgba(30,38,66,0.8)" }}
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/dashboard")}
               onMouseEnter={e => (e.currentTarget.style.background="rgba(255,255,255,0.04)")} onMouseLeave={e => (e.currentTarget.style.background="transparent")}>
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: "linear-gradient(135deg,#7c6ef7,#d4af37)", color: "#070b16" }}>
                 {(user?.email?.[0] || "N").toUpperCase()}

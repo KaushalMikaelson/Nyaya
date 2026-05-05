@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
 
         if (!isPublicRoute) {
-          router.push('/');
+          router.replace('/');
         }
       } finally {
         setLoading(false);
@@ -167,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setAccessToken('');
       setUser(null);
-      router.push('/');
+      router.replace('/');
     }
   }, [router]);
 
@@ -179,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setAccessToken('');
       setUser(null);
-      router.push('/');
+      router.replace('/');
     }
   }, [router]);
 

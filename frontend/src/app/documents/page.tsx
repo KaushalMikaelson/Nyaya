@@ -260,7 +260,7 @@ export default function DocumentsPage() {
           {/* Nav items */}
           <div className="px-3 py-4 flex flex-col gap-0.5 flex-1 overflow-y-auto">
             {[
-              { label: "Dashboard", icon: <LayoutGrid size={15} />, action: () => router.push("/"), active: false },
+              { label: "Dashboard", icon: <LayoutGrid size={15} />, action: () => router.push("/dashboard"), active: false },
               { label: "Ask Nyaya", icon: <Zap size={15} />, action: () => router.push("/ask-nyaya"), active: false },
               { label: "Documents", icon: <FileStack size={15} />, action: () => {}, active: true },
               { label: "Cases", icon: <Briefcase size={15} />, action: () => router.push("/cases"), active: false },

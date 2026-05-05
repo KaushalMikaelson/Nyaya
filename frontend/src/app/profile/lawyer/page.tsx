@@ -195,7 +195,7 @@ export default function LawyerProfilePage() {
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "LAWYER")) {
-      router.push("/");
+      router.replace("/");
       return;
     }
     if (user) {

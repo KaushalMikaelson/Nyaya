@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 const NAV = [
-  { key: "dashboard",     label: "Dashboard",         icon: LayoutDashboard, href: "/" },
+  { key: "dashboard",     label: "Dashboard",         icon: LayoutDashboard, href: "/dashboard" },
   { key: "ask",           label: "Ask Nyaya",          icon: Zap,             href: "/ask-nyaya" },
   { key: "documents",     label: "Documents",          icon: FileStack,       href: "/documents" },
   { key: "cases",         label: "Case Management",   icon: Briefcase,       href: "/cases" },

@@ -24,7 +24,7 @@ export default function NotificationsPage() {
   const fetchNotifications = async () => {
     try {
       const token = localStorage.getItem("token");
-      if (!token) { router.push("/"); return; }
+      if (!token) { router.replace("/"); return; }
       const res = await fetch("http://localhost:3001/api/notifications", { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) setNotifications(await res.json());
     } catch (err) { console.error(err); } finally { setLoading(false); }
@@ -71,7 +71,7 @@ export default function NotificationsPage() {
       <div className="relative z-10 max-w-3xl mx-auto px-6 py-10">
         {/* Header */}
         <motion.div initial={{ opacity:0, y:-14 }} animate={{ opacity:1, y:0 }} className="mb-10">
-          <button onClick={() => router.push("/")}
+          <button onClick={() => router.push("/dashboard")}
             className="flex items-center gap-1.5 text-sm font-medium mb-5 transition-colors"
             style={{ color:"#4a4a62" }}
             onMouseEnter={e => (e.currentTarget.style.color="#a1a1aa")} onMouseLeave={e => (e.currentTarget.style.color="#4a4a62")}>

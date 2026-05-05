@@ -57,7 +57,7 @@ export default function DocumentGenerator() {
       {/* Top Header */}
       <header className="flex block md:hidden items-center h-14 px-4 sticky top-0 z-10"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(7,7,13,0.8)", backdropFilter: "blur(12px)" }}>
-        <button onClick={() => router.push("/")} className="mr-3 p-1.5 rounded-lg transition-colors" style={{ color: "#a0a0bd" }}>
+        <button onClick={() => router.push("/dashboard")} className="mr-3 p-1.5 rounded-lg transition-colors" style={{ color: "#a0a0bd" }}>
           <ArrowLeft size={20} />
         </button>
         <div className="font-semibold text-sm">Document Generator</div>
@@ -67,7 +67,7 @@ export default function DocumentGenerator() {
         
         {/* Left Col: Form */}
         <div>
-          <button onClick={() => router.push("/")} className="hidden md:flex items-center gap-2 mb-8 text-sm font-medium transition-colors" style={{ color: "#9090a8" }}
+          <button onClick={() => router.push("/dashboard")} className="hidden md:flex items-center gap-2 mb-8 text-sm font-medium transition-colors" style={{ color: "#9090a8" }}
             onMouseOver={e=>e.currentTarget.style.color="#fff"} onMouseOut={e=>e.currentTarget.style.color="#9090a8"}>
             <ArrowLeft size={16} /> Back to Dashboard
           </button>

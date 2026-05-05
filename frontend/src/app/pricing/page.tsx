@@ -263,7 +263,7 @@ export default function PricingPage() {
       {/* Navbar */}
       <nav className="fixed top-6 left-1/2 -translate-x-1/2 w-[95%] max-w-7xl z-50">
         <div className="bg-[rgba(15,20,35,0.6)] backdrop-blur-xl border border-white/8 rounded-full px-6 py-4 flex items-center justify-between">
-          <button onClick={() => router.push("/landing")} className="flex items-center gap-3">
+          <button onClick={() => router.push("/")} className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#d4af37] to-[#f2d680] flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.3)]">
               <Scale size={16} className="text-[#070b16]" />
             </div>

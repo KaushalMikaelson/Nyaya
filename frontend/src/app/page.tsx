@@ -115,6 +115,13 @@ const particles = Array.from({ length: 18 }, (_, i) => ({
 export default function AdvancedLanding() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("Business Law");
+  const [isMounted, setIsMounted] = useState(false);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const heroRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
@@ -198,7 +205,7 @@ export default function AdvancedLanding() {
       <main ref={heroRef} className="relative min-h-screen flex items-center pt-24 pb-12 w-full max-w-7xl mx-auto px-6 lg:px-12 overflow-hidden">
 
         {/* Floating particles */}
-        {particles.map((p, i) => <Particle key={i} {...p} />)}
+        {isMounted && particles.map((p, i) => <Particle key={i} {...p} />)}
 
         {/* Morphing background orbs */}
         <motion.div

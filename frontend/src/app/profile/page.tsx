@@ -106,7 +106,7 @@ export default function ProfilePage() {
   const [form, setForm] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!authLoading && !user) router.push("/");
+    if (!authLoading && !user) router.replace("/");
   }, [authLoading, user, router]);
 
   const fetchProfile = useCallback(async () => {
@@ -227,7 +227,7 @@ export default function ProfilePage() {
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col transition-transform duration-300 ease-in-out bg-[#0f172a] border-r border-slate-800 shadow-[20px_0_50px_rgba(0,0,0,0.2)] ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex items-center gap-1.5 px-3 h-[60px] shrink-0 border-b border-slate-800">
-          <button onClick={() => router.push("/")} className="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-white transition-colors">
+          <button onClick={() => router.push("/dashboard")} className="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-white transition-colors">
             <Scale size={16} />
             <span className="text-sm font-semibold text-white">Nyaay AI</span>
           </button>
