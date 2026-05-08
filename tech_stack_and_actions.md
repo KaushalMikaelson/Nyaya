@@ -90,14 +90,14 @@
 | **jsonwebtoken** | JWT signing/verification for access + refresh tokens |
 | **bcrypt** | Password hashing (cost factor 12 for citizens, 14 for admins) |
 | **Nodemailer** | SMTP email delivery (Gmail App Password configured) |
-| **Twilio** | WhatsApp/SMS OTP and notification delivery |
-| **Multer** | Multipart file uploads (lawyer/judge verification docs) |
-| **pdf-parse** | Text extraction from uploaded PDF legal documents |
-| **Helmet.js** | Security headers middleware |
+| **Twilio**     | WhatsApp/SMS OTP and notification delivery |
+| **Multer**     | Multipart file uploads (lawyer/judge verification docs) |
+| **pdf-parse**  | Text extraction from uploaded PDF legal documents |
+| **Helmet.js**  | Security headers middleware |
 | **express-rate-limit** | Per-endpoint rate limiting |
 | **cookie-parser** | HTTP-only refresh token cookie parsing |
 | **BullMQ + ioredis** | Background job queues for notifications |
-| **Groq SDK** | LLaMA 3.3 70B inference for chat, generation, intelligence |
+| **Groq SDK**   | LLaMA 3.3 70B inference for chat, generation, intelligence |
 | **Voyage AI** | Legal text → embedding vectors (1024-dim) |
 | **Cohere AI** | Reranking retrieved legal chunks for relevance |
 | **Razorpay** | Payment gateway for PRO subscriptions |
@@ -142,7 +142,7 @@
 | File | Responsibility |
 |------|---------------|
 | `src/services/token.service.ts` | JWT signing, refresh token rotation, revocation |
-| `src/services/otp.service.ts` | OTP generation (crypto), DB storage, email + SMS dispatch |
+| `src/services/otp.service.ts`   | OTP generation (crypto), DB storage, email + SMS dispatch |
 | `src/services/aadhaar.service.ts` | Aadhaar eKYC stub (DigiLocker-ready) |
 
 ### Middleware
