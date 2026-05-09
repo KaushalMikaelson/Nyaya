@@ -179,8 +179,11 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
                 </div>
               </div>
               <button
+                onClick={() => router.push('/profile')}
                 className="shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-colors"
                 style={{ background: "rgba(244,63,94,0.15)", color: "#f43f5e", border: "1px solid rgba(244,63,94,0.3)" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(244,63,94,0.25)" }}
+                onMouseLeave={e => { e.currentTarget.style.background = "rgba(244,63,94,0.15)" }}
               >
                 Verify Identity →
               </button>
