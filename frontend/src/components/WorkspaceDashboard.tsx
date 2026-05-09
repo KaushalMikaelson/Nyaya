@@ -10,34 +10,7 @@ import { Playfair_Display } from "next/font/google";
 
 const playfair = Playfair_Display({ subsets: ["latin"], style: ["normal", "italic"] });
 
-// ── mock data ─────────────────────────────────────────────────────────────────
-
-const mockCases = [
-  { id: "CAS-8821", title: "Sharma vs Reliance Industries", category: "Corporate", status: "Hearing Scheduled", date: "Oct 14, 2026", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
-  { id: "CAS-7543", title: "Verma Property Estate Dispute", category: "Civil",      status: "Drafting Petition",  date: "Oct 18, 2026", color: "#d4af37", bg: "rgba(212,175,55,0.12)" },
-  { id: "CAS-6290", title: "Mehta Inheritance Claim",       category: "Family",     status: "Under Review",       date: "Oct 22, 2026", color: "#a1a1aa", bg: "rgba(161,161,170,0.12)" },
-  { id: "CAS-5100", title: "State vs. R. Kapoor",           category: "Criminal",   status: "Bail Pending",       date: "Nov 02, 2026", color: "#f43f5e", bg: "rgba(244,63,94,0.12)" },
-];
-
-const mockLawyers = [
-  { name: "Adv. Priya Deshmukh", type: "Corporate Law",    rating: "4.9", initials: "PD" },
-  { name: "Adv. Anjali Kapoor",  type: "Family Law",        rating: "4.8", initials: "AK" },
-  { name: "Adv. Rohan Iyer",     type: "Criminal Defense",  rating: "4.7", initials: "RI" },
-];
-
-const recentActivity = [
-  { label: "Generated FIR Draft for CAS-5100",                   time: "2 hours ago" },
-  { label: "Queried IPC Section 420 for Corporate Fraud",         time: "5 hours ago" },
-  { label: "Case CAS-8821 status changed to Hearing Scheduled",   time: "Yesterday"   },
-  { label: "Lease_Agreement_v2.pdf analyzed by AI",               time: "2 days ago"  },
-];
-
-const metrics = [
-  { label: "Active Matters",       value: "12",    icon: <Gavel       size={16} className="text-[#d4af37]"  />, color: "#d4af37"  },
-  { label: "Saved Documents",      value: "145",   icon: <FileStack   size={16} className="text-indigo-400" />, color: "#818cf8"  },
-  { label: "AI Queries Used",      value: "1,284", icon: <Activity    size={16} className="text-emerald-400"/>, color: "#34d399"  },
-  { label: "Upcoming Hearings",    value: "3",     icon: <Clock       size={16} className="text-rose-400"   />, color: "#f43f5e"  },
-];
+// ── component ─────────────────────────────────────────────────────────────────
 
 // ── variants ──────────────────────────────────────────────────────────────────
 
@@ -53,10 +26,37 @@ const fadeUp = {
 
 // ── component ─────────────────────────────────────────────────────────────────
 
+import { useState, useEffect } from "react";
+import api from "@/lib/api";
+
 export default function WorkspaceDashboard({ user, router, triggerChat, triggerPro, currentTier = 'FREE' }: any) {
   const hour     = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const username = user?.email ? user.email.split("@")[0] : "User";
+
+  const [dashboardData, setDashboardData] = useState<{
+    metrics: any[];
+    cases: any[];
+    activity: any[];
+    lawyers: any[];
+  } | null>(null);
+
+  useEffect(() => {
+    api.get('/analytics/dashboard')
+      .then(res => setDashboardData(res.data))
+      .catch(console.error);
+  }, []);
+
+  const displayMetrics = [
+    { label: "Active Matters",       value: dashboardData?.metrics?.find(m => m.label === "Active Matters")?.value || 0,    icon: <Gavel       size={16} className="text-[#d4af37]"  />, color: "#d4af37"  },
+    { label: "Saved Documents",      value: dashboardData?.metrics?.find(m => m.label === "Saved Documents")?.value || 0,   icon: <FileStack   size={16} className="text-indigo-400" />, color: "#818cf8"  },
+    { label: "AI Queries Used",      value: dashboardData?.metrics?.find(m => m.label === "AI Queries Used")?.value || 0, icon: <Activity    size={16} className="text-emerald-400"/>, color: "#34d399"  },
+    { label: "Upcoming Hearings",    value: dashboardData?.metrics?.find(m => m.label === "Upcoming Hearings")?.value || 0,     icon: <Clock       size={16} className="text-rose-400"   />, color: "#f43f5e"  },
+  ];
+
+  const displayCases = dashboardData?.cases || [];
+  const displayActivity = dashboardData?.activity || [];
+  const displayLawyers = dashboardData?.lawyers || [];
 
   return (
     <div
@@ -220,7 +220,7 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
 
         {/* ── METRICS ROW ─────────────────────────────────────────────────── */}
         <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {metrics.map((m, i) => (
+          {displayMetrics.map((m, i) => (
             <motion.div
               key={i}
               whileHover={{ y: -4 }}
@@ -294,7 +294,7 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
                     </tr>
                   </thead>
                   <tbody>
-                    {mockCases.map((c, i) => (
+                    {displayCases.length > 0 ? displayCases.map((c: any, i: number) => (
                       <motion.tr
                         key={c.id}
                         initial={{ opacity: 0, x: -10 }}
@@ -319,7 +319,7 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
                             className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider"
                             style={{ color: c.color, background: c.bg }}
                           >
-                            {c.status}
+                            {c.status.replace(/_/g, ' ')}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -328,7 +328,13 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
                           </div>
                         </td>
                       </motion.tr>
-                    ))}
+                    )) : (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-8 text-center text-sm" style={{ color: "#6a6a82" }}>
+                          No active cases found. Create one to get started.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -352,7 +358,7 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
                   className="absolute top-2 bottom-2 left-2.5 w-px"
                   style={{ background: "rgba(255,255,255,0.06)" }}
                 />
-                {recentActivity.map((act, i) => (
+                {displayActivity.length > 0 ? displayActivity.map((act: any, i: number) => (
                   <motion.div
                     key={i}
                     initial={{ opacity: 0, x: -12 }}
@@ -371,7 +377,9 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
                       <p className="text-[11px] mt-1" style={{ color: "#4a4a62" }}>{act.time}</p>
                     </div>
                   </motion.div>
-                ))}
+                )) : (
+                  <p className="text-sm" style={{ color: "#6a6a82" }}>No recent activity to show.</p>
+                )}
               </div>
             </motion.div>
           </div>
@@ -463,7 +471,7 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
                 </button>
               </div>
               <div className="space-y-4">
-                {mockLawyers.map((l, i) => (
+                {displayLawyers.length > 0 ? displayLawyers.map((l: any, i: number) => (
                   <motion.div
                     key={i}
                     initial={{ opacity: 0, x: 10 }}
@@ -493,7 +501,9 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
                       <Star size={10} className="fill-[#d4af37]" /> {l.rating}
                     </div>
                   </motion.div>
-                ))}
+                )) : (
+                   <p className="text-sm" style={{ color: "#6a6a82" }}>No registered counsels found.</p>
+                )}
               </div>
             </motion.div>
 
