@@ -246,3 +246,9 @@ body {
 .sidebar-item {
   transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
+
+/* Global native select option styling for dark theme */
+option {
+  background-color: var(--surface-1);
+  color: var(--text-primary);
+}

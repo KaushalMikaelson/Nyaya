@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, Calendar, FileText, Share2, 
-  Clock, Plus, Scale, ChevronRight, X, Building2, ArrowRight, Briefcase 
+  Clock, Plus, Scale, ChevronRight, X, Building2, ArrowRight, Briefcase, Lock, AlertCircle 
 } from "lucide-react";
+
+import api from "@/lib/api";
 
 export default function CaseDetailsPage() {
   const router = useRouter();
@@ -20,6 +22,12 @@ export default function CaseDetailsPage() {
   // Modals
   const [showHearingModal, setShowHearingModal] = useState(false);
   const [showTimelineModal, setShowTimelineModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // File Upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [uploadError, setUploadError] = useState<{ show: boolean, message: string, type: 'error' | 'upgrade' }>({ show: false, message: '', type: 'error' });
 
   // Forms
   const [hearingForm, setHearingForm] = useState({ date: '', purpose: '', summary: '', nextHearingDate: '' });
@@ -31,14 +39,8 @@ export default function CaseDetailsPage() {
 
   const fetchCaseDetails = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:3001/api/cases/${caseId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setCaseData(data);
-      }
+      const res = await api.get(`/cases/${caseId}`);
+      setCaseData(res.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -48,39 +50,66 @@ export default function CaseDetailsPage() {
 
   const handleCreateHearing = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:3001/api/cases/${caseId}/hearings`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(hearingForm)
-      });
-      if (res.ok) {
-        setShowHearingModal(false);
-        setHearingForm({ date: '', purpose: '', summary: '', nextHearingDate: '' });
-        fetchCaseDetails();
-      }
+      await api.post(`/cases/${caseId}/hearings`, hearingForm);
+      setShowHearingModal(false);
+      setHearingForm({ date: '', purpose: '', summary: '', nextHearingDate: '' });
+      fetchCaseDetails();
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleCreateTimeline = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:3001/api/cases/${caseId}/timeline`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(timelineForm)
-      });
-      if (res.ok) {
-        setShowTimelineModal(false);
-        setTimelineForm({ title: '', description: '', date: '' });
-        fetchCaseDetails();
-      }
+      await api.post(`/cases/${caseId}/timeline`, timelineForm);
+      setShowTimelineModal(false);
+      setTimelineForm({ title: '', description: '', date: '' });
+      fetchCaseDetails();
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingDoc(true);
+    try {
+      const { data: presigned } = await api.post('/documents/upload-url', {
+        fileName: file.name,
+        mimeType: file.type || 'application/pdf',
+        sizeBytes: file.size,
+      });
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('caseId', caseId);
+      formData.append('title', file.name);
+
+      await api.post('/documents/local-upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      fetchCaseDetails();
+    } catch (err: any) {
+      console.error('Upload failed:', err);
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || 'Failed to upload document';
+      const isUpgrade = err.response?.data?.error === 'UPGRADE_REQUIRED';
+      setUploadError({ show: true, message: errorMsg, type: isUpgrade ? 'upgrade' : 'error' });
+    } finally {
+      setUploadingDoc(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -168,7 +197,13 @@ export default function CaseDetailsPage() {
               <div className="relative pl-6 space-y-8 before:absolute before:inset-0 before:ml-[1.4rem] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-amber-400 before:via-blue-500/50 before:to-transparent">
                 {caseData.timeline?.length === 0 && <p className="text-slate-400 pl-4 py-4 relative z-10">No events logged yet.</p>}
                 
-                {caseData.timeline?.map((evt: any, i: number) => (
+                {caseData.timeline?.filter((evt: any, idx: number, arr: any[]) => 
+                  idx === arr.findIndex((t: any) => 
+                    t.title === evt.title && 
+                    t.description === evt.description && 
+                    new Date(t.date).toDateString() === new Date(evt.date).toDateString()
+                  )
+                ).map((evt: any, i: number) => (
                   <div key={evt.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
                     <div className="flex items-center justify-center w-6 h-6 rounded-full border-2 border-[#111827] bg-amber-400 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-[0_0_10px_rgba(251,191,36,0.4)] z-10"></div>
                     <div className="w-[calc(100%-2rem)] md:w-[calc(50%-1.5rem)] bg-[#111827] border border-slate-800 p-5 rounded-2xl shadow-lg transition-transform hover:-translate-y-1">
@@ -227,11 +262,40 @@ export default function CaseDetailsPage() {
 
           {/* DOCUMENTS TAB */}
           {activeTab === 'documents' && (
-            <div className="text-center py-20 bg-[#111827] border border-slate-800 rounded-2xl">
-               <FileText size={40} className="mx-auto text-slate-600 mb-4" />
-               <h3 className="text-xl font-semibold text-white mb-2">Document Vault</h3>
-               <p className="text-slate-400 max-w-sm mx-auto mb-6">Attach drafted pleadings, evidence, and court orders.</p>
-               <button className="px-5 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-700">Upload File</button>
+            <div className="space-y-4">
+               <div className="flex justify-between items-center bg-[#111827] p-4 rounded-2xl border border-slate-800 mb-6">
+                 <p className="text-sm text-slate-300">Case documents and evidence</p>
+                 <button onClick={() => fileInputRef.current?.click()} disabled={uploadingDoc} className="flex items-center gap-2 text-sm font-medium bg-slate-800 text-white px-4 py-2 rounded-xl hover:bg-slate-700 transition-colors disabled:opacity-50">
+                   {uploadingDoc ? "Uploading..." : <><Plus size={16} /> Upload File</>}
+                 </button>
+                 <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".pdf,.png,.jpg,.jpeg,.webp,.txt" />
+               </div>
+               
+               {caseData.documents?.length === 0 ? (
+                 <div className="text-center py-20 bg-[#111827] border border-slate-800 rounded-2xl">
+                   <FileText size={40} className="mx-auto text-slate-600 mb-4" />
+                   <h3 className="text-xl font-semibold text-white mb-2">Document Vault</h3>
+                   <p className="text-slate-400 max-w-sm mx-auto mb-6">Attach drafted pleadings, evidence, and court orders.</p>
+                   <button onClick={() => fileInputRef.current?.click()} disabled={uploadingDoc} className="px-5 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-700 disabled:opacity-50">
+                     {uploadingDoc ? "Uploading..." : "Upload File"}
+                   </button>
+                 </div>
+               ) : (
+                 caseData.documents?.map((doc: any) => (
+                   <div key={doc.id} className="bg-[#111827] border border-slate-800 rounded-2xl p-6 flex justify-between items-center hover:border-slate-700 transition-colors">
+                     <div className="flex items-center gap-4">
+                       <div className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center">
+                         <FileText size={18} className="text-slate-400" />
+                       </div>
+                       <div>
+                         <h4 className="font-semibold text-slate-200">{doc.title}</h4>
+                         <p className="text-xs text-slate-500 mt-1">Uploaded on {new Date(doc.createdAt).toLocaleDateString()} • {doc.status}</p>
+                       </div>
+                     </div>
+                     <button className="text-blue-400 text-sm font-medium hover:underline" onClick={() => router.push(`/documents/${doc.id}`)}>View</button>
+                   </div>
+                 ))
+               )}
             </div>
           )}
 
@@ -291,8 +355,8 @@ export default function CaseDetailsPage() {
                    <label className="block text-xs font-medium text-slate-400 mb-1">Notes / Summary</label>
                    <textarea value={hearingForm.summary} onChange={e => setHearingForm({...hearingForm, summary: e.target.value})} className="w-full bg-[#0a0f1d] border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-blue-500 outline-none transition-colors resize-none h-20" />
                  </div>
-                 <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl mt-4 transition-colors">
-                   Save Hearing
+                 <button type="submit" disabled={isSubmitting} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl mt-4 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                   {isSubmitting ? "Saving..." : "Save Hearing"}
                  </button>
                </form>
             </motion.div>
@@ -317,10 +381,26 @@ export default function CaseDetailsPage() {
                    <label className="block text-xs font-medium text-slate-400 mb-1">Date (defaults to today)</label>
                    <input type="date" value={timelineForm.date} onChange={e => setTimelineForm({...timelineForm, date: e.target.value})} className="w-full bg-[#0a0f1d] border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-amber-500 outline-none transition-colors" />
                  </div>
-                 <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-xl mt-4 transition-colors">
-                   Add Timeline Event
+                 <button type="submit" disabled={isSubmitting} className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 rounded-xl mt-4 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                   {isSubmitting ? "Adding..." : "Add Timeline Event"}
                  </button>
                </form>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {uploadError.show && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={`bg-[#111827] border rounded-3xl p-8 w-full max-w-md shadow-2xl relative text-center ${uploadError.type === 'upgrade' ? 'border-amber-500/30 shadow-amber-500/10' : 'border-red-500/30 shadow-red-500/10'}`}>
+               <button onClick={() => setUploadError({ show: false, message: '', type: 'error' })} className="absolute top-6 right-6 text-slate-400 hover:text-white"><X size={20} /></button>
+               <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border ${uploadError.type === 'upgrade' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                 {uploadError.type === 'upgrade' ? <Lock size={32} /> : <AlertCircle size={32} />}
+               </div>
+               <h2 className="text-2xl font-bold text-white mb-2">{uploadError.type === 'upgrade' ? 'Premium Feature' : 'Upload Failed'}</h2>
+               <p className="text-slate-300 mb-8">{uploadError.message}</p>
+               <button onClick={() => setUploadError({ show: false, message: '', type: 'error' })} className={`w-full font-semibold py-3 rounded-xl transition-colors ${uploadError.type === 'upgrade' ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-900' : 'bg-slate-800 hover:bg-slate-700 text-white'}`}>
+                 {uploadError.type === 'upgrade' ? 'Dismiss' : 'Close'}
+               </button>
             </motion.div>
           </motion.div>
         )}
