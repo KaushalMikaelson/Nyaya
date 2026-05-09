@@ -456,8 +456,7 @@ export default function Home() {
           <div className="px-3 pb-3 pt-2" style={{ borderTop: "1px solid rgba(30,38,66,0.8)" }}>
             <motion.button
               whileHover={{ boxShadow: "0 0 25px rgba(212,175,55,0.3)" }}
-              onClick={handleRazorpayUpgrade}
-              disabled={isUpgrading}
+              onClick={() => router.push('/pricing')}
               className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-sm font-bold transition-all"
               style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.12), rgba(212,175,55,0.04))", color: "#d4af37", border: "1px solid rgba(212,175,55,0.25)" }}
             >
@@ -560,7 +559,7 @@ export default function Home() {
         {/* Main Content Area */}
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
           {messages.length === 0 && !activeChat ? (
-             <WorkspaceDashboard user={user} router={router} triggerChat={() => router.push('/ask-nyaya')} triggerPro={handleRazorpayUpgrade} currentTier={currentTier} />
+             <WorkspaceDashboard user={user} router={router} triggerChat={() => router.push('/ask-nyaya')} triggerPro={() => router.push('/pricing')} currentTier={currentTier} />
           ) : (
              <div className="mx-auto max-w-3xl px-4 py-6 pb-44">
                {messages.length === 0 && activeChat ? (

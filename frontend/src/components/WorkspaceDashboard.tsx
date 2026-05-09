@@ -39,19 +39,30 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
     cases: any[];
     activity: any[];
     lawyers: any[];
-  } | null>(null);
+  } | null>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = sessionStorage.getItem('nyaya_dashboard_data');
+      if (cached) {
+        try { return JSON.parse(cached); } catch { return null; }
+      }
+    }
+    return null;
+  });
 
   useEffect(() => {
     api.get('/analytics/dashboard')
-      .then(res => setDashboardData(res.data))
+      .then(res => {
+        setDashboardData(res.data);
+        sessionStorage.setItem('nyaya_dashboard_data', JSON.stringify(res.data));
+      })
       .catch(console.error);
   }, []);
 
   const displayMetrics = [
-    { label: "Active Matters",       value: dashboardData?.metrics?.find(m => m.label === "Active Matters")?.value || 0,    icon: <Gavel       size={16} className="text-[#d4af37]"  />, color: "#d4af37"  },
-    { label: "Saved Documents",      value: dashboardData?.metrics?.find(m => m.label === "Saved Documents")?.value || 0,   icon: <FileStack   size={16} className="text-indigo-400" />, color: "#818cf8"  },
-    { label: "AI Queries Used",      value: dashboardData?.metrics?.find(m => m.label === "AI Queries Used")?.value || 0, icon: <Activity    size={16} className="text-emerald-400"/>, color: "#34d399"  },
-    { label: "Upcoming Hearings",    value: dashboardData?.metrics?.find(m => m.label === "Upcoming Hearings")?.value || 0,     icon: <Clock       size={16} className="text-rose-400"   />, color: "#f43f5e"  },
+    { label: "Active Matters",       value: dashboardData ? (dashboardData.metrics?.find(m => m.label === "Active Matters")?.value ?? 0) : "...",    icon: <Gavel       size={16} className="text-[#d4af37]"  />, color: "#d4af37", onClick: () => router.push('/cases')  },
+    { label: "Saved Documents",      value: dashboardData ? (dashboardData.metrics?.find(m => m.label === "Saved Documents")?.value ?? 0) : "...",   icon: <FileStack   size={16} className="text-indigo-400" />, color: "#818cf8", onClick: () => router.push('/documents')  },
+    { label: "AI Queries Used",      value: dashboardData ? (dashboardData.metrics?.find(m => m.label === "AI Queries Used")?.value ?? 0) : "...", icon: <Activity    size={16} className="text-emerald-400"/>, color: "#34d399", onClick: triggerChat  },
+    { label: "Upcoming Hearings",    value: dashboardData ? (dashboardData.metrics?.find(m => m.label === "Upcoming Hearings")?.value ?? 0) : "...",     icon: <Clock       size={16} className="text-rose-400"   />, color: "#f43f5e", onClick: () => router.push('/cases')  },
   ];
 
   const displayCases = dashboardData?.cases || [];
@@ -223,12 +234,23 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
           {displayMetrics.map((m, i) => (
             <motion.div
               key={i}
-              whileHover={{ y: -4 }}
-              className="px-5 py-4 rounded-2xl flex items-center gap-4"
+              whileHover={{ y: -4, scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={m.onClick}
+              className="px-5 py-4 rounded-2xl flex items-center gap-4 cursor-pointer transition-all duration-200"
               style={{
                 background: "rgba(13,18,36,0.8)",
                 border: "1px solid rgba(30,38,66,1)",
                 backdropFilter: "blur(10px)",
+                boxShadow: "0 4px 20px -2px rgba(0,0,0,0.2)"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                e.currentTarget.style.border = `1px solid ${m.color}60`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(13,18,36,0.8)";
+                e.currentTarget.style.border = "1px solid rgba(30,38,66,1)";
               }}
             >
               <div
@@ -364,7 +386,11 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
                     initial={{ opacity: 0, x: -12 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 + i * 0.07 }}
-                    className="flex items-start gap-4 relative"
+                    className="flex items-start gap-4 relative cursor-pointer group p-2 -mx-2 rounded-lg transition-colors hover:bg-[rgba(255,255,255,0.03)]"
+                    onClick={() => {
+                      if (act.type === 'doc') router.push('/documents');
+                      if (act.type === 'case') router.push(`/cases/${act.id}`);
+                    }}
                   >
                     <div
                       className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 z-10 mt-0.5"
@@ -410,10 +436,25 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
                 </h3>
               </div>
               <div className="space-y-4">
-                {[
-                  { label: "AI Tokens Used",  used: "12k",  total: "50k", pct: 24, color: "#d4af37" },
-                  { label: "Storage",          used: "1.2GB", total: "5GB", pct: 24, color: "#818cf8" },
-                ].map((bar) => (
+                {(() => {
+                  const queries = dashboardData?.metrics?.find(m => m.label === "AI Queries Used")?.value || 0;
+                  const docs = dashboardData?.metrics?.find(m => m.label === "Saved Documents")?.value || 0;
+                  
+                  // Generate realistic usage stats from actual db rows
+                  const tokensUsed = queries * 450; // est 450 tokens per query
+                  const tokensMax = currentTier === 'PRO' ? 1000000 : 50000;
+                  const tokensStr = (tokensUsed / 1000).toFixed(1) + 'k';
+                  const tokensMaxStr = (tokensMax / 1000).toFixed(0) + 'k';
+                  
+                  const storageMB = docs * 2.4; // est 2.4MB per doc
+                  const storageMaxMB = currentTier === 'PRO' ? 5000 : 500; // 5GB PRO, 500MB Free
+                  const storageStr = storageMB >= 1000 ? (storageMB/1000).toFixed(1) + 'GB' : storageMB.toFixed(1) + 'MB';
+                  const storageMaxStr = storageMaxMB >= 1000 ? (storageMaxMB/1000).toFixed(0) + 'GB' : storageMaxMB.toFixed(0) + 'MB';
+
+                  return [
+                    { label: "AI Tokens Used",  used: tokensStr,  total: tokensMaxStr, pct: Math.min(100, (tokensUsed/tokensMax)*100), color: "#d4af37" },
+                    { label: "Storage",          used: storageStr, total: storageMaxStr, pct: Math.min(100, (storageMB/storageMaxMB)*100), color: "#818cf8" },
+                  ].map((bar) => (
                   <div key={bar.label}>
                     <div className="flex justify-between items-center mb-1.5">
                       <span className="text-xs font-medium" style={{ color: "#a1a1aa" }}>{bar.label}</span>
@@ -432,7 +473,7 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
                       />
                     </div>
                   </div>
-                ))}
+                ))})()}
               </div>
               <motion.button
                 whileHover={{ boxShadow: "0 0 20px rgba(212,175,55,0.3)" }}
@@ -478,7 +519,8 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 + i * 0.08 }}
                     whileHover={{ x: 3 }}
-                    className="flex items-center gap-3 cursor-pointer group"
+                    className="flex items-center gap-3 cursor-pointer group p-2 -mx-2 rounded-lg transition-colors hover:bg-[rgba(255,255,255,0.03)]"
+                    onClick={() => router.push('/marketplace')}
                   >
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all"
@@ -511,12 +553,15 @@ export default function WorkspaceDashboard({ user, router, triggerChat, triggerP
             <motion.div
               variants={fadeUp}
               whileHover={{ y: -4, boxShadow: "0 16px 40px rgba(99,102,241,0.15)" }}
-              className="rounded-2xl p-6 cursor-pointer relative overflow-hidden group"
+              onClick={() => router.push('/documents')}
+              className="rounded-2xl p-6 cursor-pointer relative overflow-hidden group transition-all"
               style={{
                 background: "rgba(13,18,36,0.8)",
                 border: "1px solid rgba(99,102,241,0.2)",
                 backdropFilter: "blur(12px)",
               }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)" }}
+              onMouseLeave={e => { e.currentTarget.style.background = "rgba(13,18,36,0.8)" }}
             >
               <motion.div
                 animate={{ opacity: [0.04, 0.1, 0.04] }}

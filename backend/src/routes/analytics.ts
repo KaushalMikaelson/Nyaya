@@ -170,10 +170,10 @@ router.get('/dashboard', async (req: AuthRequest, res): Promise<void> => {
     // Recent activity (mix of recent cases and documents)
     const recentActivity: any[] = [];
     documents.forEach(d => {
-      recentActivity.push({ label: `${d.originalName || d.title} analyzed by AI`, time: d.createdAt, type: 'doc' });
+      recentActivity.push({ label: `${d.originalName || d.title} analyzed by AI`, time: d.createdAt, type: 'doc', id: d.id });
     });
     cases.forEach(c => {
-      recentActivity.push({ label: `Case ${c.title} updated`, time: c.updatedAt, type: 'case' });
+      recentActivity.push({ label: `Case ${c.title} updated`, time: c.updatedAt, type: 'case', id: c.id });
     });
     recentActivity.sort((a, b) => b.time.getTime() - a.time.getTime());
     
@@ -194,7 +194,9 @@ router.get('/dashboard', async (req: AuthRequest, res): Promise<void> => {
 
     const formattedActivity = recentActivity.slice(0, 5).map(a => ({
       label: a.label,
-      time: timeAgo(a.time)
+      time: timeAgo(a.time),
+      type: a.type,
+      id: a.id
     }));
 
     res.json({
