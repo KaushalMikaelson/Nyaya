@@ -2,8 +2,6 @@ import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { planLimiter } from '../middleware/planLimiter';
 import { prisma } from '../prisma';
-import { VoyageAIClient } from 'voyageai';
-import { CohereClient } from 'cohere-ai';
 
 import { ChatGroq } from '@langchain/groq';
 import { StringOutputParser } from '@langchain/core/output_parsers';
@@ -12,18 +10,13 @@ import { hybridSearch, rerankCandidates } from '../services/retrieval';
 
 const router = Router();
 
-const voyageKey = process.env.VOYAGE_API_KEY;
-const cohereKey = process.env.COHERE_API_KEY;
-
-const cohereClient = cohereKey ? new CohereClient({ token: cohereKey }) : null;
-
 let _pipeline: any = null;
 async function getPipeline() {
   if (_pipeline) return _pipeline;
   // Dynamic import for ESM package
   const { pipeline, env } = await import('@xenova/transformers');
   env.allowLocalModels = true;
-  _pipeline = await pipeline('feature-extraction', 'Xenova/gte-large', { quantized: false });
+  _pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: false });
   return _pipeline;
 }
 
@@ -126,12 +119,13 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
     // ── Step B: Embed expanded query ─────────────────────────────────────────
     let queryEmbedding: number[];
     try {
+      console.log('📡 Generating local Xenova embedding for expanded query...');
       const pipe = await getPipeline();
-      const output = await pipe([expandedQuery], { pooling: 'mean', normalize: true });
-      queryEmbedding = Array.from(output[0].data as Float32Array);
+      const output = await pipe([expandedQuery], { pooling: 'mean', normalize: true }) as any;
+      queryEmbedding = Array.from(output.tolist()[0] as number[]);
       console.log('✅ Xenova local embedding generated');
-    } catch (e) {
-      console.warn('⚠️ Local embed failed, using mock:', (e as Error).message);
+    } catch (err) {
+      console.warn('⚠️ Xenova local embedding failed, using mock:', (err as Error).message);
       queryEmbedding = generateMockEmbedding(expandedQuery);
     }
 

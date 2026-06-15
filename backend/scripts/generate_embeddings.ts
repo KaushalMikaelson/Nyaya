@@ -2,9 +2,8 @@
 /**
  * generate_embeddings.ts
  * ──────────────────────────────────────────────────────────────
- * LOCAL embedding pipeline using @xenova/transformers.
- * Model: Xenova/gte-large  →  1024-dim vectors (matches schema)
- * No API key required. Model downloads once to ~/.cache/huggingface
+ * API-based embedding pipeline using Cohere.
+ * Model: embed-english-v3.0 (1024-dim)
  *
  * Run: npx ts-node scripts/generate_embeddings.ts
  * ──────────────────────────────────────────────────────────────
@@ -19,7 +18,6 @@ dotenv.config();
 // CONFIG
 // ──────────────────────────────────────────────────────────────
 
-const MODEL_NAME   = 'Xenova/gte-large';   // 1024 dims — matches vector(1024)
 const CHUNK_SIZE   = 600;                  // Tighter chunks = more precise similarity
 const CHUNK_OVERLAP = 100;
 const BATCH_SIZE   = 16;                   // texts per local inference batch
@@ -49,10 +47,10 @@ async function getPipeline() {
   // Allow local model caching (default: ~/.cache/huggingface/hub)
   env.allowLocalModels = true;
 
-  console.log(`\n🤖 Loading model: ${MODEL_NAME}`);
-  console.log('   (First run downloads ~670MB — subsequent runs use cache)\n');
+  console.log(`\n🤖 Loading model: Xenova/all-MiniLM-L6-v2`);
+  console.log('   (First run downloads ~90MB — subsequent runs use cache)\n');
 
-  _pipeline = await pipeline('feature-extraction', MODEL_NAME, {
+  _pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
     quantized: false,    // use fp32 for best accuracy
   });
 
@@ -72,12 +70,11 @@ async function embedTexts(texts: string[]): Promise<number[][]> {
     const end   = Math.min(i + BATCH_SIZE, texts.length);
     process.stdout.write(`    Local embed [${i + 1}–${end} / ${texts.length}]... `);
 
-    const output = await pipe(batch, { pooling: 'mean', normalize: true });
+    const output = await pipe(batch, { pooling: 'mean', normalize: true }) as any;
+    const list = output.tolist();
 
     for (let b = 0; b < batch.length; b++) {
-      // output.tolist() gives [[...1024 floats...], ...]
-      const vec = Array.from(output[b].data as Float32Array);
-      embeddings.push(vec);
+      embeddings.push(list[b]);
     }
 
     console.log('✓');
@@ -87,8 +84,28 @@ async function embedTexts(texts: string[]): Promise<number[][]> {
 }
 
 // ──────────────────────────────────────────────────────────────
-// DB INSERT
+// DB INSERT WITH RETRY
 // ──────────────────────────────────────────────────────────────
+
+async function runQueryWithRetry<T>(fn: () => Promise<T>, retries = 5, delay = 2000): Promise<T> {
+  try {
+    return await fn();
+  } catch (err: any) {
+    const isConnErr = 
+      err.message?.includes('Connection') || 
+      err.message?.includes('terminated') || 
+      err.message?.includes('closed') || 
+      err.message?.includes('timeout') || 
+      err.message?.includes('socket') ||
+      err.message?.includes('Pool');
+    if (retries > 0 && isConnErr) {
+      console.warn(`\n⚠️ DB connection issue (${err.message?.trim()}). Retrying in ${delay}ms... (${retries} left)`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return runQueryWithRetry(fn, retries - 1, delay * 2);
+    }
+    throw err;
+  }
+}
 
 async function insertChunks(rows: {
   actId: string;
@@ -97,17 +114,24 @@ async function insertChunks(rows: {
   content: string;
   embedding: number[];
 }[]) {
-  for (const row of rows) {
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO "LegalChunk" ("id","actId","sectionId","clauseId","content","embedding","updatedAt")
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5::vector, NOW())`,
-      row.actId,
-      row.sectionId ?? null,
-      row.clauseId  ?? null,
-      row.content,
-      `[${row.embedding.join(',')}]`
-    );
-  }
+  if (rows.length === 0) return;
+  
+  // Run all inserts for this batch in parallel, each with its own retry handler
+  const promises = rows.map(row =>
+    runQueryWithRetry(() =>
+      prisma.$executeRawUnsafe(
+        `INSERT INTO "LegalChunk" ("id","actId","sectionId","clauseId","content","embedding","updatedAt")
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5::vector, NOW())`,
+        row.actId,
+        row.sectionId ?? null,
+        row.clauseId  ?? null,
+        row.content,
+        `[${row.embedding.join(',')}]`
+      )
+    )
+  );
+  
+  await Promise.all(promises);
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -115,13 +139,13 @@ async function insertChunks(rows: {
 // ──────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log('🚀 Nyaay Embedding Pipeline — LOCAL (Xenova/gte-large)');
-  console.log(`   Dims: 1024 | ChunkSize: ${CHUNK_SIZE} | Batch: ${BATCH_SIZE}`);
+  console.log('🚀 Nyaay Embedding Pipeline — LOCAL (Xenova/all-MiniLM-L6-v2)');
+  console.log(`   Dims: 384 | ChunkSize: ${CHUNK_SIZE} | Batch: ${BATCH_SIZE}`);
   console.log('═'.repeat(60));
 
   // 1. Clear stale LegalChunk rows (mock embeddings from previous runs)
   console.log('\n🗑  Clearing existing LegalChunk rows...');
-  await prisma.$executeRawUnsafe(`DELETE FROM "LegalChunk"`);
+  await runQueryWithRetry(() => prisma.$executeRawUnsafe(`DELETE FROM "LegalChunk"`));
   console.log('   Done.\n');
 
   // 2. Warm up / download model

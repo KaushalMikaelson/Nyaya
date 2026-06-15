@@ -1,23 +1,29 @@
 import { Router } from 'express';
 import { prisma } from '../prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { VoyageAIClient } from 'voyageai';
 import { CohereClient } from 'cohere-ai';
 
 import { Prisma } from '@prisma/client';
 
 const router = Router();
 
-const voyageKey = process.env.VOYAGE_API_KEY;
-const voyageClient = voyageKey ? new VoyageAIClient({ apiKey: voyageKey }) : null;
-
 const cohereKey = process.env.COHERE_API_KEY;
 const cohereClient = cohereKey ? new CohereClient({ token: cohereKey }) : null;
 
+let _pipeline: any = null;
+async function getPipeline() {
+  if (_pipeline) return _pipeline;
+  // Dynamic import for ESM package
+  const { pipeline, env } = await import('@xenova/transformers');
+  env.allowLocalModels = true;
+  _pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: false });
+  return _pipeline;
+}
+
 function generateMockEmbedding(text: string) {
-  const vec = new Array(1024).fill(0);
+  const vec = new Array(384).fill(0);
   const seed = Array.from(text.substring(0, 10)).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  for (let i = 0; i < 1024; i++) {
+  for (let i = 0; i < 384; i++) {
     vec[i] = ((Math.sin(seed + i) + 1) / 2).toFixed(6) as any;
   }
   return vec;
@@ -35,14 +41,14 @@ router.post('/', async (req: AuthRequest, res): Promise<void> => {
   try {
     // 1. Generate query embedding for vector search
     let queryEmbedding: number[] = [];
-    if (voyageClient) {
-      try {
-        const response = await voyageClient.embed({ input: [query], model: "voyage-law-2" });
-        queryEmbedding = response.data?.[0]?.embedding || generateMockEmbedding(query);
-      } catch (err) {
-        queryEmbedding = generateMockEmbedding(query);
-      }
-    } else {
+    try {
+      console.log('📡 Generating local Xenova embedding for search query...');
+      const pipe = await getPipeline();
+      const output = await pipe([query], { pooling: 'mean', normalize: true }) as any;
+      queryEmbedding = Array.from(output.tolist()[0] as number[]);
+      console.log('✅ Xenova local embedding generated');
+    } catch (err) {
+      console.warn('⚠️ Xenova local embedding failed, using mock:', (err as Error).message);
       queryEmbedding = generateMockEmbedding(query);
     }
 

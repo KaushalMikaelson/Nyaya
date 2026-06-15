@@ -3,18 +3,25 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { planLimiter } from '../middleware/planLimiter';
 import { prisma } from '../prisma';
 import Groq from 'groq-sdk';
-import { VoyageAIClient } from 'voyageai';
 
 const router = Router();
 const getGroq = () => new Groq({ apiKey: process.env.GROQ_API_KEY });
-const voyageKey = process.env.VOYAGE_API_KEY;
-const voyageClient = voyageKey ? new VoyageAIClient({ apiKey: voyageKey }) : null;
+
+let _pipeline: any = null;
+async function getPipeline() {
+  if (_pipeline) return _pipeline;
+  // Dynamic import for ESM package
+  const { pipeline, env } = await import('@xenova/transformers');
+  env.allowLocalModels = true;
+  _pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: false });
+  return _pipeline;
+}
 
 // Mock fallback
 function generateMockEmbedding(text: string) {
-  const vec = new Array(1024).fill(0);
+  const vec = new Array(384).fill(0);
   const seed = Array.from(text.substring(0, 10)).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  for (let i = 0; i < 1024; i++) {
+  for (let i = 0; i < 384; i++) {
     vec[i] = (Math.sin(seed + i) + 1) / 2;
   }
   return vec;
@@ -51,15 +58,14 @@ router.post('/', planLimiter, async (req: AuthRequest, res): Promise<void> => {
     // Embed intent for RAG
     const combinedIntent = `${docType} involving ${partyA} and ${partyB}. Concerns: ${specifics}. Goal: ${prompt}`;
     let queryEmbedding: number[] = [];
-    
-    if (voyageClient) {
-      try {
-        const response = await voyageClient.embed({ input: [combinedIntent], model: "voyage-law-2" });
-        queryEmbedding = response.data?.[0]?.embedding || generateMockEmbedding(combinedIntent);
-      } catch (err) {
-        queryEmbedding = generateMockEmbedding(combinedIntent);
-      }
-    } else {
+    try {
+      console.log('📡 Generating local Xenova embedding for document generation intent...');
+      const pipe = await getPipeline();
+      const output = await pipe([combinedIntent], { pooling: 'mean', normalize: true }) as any;
+      queryEmbedding = Array.from(output.tolist()[0] as number[]);
+      console.log('✅ Xenova local embedding generated');
+    } catch (err) {
+      console.warn('⚠️ Xenova local embedding failed, using mock:', (err as Error).message);
       queryEmbedding = generateMockEmbedding(combinedIntent);
     }
 

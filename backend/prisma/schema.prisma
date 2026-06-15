@@ -305,7 +305,7 @@ model LegalChunk {
   clauseId  String?
   clause    Clause?  @relation(fields: [clauseId], references: [id], onDelete: Cascade)
   content   String
-  embedding Unsupported("vector(1024)")?
+  embedding Unsupported("vector(384)")?
   fts       Unsupported("tsvector")?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

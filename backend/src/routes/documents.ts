@@ -21,7 +21,6 @@ import crypto from 'crypto';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../prisma';
 import Groq from 'groq-sdk';
-import { VoyageAIClient } from 'voyageai';
 import { ChatGroq } from '@langchain/groq';
 import { z } from 'zod';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
@@ -59,15 +58,23 @@ const diskUpload = multer({
 
 // ─── External services ───────────────────────────────────────────────────────
 const getGroq = () => new Groq({ apiKey: process.env.GROQ_API_KEY });
-const voyageKey = process.env.VOYAGE_API_KEY;
-const voyageClient = voyageKey ? new VoyageAIClient({ apiKey: voyageKey }) : null;
+
+let _pipeline: any = null;
+async function getPipeline() {
+  if (_pipeline) return _pipeline;
+  // Dynamic import for ESM package
+  const { pipeline, env } = await import('@xenova/transformers');
+  env.allowLocalModels = true;
+  _pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: false });
+  return _pipeline;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function generateMockEmbedding(text: string) {
-  const vec = new Array(1024).fill(0);
+  const vec = new Array(384).fill(0);
   const seed = Array.from(text.substring(0, 10)).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-  for (let i = 0; i < 1024; i++) vec[i] = (Math.sin(seed + i) + 1) / 2;
+  for (let i = 0; i < 384; i++) vec[i] = (Math.sin(seed + i) + 1) / 2;
   return vec;
 }
 
@@ -492,14 +499,14 @@ router.post('/analyze', upload.single('file'), async (req: AuthRequest, res): Pr
     const docChunks = chunkText(extractedText);
     const chunksToEmbed = docChunks.slice(0, 5);
     let docEmbeddings: number[][] = [];
-    if (voyageClient) {
-      try {
-        const response = await voyageClient.embed({ input: chunksToEmbed, model: 'voyage-law-2' });
-        docEmbeddings = response.data?.map((d: any) => d.embedding) || chunksToEmbed.map(t => generateMockEmbedding(t));
-      } catch {
-        docEmbeddings = chunksToEmbed.map(t => generateMockEmbedding(t));
-      }
-    } else {
+    try {
+      console.log('📡 Generating local Xenova embeddings for document chunks...');
+      const pipe = await getPipeline();
+      const output = await pipe(chunksToEmbed, { pooling: 'mean', normalize: true }) as any;
+      docEmbeddings = output.tolist();
+      console.log('✅ Xenova local embeddings generated');
+    } catch (err) {
+      console.warn('⚠️ Xenova local embedding failed, using mock:', (err as Error).message);
       docEmbeddings = chunksToEmbed.map(t => generateMockEmbedding(t));
     }
 
