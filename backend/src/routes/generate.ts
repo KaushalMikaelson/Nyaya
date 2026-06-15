@@ -13,7 +13,7 @@ async function getPipeline() {
   // Dynamic import for ESM package
   const { pipeline, env } = await import('@xenova/transformers');
   env.allowLocalModels = true;
-  _pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: false });
+  _pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: true });
   return _pipeline;
 }
 

@@ -59,8 +59,28 @@ app.use(helmet({
   contentSecurityPolicy: false,
 }));
 
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://nyaya-km.vercel.app'
+];
+if (process.env.FRONTEND_URL) {
+  const normalized = process.env.FRONTEND_URL.replace(/\/$/, '');
+  if (!allowedOrigins.includes(normalized)) {
+    allowedOrigins.push(normalized);
+  }
+}
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Origin rejected: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));

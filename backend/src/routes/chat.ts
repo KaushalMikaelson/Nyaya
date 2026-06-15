@@ -16,7 +16,7 @@ async function getPipeline() {
   // Dynamic import for ESM package
   const { pipeline, env } = await import('@xenova/transformers');
   env.allowLocalModels = true;
-  _pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: false });
+  _pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: true });
   return _pipeline;
 }
 
@@ -24,9 +24,9 @@ router.use(authenticate);
 
 // Utility: Mock Embedding if no voyage key
 function generateMockEmbedding(text: string): number[] {
-  const vec = new Array(1024).fill(0);
+  const vec = new Array(384).fill(0);
   const seed = Array.from(text.substring(0, 10)).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  for (let i = 0; i < 1024; i++) {
+  for (let i = 0; i < 384; i++) {
     vec[i] = (Math.sin(seed + i) + 1) / 2;
   }
   return vec;
