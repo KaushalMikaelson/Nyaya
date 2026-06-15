@@ -29,6 +29,13 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Only intercept GET requests. Service worker caching only supports GET.
+  // Intercepting POST requests (like /api/chat and /api/auth/refresh)
+  // causes "Failed to fetch" errors because the request body cannot be reused.
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(async () => {
