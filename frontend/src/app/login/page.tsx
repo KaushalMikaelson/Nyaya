@@ -175,62 +175,35 @@ export default function Login() {
     setMode(m); setError(""); setOtpStep("request"); setOtp("");
   };
 
-  const handleGoogleLogin = () => {
-    if (typeof window === "undefined") return;
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      setError("Google Client ID is missing.");
-      return;
-    }
-    const redirectUri = `${window.location.origin}/login`;
-    const scope = encodeURIComponent("openid email profile");
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}&prompt=select_account`;
-    window.location.href = url;
-  };
+  const handleGoogleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setGoogleLoading(true);
+      setError("");
+      try {
+        const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+        });
+        const userInfo = await userInfoRes.json();
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const hash = window.location.hash;
-    
-    if (hash && hash.includes("access_token=")) {
-      const params = new URLSearchParams(hash.substring(1));
-      const access_token = params.get("access_token");
-      
-      if (access_token) {
-        setGoogleLoading(true);
-        setError("");
-        
-        const processGoogleLogin = async () => {
-          try {
-            const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-              headers: { Authorization: `Bearer ${access_token}` },
-            });
-            const userInfo = await userInfoRes.json();
-            
-            const { data } = await api.post("/auth/google/token", {
-              access_token: access_token,
-              email: userInfo.email,
-              name: userInfo.name,
-              googleId: userInfo.sub,
-            });
-            
-            // Clean up the URL before redirecting/updating state
-            window.history.replaceState({}, document.title, window.location.pathname);
-            login(data.accessToken, data.user);
-          } catch (err: any) {
-            setError(err.response?.data?.error || "Google sign-in failed. Please try again.");
-            setGoogleLoading(false);
-            window.history.replaceState({}, document.title, window.location.pathname);
-          }
-        };
-        
-        processGoogleLogin();
+        const { data } = await api.post("/auth/google/token", {
+          access_token: tokenResponse.access_token,
+          email: userInfo.email,
+          name: userInfo.name,
+          googleId: userInfo.sub,
+        });
+
+        login(data.accessToken, data.user);
+      } catch (err: any) {
+        setError(err.response?.data?.error || "Google sign-in failed. Please try again.");
+        setGoogleLoading(false);
       }
-    } else if (hash && hash.includes("error=")) {
+    },
+    onError: () => {
       setError("Google sign-in was cancelled or failed.");
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, [login]);
+      setGoogleLoading(false);
+    },
+    flow: "implicit",
+  });
 
   return (
     <div className="min-h-screen w-full flex" style={{ background: "#070b16" }}>
