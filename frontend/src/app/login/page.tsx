@@ -510,21 +510,22 @@ export default function Login() {
           </div>
 
           {/* ─── Google Sign In ─── */}
-          <motion.button
+          <button
             id="login-google"
             type="button"
             onClick={() => handleGoogleLogin()}
             disabled={googleLoading}
-            whileHover={{ scale: googleLoading ? 1 : 1.015 }}
-            whileTap={{ scale: googleLoading ? 1 : 0.975 }}
             className="w-full flex items-center justify-center gap-3 rounded-xl py-3 text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: "#0e0e18",
               border: "1px solid rgba(255,255,255,0.1)",
               color: "#e0e0e0",
+              transform: "scale(1)",
             }}
-            onMouseOver={e => { if (!googleLoading) { e.currentTarget.style.borderColor = "rgba(124,110,247,0.4)"; e.currentTarget.style.background = "rgba(124,110,247,0.06)"; } }}
-            onMouseOut={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.background = "#0e0e18"; }}
+            onMouseOver={e => { if (!googleLoading) { e.currentTarget.style.borderColor = "rgba(124,110,247,0.4)"; e.currentTarget.style.background = "rgba(124,110,247,0.06)"; e.currentTarget.style.transform = "scale(1.015)"; } }}
+            onMouseOut={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.background = "#0e0e18"; e.currentTarget.style.transform = "scale(1)"; }}
+            onMouseDown={e => { e.currentTarget.style.transform = "scale(0.975)"; }}
+            onMouseUp={e => { e.currentTarget.style.transform = "scale(1.015)"; }}
           >
             {googleLoading ? (
               <span className="h-5 w-5 rounded-full border-2 border-white/25 border-t-white animate-spin" />
@@ -537,7 +538,7 @@ export default function Login() {
               </svg>
             )}
             {googleLoading ? "Signing in..." : "Sign in with Google"}
-          </motion.button>
+          </button>
 
           <div className="mt-5 text-center">
             <p className="text-sm" style={{ color: "#4a4a62" }}>
