@@ -1,9 +1,14 @@
-import { prisma } from '../prisma';
-
-const PYTHON_RAG_URL = process.env.PYTHON_RAG_URL || 'http://127.0.0.1:8000';
+export function getPythonRagUrl(): string {
+  let url = (process.env.PYTHON_RAG_URL || 'http://127.0.0.1:8000').trim().replace(/\/$/, '');
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `http://${url}`;
+  }
+  return url;
+}
 
 export async function hybridSearch(query: string, queryEmbedding: number[], topK = 15) {
-  const res = await fetch(`${PYTHON_RAG_URL}/hybrid-search`, {
+  const pyUrl = getPythonRagUrl();
+  const res = await fetch(`${pyUrl}/hybrid-search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query, topK }),
@@ -32,7 +37,8 @@ export async function hybridSearch(query: string, queryEmbedding: number[], topK
 }
 
 export async function rerankCandidates(query: string, candidates: any[], limit = 5) {
-  const res = await fetch(`${PYTHON_RAG_URL}/rerank`, {
+  const pyUrl = getPythonRagUrl();
+  const res = await fetch(`${pyUrl}/rerank`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

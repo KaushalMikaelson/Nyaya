@@ -1,0 +1,57 @@
+services:
+  # ─────────────────────────────────────────────────────────────
+  # 1. Python RAG Microservice
+  # ─────────────────────────────────────────────────────────────
+  - type: web
+    name: nyaya-rag
+    env: python
+    rootDir: rag
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: COHERE_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+
+  # ─────────────────────────────────────────────────────────────
+  # 2. Express Backend API Gateway
+  # ─────────────────────────────────────────────────────────────
+  - type: web
+    name: nyaya-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: PYTHON_RAG_URL
+        fromService:
+          type: web
+          name: nyaya-rag
+          property: url
+      - key: GROQ_API_KEY
+        sync: false
+
+  # ─────────────────────────────────────────────────────────────
+  # 3. Next.js Frontend Web Application
+  # ─────────────────────────────────────────────────────────────
+  - type: web
+    name: nyaya-frontend
+    env: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: nyaya-backend
+          property: url

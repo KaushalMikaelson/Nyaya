@@ -2,8 +2,9 @@ import { Router } from 'express';
 import { prisma } from '../prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
+import { getPythonRagUrl } from '../services/retrieval';
+
 const router = Router();
-const PYTHON_RAG_URL = process.env.PYTHON_RAG_URL || 'http://127.0.0.1:8000';
 
 router.use(authenticate);
 
@@ -16,7 +17,8 @@ router.post('/', async (req: AuthRequest, res): Promise<void> => {
 
   try {
     // Delegate entirely to Python RAG /search
-    const pyRes = await fetch(`${PYTHON_RAG_URL}/search`, {
+    const pyUrl = getPythonRagUrl();
+    const pyRes = await fetch(`${pyUrl}/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, filters }),

@@ -3,8 +3,9 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { planLimiter } from '../middleware/planLimiter';
 import { prisma } from '../prisma';
 
+import { getPythonRagUrl } from '../services/retrieval';
+
 const router = Router();
-const PYTHON_RAG_URL = process.env.PYTHON_RAG_URL || 'http://127.0.0.1:8000';
 
 type PythonChatRagResponse = {
   aiResponse?: string;
@@ -97,9 +98,10 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
       .map((m) => m.content);
 
     let aiResponseContent = '';
+    const pyUrl = getPythonRagUrl();
     try {
       console.log('[Chat] Delegating full response to Python RAG /chat-rag...');
-      const pyRes = await fetch(`${PYTHON_RAG_URL}/chat-rag`, {
+      const pyRes = await fetch(`${pyUrl}/chat-rag`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -123,7 +125,7 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
       console.log(`[Chat] Python RAG response received (confidence=${pyData.confidenceScore ?? 'unknown'})`);
     } catch (e) {
       console.error('[Chat] Python RAG generation error:', e);
-      aiResponseContent = `[[NYAYA_CONFIDENCE:0]] I could not reach the Python RAG engine. Please make sure it is running at ${PYTHON_RAG_URL}.\n\nError: ${e instanceof Error ? e.message : String(e)}`;
+      aiResponseContent = `[[NYAYA_CONFIDENCE:0]] I could not reach the Python RAG engine. Please make sure it is running at ${pyUrl}.\n\nError: ${e instanceof Error ? e.message : String(e)}`;
     }
 
     const assistantMessage = await prisma.message.create({

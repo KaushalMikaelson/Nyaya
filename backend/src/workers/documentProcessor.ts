@@ -14,11 +14,11 @@ import fs from 'fs';
 import path from 'path';
 import https from 'https';
 import http from 'http';
+import { getPythonRagUrl } from '../services/retrieval';
 
 // ─── Redis connection ────────────────────────────────────────────────────────
 
 const REDIS_URL = process.env.REDIS_URL || process.env.UPSTASH_REDIS_URL || 'redis://localhost:6379';
-const PYTHON_RAG_URL = process.env.PYTHON_RAG_URL || 'http://127.0.0.1:8000';
 
 let redisConnection: IORedis | null = null;
 
@@ -92,7 +92,8 @@ async function processDocument(docId: string): Promise<void> {
 
   // ── Step 2: Delegate to Python RAG /process-document ─────────────────────
   console.log(`[DocProcessor] Sending document ${docId} to Python RAG service...`);
-  const pyRes = await fetch(`${PYTHON_RAG_URL}/process-document`, {
+  const pyUrl = getPythonRagUrl();
+  const pyRes = await fetch(`${pyUrl}/process-document`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pdfBase64: fileBuffer.toString('base64') }),
