@@ -1,33 +1,9 @@
 import { Router } from 'express';
 import { prisma } from '../prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { CohereClient } from 'cohere-ai';
-
-import { Prisma } from '@prisma/client';
 
 const router = Router();
-
-const cohereKey = process.env.COHERE_API_KEY;
-const cohereClient = cohereKey ? new CohereClient({ token: cohereKey }) : null;
-
-let _pipeline: any = null;
-async function getPipeline() {
-  if (_pipeline) return _pipeline;
-  // Dynamic import for ESM package
-  const { pipeline, env } = await import('@xenova/transformers');
-  env.allowLocalModels = true;
-  _pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: true });
-  return _pipeline;
-}
-
-function generateMockEmbedding(text: string) {
-  const vec = new Array(384).fill(0);
-  const seed = Array.from(text.substring(0, 10)).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  for (let i = 0; i < 384; i++) {
-    vec[i] = ((Math.sin(seed + i) + 1) / 2).toFixed(6) as any;
-  }
-  return vec;
-}
+const PYTHON_RAG_URL = process.env.PYTHON_RAG_URL || 'http://127.0.0.1:8000';
 
 router.use(authenticate);
 
@@ -39,123 +15,22 @@ router.post('/', async (req: AuthRequest, res): Promise<void> => {
   }
 
   try {
-    // 1. Generate query embedding for vector search
-    let queryEmbedding: number[] = [];
-    try {
-      console.log('📡 Generating local Xenova embedding for search query...');
-      const pipe = await getPipeline();
-      const output = await pipe([query], { pooling: 'mean', normalize: true }) as any;
-      queryEmbedding = Array.from(output.tolist()[0] as number[]);
-      console.log('✅ Xenova local embedding generated');
-    } catch (err) {
-      console.warn('⚠️ Xenova local embedding failed, using mock:', (err as Error).message);
-      queryEmbedding = generateMockEmbedding(query);
-    }
+    // Delegate entirely to Python RAG /search
+    const pyRes = await fetch(`${PYTHON_RAG_URL}/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, filters }),
+    });
 
-    let actFilter = Prisma.empty;
-    if (filters?.act && filters.act !== 'All Acts') {
-      const mappedAct = await prisma.act.findUnique({ where: { shortName: filters.act } });
-      if (mappedAct) {
-        actFilter = Prisma.sql`AND "actId" = ${mappedAct.id}`;
-      }
-    }
-
-    const queryStr = query.replace(/[^a-zA-Z0-9 ]/g, ''); 
-
-    // RRF Hybrid pgvector Search Query
-    const results: any[] = await prisma.$queryRaw`
-      WITH vector_search AS (
-        SELECT id, content, "actId", "sectionId", "clauseId",
-               ROW_NUMBER() OVER(ORDER BY embedding <=> ${queryEmbedding}::vector) as rnk
-        FROM "LegalChunk"
-        WHERE 1=1 ${actFilter}
-        ORDER BY embedding <=> ${queryEmbedding}::vector
-        LIMIT 30
-      ),
-      keyword_search AS (
-        SELECT id, content, "actId", "sectionId", "clauseId",
-               ROW_NUMBER() OVER(ORDER BY ts_rank_cd(fts, websearch_to_tsquery('english', ${queryStr})) DESC) as rnk
-        FROM "LegalChunk"
-        WHERE fts @@ websearch_to_tsquery('english', ${queryStr}) ${actFilter}
-        ORDER BY ts_rank_cd(fts, websearch_to_tsquery('english', ${queryStr})) DESC
-        LIMIT 30
-      )
-      SELECT 
-        COALESCE(v.id, k.id) as id,
-        COALESCE(v.content, k.content) as content,
-        (COALESCE(1.0 / (60 + v.rnk), 0.0) + COALESCE(1.0 / (60 + k.rnk), 0.0)) as rrf_score
-      FROM vector_search v
-      FULL OUTER JOIN keyword_search k ON v.id = k.id
-      ORDER BY rrf_score DESC
-      LIMIT 20;
-    `;
-
-    if (results.length === 0) {
-      res.json({ results: [] });
+    if (!pyRes.ok) {
+      const errText = await pyRes.text();
+      console.error('[Search] Python RAG /search error:', errText);
+      res.status(502).json({ error: 'Search service failed', detail: errText });
       return;
     }
 
-    // Hydrate
-    const chunkIds = results.map(r => r.id);
-    const hydratedChunks = await prisma.legalChunk.findMany({
-      where: { id: { in: chunkIds } },
-      include: {
-        act: true,
-        section: true,
-        clause: true,
-      }
-    });
-
-    let scoredChunks = results.map(r => {
-      const chunkData = hydratedChunks.find(c => c.id === r.id);
-      return { ...chunkData, content: chunkData?.content || r.content, hybridScore: r.rrf_score };
-    });
-
-    // Sub-filtering (category / court basic matching since schema isn't fully categorized)
-    const contentFilters: string[] = [];
-    if (filters?.category && filters.category !== 'All Categories') contentFilters.push(filters.category.toLowerCase().split(' ')[0]); 
-    if (filters?.court && filters.court !== 'All Courts') contentFilters.push(filters.court.toLowerCase().split(' ')[0]);
-
-    if (contentFilters.length > 0) {
-      scoredChunks = scoredChunks.filter(c => {
-        const txt = String(c.content || '').toLowerCase();
-        return contentFilters.every(f => txt.includes(f));
-      });
-    }
-
-    let top20 = scoredChunks.slice(0, 15);
-
-    // 4. Cohere Re-ranking
-    let finalResults = top20;
-    
-    if (cohereClient && process.env.COHERE_API_KEY && top20.length > 0) {
-      try {
-        const rerankRes = await cohereClient.rerank({
-          model: 'rerank-english-v3.0',
-          query: query,
-          documents: top20.map(c => String(c.content)),
-          topN: 10,
-        });
-        
-        finalResults = rerankRes.results.map(r => ({
-          ...top20[r.index],
-          score: r.relevanceScore
-        }));
-      } catch (e) {
-        console.warn("Cohere reranking failed, falling back to hybrid scores:", e);
-        finalResults = top20.slice(0, 10).map((c: any) => ({ ...c, score: c.hybridScore }));
-      }
-    } else {
-      finalResults = top20.slice(0, 10).map((c: any) => ({ ...c, score: c.hybridScore }));
-    }
-
-    // Prepare response payload (strip large unstructured data)
-    const payload = finalResults.map((c: any) => {
-      const { embedding, fts, score, hybridScore, ...rest } = c;
-      return { ...rest, score: score || hybridScore };
-    });
-
-    res.json({ results: payload });
+    const data: any = await pyRes.json();
+    res.json(data);
   } catch (err) {
     console.error('Search error:', err);
     res.status(500).json({ error: 'Search failed' });

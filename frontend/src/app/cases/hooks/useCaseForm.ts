@@ -55,6 +55,9 @@ export type CaseFormData = {
   // Timeline
   filedAt: string;
   limitationDate: string;
+  opponentName?: string;
+  opponentCounsel?: string;
+  firmId?: string;
 
   // Step 2 — Plaintiff
   plaintiff: PartyData;
@@ -105,7 +108,7 @@ const defaultForm = (): CaseFormData => ({
   title: "", description: "", caseType: "", priority: "MEDIUM", status: "OPEN", tags: [],
   caseNumber: "", court: "", courtLevel: "", courtState: "", benchType: "", judgeName: "",
   actSection: "", firNumber: "", policeStation: "", courtFeeAmount: "",
-  filedAt: "", limitationDate: "",
+  filedAt: "", limitationDate: "", opponentName: "", opponentCounsel: "", firmId: "",
   plaintiff: emptyParty("PLAINTIFF"),
   defendant: emptyParty("DEFENDANT"),
   extraParties: [],

@@ -59,31 +59,9 @@ const diskUpload = multer({
 // ─── External services ───────────────────────────────────────────────────────
 const getGroq = () => new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-let _pipeline: any = null;
-async function getPipeline() {
-  if (_pipeline) return _pipeline;
-  // Dynamic import for ESM package
-  const { pipeline, env } = await import('@xenova/transformers');
-  env.allowLocalModels = true;
-  _pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: true });
-  return _pipeline;
-}
+import { hybridSearch } from '../services/retrieval';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function generateMockEmbedding(text: string) {
-  const vec = new Array(384).fill(0);
-  const seed = Array.from(text.substring(0, 10)).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-  for (let i = 0; i < 384; i++) vec[i] = (Math.sin(seed + i) + 1) / 2;
-  return vec;
-}
-
-function cosineSimilarity(A: number[], B: number[]) {
-  let dot = 0, mA = 0, mB = 0;
-  for (let i = 0; i < A.length; i++) { dot += A[i] * B[i]; mA += A[i] * A[i]; mB += B[i] * B[i]; }
-  if (!mA || !mB) return 0;
-  return dot / (Math.sqrt(mA) * Math.sqrt(mB));
-}
 
 function chunkText(text: string, maxWords = 300): string[] {
   const words = text.split(/\s+/);
@@ -495,36 +473,17 @@ router.post('/analyze', upload.single('file'), async (req: AuthRequest, res): Pr
       console.warn('Classification failed:', e);
     }
 
-    // RAG retrieval
+    // RAG retrieval via Python Microservice pgvector hybrid search
     const docChunks = chunkText(extractedText);
-    const chunksToEmbed = docChunks.slice(0, 5);
-    let docEmbeddings: number[][] = [];
+    let topLegalMatches: any[] = [];
     try {
-      console.log('📡 Generating local Xenova embeddings for document chunks...');
-      const pipe = await getPipeline();
-      const output = await pipe(chunksToEmbed, { pooling: 'mean', normalize: true }) as any;
-      docEmbeddings = output.tolist();
-      console.log('✅ Xenova local embeddings generated');
-    } catch (err) {
-      console.warn('⚠️ Xenova local embedding failed, using mock:', (err as Error).message);
-      docEmbeddings = chunksToEmbed.map(t => generateMockEmbedding(t));
+      topLegalMatches = await hybridSearch(extractedText.substring(0, 500), [], 5);
+    } catch (searchErr) {
+      console.warn('[Analyze] Python RAG hybrid search fallback:', searchErr);
     }
 
-    const allLegalChunks = await prisma.legalChunk.findMany({ include: { act: true, section: true } });
-    let scoredChunks = allLegalChunks.map((lChunk: any) => {
-      let maxScore = 0;
-      if (lChunk.embedding?.length) {
-        for (const emb of docEmbeddings) {
-          const s = cosineSimilarity(emb, lChunk.embedding as number[]);
-          if (s > maxScore) maxScore = s;
-        }
-      }
-      return { ...lChunk, score: maxScore };
-    });
-    scoredChunks.sort((a: any, b: any) => b.score - a.score);
-    const topLegalMatches = scoredChunks.slice(0, 5);
     const relevantLawsContext = topLegalMatches
-      .map((c: any) => `[${c.act?.shortName || ''} Sec ${c.section?.number || ''}] ${c.content}`)
+      .map((c: any) => `[${c.chunk?.act?.shortName || ''} Sec ${c.chunk?.section?.number || ''}] ${c.chunk?.content || ''}`)
       .join('\n\n');
 
     // AI Analysis

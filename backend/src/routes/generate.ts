@@ -4,39 +4,10 @@ import { planLimiter } from '../middleware/planLimiter';
 import { prisma } from '../prisma';
 import Groq from 'groq-sdk';
 
+import { hybridSearch } from '../services/retrieval';
+
 const router = Router();
 const getGroq = () => new Groq({ apiKey: process.env.GROQ_API_KEY });
-
-let _pipeline: any = null;
-async function getPipeline() {
-  if (_pipeline) return _pipeline;
-  // Dynamic import for ESM package
-  const { pipeline, env } = await import('@xenova/transformers');
-  env.allowLocalModels = true;
-  _pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: true });
-  return _pipeline;
-}
-
-// Mock fallback
-function generateMockEmbedding(text: string) {
-  const vec = new Array(384).fill(0);
-  const seed = Array.from(text.substring(0, 10)).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  for (let i = 0; i < 384; i++) {
-    vec[i] = (Math.sin(seed + i) + 1) / 2;
-  }
-  return vec;
-}
-
-function cosineSimilarity(A: number[], B: number[]) {
-  let dotproduct = 0, mA = 0, mB = 0;
-  for (let i = 0; i < A.length; i++) {
-    dotproduct += (A[i] * B[i]);
-    mA += (A[i] * A[i]);
-    mB += (B[i] * B[i]);
-  }
-  if (mA === 0 || mB === 0) return 0;
-  return dotproduct / (Math.sqrt(mA) * Math.sqrt(mB));
-}
 
 router.use(authenticate);
 
@@ -55,40 +26,17 @@ router.post('/', planLimiter, async (req: AuthRequest, res): Promise<void> => {
       return;
     }
 
-    // Embed intent for RAG
+    // Embed intent for RAG via Python microservice pgvector hybrid search
     const combinedIntent = `${docType} involving ${partyA} and ${partyB}. Concerns: ${specifics}. Goal: ${prompt}`;
-    let queryEmbedding: number[] = [];
+    let topLaws: any[] = [];
     try {
-      console.log('📡 Generating local Xenova embedding for document generation intent...');
-      const pipe = await getPipeline();
-      const output = await pipe([combinedIntent], { pooling: 'mean', normalize: true }) as any;
-      queryEmbedding = Array.from(output.tolist()[0] as number[]);
-      console.log('✅ Xenova local embedding generated');
-    } catch (err) {
-      console.warn('⚠️ Xenova local embedding failed, using mock:', (err as Error).message);
-      queryEmbedding = generateMockEmbedding(combinedIntent);
+      topLaws = await hybridSearch(combinedIntent, [], 4);
+    } catch (searchErr) {
+      console.warn('[Generate] Python hybrid search fallback:', searchErr);
     }
 
-    const allChunks = await prisma.legalChunk.findMany({
-      include: {
-        act: true,
-        section: true
-      }
-    });
-
-    const scoredChunks = allChunks.map((chunk: any) => {
-      let score = 0;
-      if (chunk.embedding && chunk.embedding.length > 0) {
-        score = cosineSimilarity(queryEmbedding, chunk.embedding as number[]);
-      }
-      return { ...chunk, score };
-    });
-
-    scoredChunks.sort((a: any, b: any) => b.score - a.score);
-    const topLaws = scoredChunks.slice(0, 4);
-
     const relevantContext = topLaws.map((c: any) => 
-      `[Framework: ${c.act?.shortName || ''} Sec ${c.section?.number || ''}] Provision Data: ${c.content}`
+      `[Framework: ${c.chunk?.act?.shortName || ''} Sec ${c.chunk?.section?.number || ''}] Provision Data: ${c.chunk?.content || ''}`
     ).join('\n\n');
 
     let templateInstructions = "";

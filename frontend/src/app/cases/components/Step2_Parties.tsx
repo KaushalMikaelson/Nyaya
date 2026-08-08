@@ -23,14 +23,14 @@ export function Step2_Parties({ form, errors, setField }: Props) {
         <div className="space-y-4">
           <FormField label="Opponent / Respondent Name">
             <TextInput
-              value={form.opponentName}
+              value={form.opponentName || ""}
               onChange={(v) => setField("opponentName", v)}
               placeholder="e.g. Union of India"
             />
           </FormField>
           <FormField label="Opponent's Counsel">
             <TextInput
-              value={form.opponentCounsel}
+              value={form.opponentCounsel || ""}
               onChange={(v) => setField("opponentCounsel", v)}
               placeholder="Opposing lawyer's name"
             />
@@ -85,7 +85,7 @@ export function Step2_Parties({ form, errors, setField }: Props) {
         </p>
         <FormField label="Firm ID">
           <TextInput
-            value={form.firmId}
+            value={form.firmId || ""}
             onChange={(v) => setField("firmId", v)}
             placeholder="Paste firm UUID to assign this case"
           />

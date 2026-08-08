@@ -1,37 +1,29 @@
 // @ts-nocheck
 /**
  * Document Processor Worker (BullMQ)
- * Processes uploaded documents asynchronously:
+ * Processes uploaded documents asynchronously via the Python RAG microservice:
  *   1. Fetch file from S3 (or local in dev)
- *   2. OCR / text extraction
- *   3. AI classification (Groq + Zod)
- *   4. AI legal analysis + RAG context retrieval
- *   5. Update UserDocument with results → status READY
+ *   2. Send to Python RAG /process-document (OCR, classification, analysis)
+ *   3. Update UserDocument with results → status READY
  */
 
 import { Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import { prisma } from '../prisma';
-import Groq from 'groq-sdk';
-import { ChatGroq } from '@langchain/groq';
-import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { z } from 'zod';
-import pdf from 'pdf-parse';
-import Tesseract from 'tesseract.js';
-import https from 'https';
-import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import https from 'https';
+import http from 'http';
 
 // ─── Redis connection ────────────────────────────────────────────────────────
 
 const REDIS_URL = process.env.REDIS_URL || process.env.UPSTASH_REDIS_URL || 'redis://localhost:6379';
+const PYTHON_RAG_URL = process.env.PYTHON_RAG_URL || 'http://127.0.0.1:8000';
 
 let redisConnection: IORedis | null = null;
 
 function getRedisConnection(): IORedis | null {
   if (!REDIS_URL || REDIS_URL === 'redis://localhost:6379' || REDIS_URL.includes('127.0.0.1')) {
-    // Check if Redis is actually available; if not, return null (graceful degradation)
     try {
       const conn = new IORedis(REDIS_URL, {
         maxRetriesPerRequest: null,
@@ -52,41 +44,7 @@ function getRedisConnection(): IORedis | null {
 
 export const DOCUMENT_QUEUE = 'document-processing';
 
-// ─── Shared Zod classification schema ───────────────────────────────────────
-
-const classificationSchema = z.object({
-  documentType: z.enum([
-    'Contract/Agreement',
-    'Legal Notice',
-    'Court Judgment/Order',
-    'FIR/Police Report',
-    'Identity/KYC Document',
-    'Petition',
-    'Affidavit',
-    'Power of Attorney',
-    'Will/Testament',
-    'Other',
-  ]),
-  summary: z.string().describe('A 1-2 sentence high-level summary of the document'),
-  partiesInvolved: z.array(z.string()).describe('Names, roles, or organizations mentioned in the document'),
-});
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function chunkText(text: string, maxWords = 300): string[] {
-  const words = text.split(/\s+/);
-  const chunks: string[] = [];
-  let current: string[] = [];
-  for (const word of words) {
-    current.push(word);
-    if (current.length >= maxWords) {
-      chunks.push(current.join(' '));
-      current = [];
-    }
-  }
-  if (current.length > 0) chunks.push(current.join(' '));
-  return chunks;
-}
 
 async function fetchBuffer(url: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -102,31 +60,6 @@ async function fetchBuffer(url: string): Promise<Buffer> {
       res.on('error', reject);
     }).on('error', reject);
   });
-}
-
-function typeSpecificInstructions(docType: string): string {
-  switch (docType) {
-    case 'Contract/Agreement':
-      return 'Focus on termination clauses, liabilities, financial obligations, specific performance, breach consequences, and unfair terms.';
-    case 'Legal Notice':
-      return 'Focus on the timeline to respond, demanded actions, statutory violations claimed, and the legal weight of the threats made.';
-    case 'FIR/Police Report':
-      return 'Focus on the penal sections applied, chronology of events, severity of charges (bailable/non-bailable), and immediate legal steps the accused should take.';
-    case 'Court Judgment/Order':
-      return 'Focus on the ratio decidendi (reasoning), the final decree/order, precedents cited, and compliance obligations.';
-    case 'Petition':
-      return 'Identify the reliefs sought, grounds raised, jurisdiction, and strength of the legal arguments.';
-    case 'Affidavit':
-      return 'Check for completeness, accuracy of statements, statutory compliance, and whether a notary/oath commissioner attestation is required.';
-    case 'Power of Attorney':
-      return 'Identify the scope of powers granted, revocation clauses, duration, and risks of misuse.';
-    case 'Will/Testament':
-      return 'Focus on clarity of asset distribution, witness requirements under the Indian Succession Act, and any ambiguous clauses.';
-    case 'Identity/KYC Document':
-      return 'Briefly confirm validity and flag any exposed PII that may create legal risks under the DPDP Act 2023.';
-    default:
-      return 'Identify the core legal themes, potential risks, and compliance requirements under Indian law.';
-  }
 }
 
 // ─── Main processor function ─────────────────────────────────────────────────
@@ -157,169 +90,48 @@ async function processDocument(docId: string): Promise<void> {
     throw new Error(`Failed to fetch document from storage: ${(err as Error).message}`);
   }
 
-  // ── Step 2: Text extraction ────────────────────────────────────────────────
-  let extractedText = '';
-  try {
-    if (doc.mimeType === 'application/pdf') {
-      const pdfFn = pdf as any;
-      const pdfData = await pdfFn(fileBuffer);
-      extractedText = pdfData.text || '';
-    } else if (doc.mimeType.startsWith('image/')) {
-      const { data: { text } } = await Tesseract.recognize(fileBuffer, 'eng');
-      extractedText = text || '';
-    } else {
-      extractedText = fileBuffer.toString('utf-8');
-    }
-  } catch (err) {
-    console.warn(`[DocProcessor] Text extraction failed for ${docId}:`, err);
-    extractedText = '';
+  // ── Step 2: Delegate to Python RAG /process-document ─────────────────────
+  console.log(`[DocProcessor] Sending document ${docId} to Python RAG service...`);
+  const pyRes = await fetch(`${PYTHON_RAG_URL}/process-document`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pdfBase64: fileBuffer.toString('base64') }),
+  });
+
+  if (!pyRes.ok) {
+    const errText = await pyRes.text();
+    throw new Error(`Python RAG /process-document returned ${pyRes.status}: ${errText}`);
   }
 
-  if (!extractedText.trim()) {
+  const pyData: any = await pyRes.json();
+
+  if (pyData.status !== 'READY') {
     await prisma.userDocument.update({
       where: { id: docId },
-      data: { status: 'FAILED', summary: 'Document appears to be empty or unreadable.' },
+      data: {
+        status: 'FAILED',
+        summary: pyData.summary || 'Document processing failed.',
+      },
     });
     return;
   }
 
-  // ── Step 3: AI Classification ──────────────────────────────────────────────
-  const groqKey = process.env.GROQ_API_KEY;
-  if (!groqKey) {
-    await prisma.userDocument.update({
-      where: { id: docId },
-      data: { status: 'FAILED', summary: 'AI processing unavailable: missing API configuration.' },
-    });
-    return;
-  }
-
-  let docClass = {
-    documentType: 'Other' as string,
-    summary: 'Document classification unavailable.',
-    partiesInvolved: [] as string[],
-  };
-
-  try {
-    const classifier = new ChatGroq({
-      model: 'llama-3.1-8b-instant',
-      temperature: 0,
-      apiKey: groqKey,
-    });
-
-    const classificationPrompt = ChatPromptTemplate.fromMessages([
-      ['system', 'Analyze the following Indian legal document extract and classify it precisely. You must choose exactly one of the following document types: "Contract/Agreement", "Legal Notice", "Court Judgment/Order", "FIR/Police Report", "Identity/KYC Document", "Petition", "Affidavit", "Power of Attorney", "Will/Testament", or "Other".'],
-      ['user', '{text}'],
-    ]);
-
-    const chain = classificationPrompt.pipe(classifier.withStructuredOutput(classificationSchema));
-    docClass = await chain.invoke({ text: extractedText.substring(0, 2000) });
-  } catch (err) {
-    console.warn(`[DocProcessor] Classification failed for ${docId}:`, (err as Error).message);
-  }
-
-  // ── Step 4: RAG-augmented AI Legal Analysis ───────────────────────────────
-  let analysisReport = 'Analysis could not be generated.';
-  let analysisReportHi = 'Hindi analysis could not be generated.';
-  let summaryHi = docClass.summary;
-  try {
-    // Translate summary quickly
-    try {
-      const groqSpeed = new Groq({ apiKey: groqKey });
-      const transResponse = await groqSpeed.chat.completions.create({
-         model: 'llama-3.1-8b-instant',
-         messages: [{ role: 'user', content: `Translate this single sentence strictly into plain Hindi, returning only the translation without quotes: "${docClass.summary}"` }]
-      });
-      if (transResponse.choices[0]?.message?.content) summaryHi = transResponse.choices[0].message.content.trim();
-    } catch { /* ignore and fallback to english summary */ }
-
-    // Build legal context from top chunks in DB
-    const allChunks = await prisma.legalChunk.findMany({
-      take: 50,
-      include: { act: true, section: true },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const relevantLawsContext = allChunks
-      .slice(0, 5)
-      .map((c: any) => `[${c.act?.shortName || 'Unknown Act'} Sec ${c.section?.number || 'N/A'}] ${c.content}`)
-      .join('\n\n');
-
-    const groq = new Groq({ apiKey: groqKey });
-    const docChunks = chunkText(extractedText);
-    const docSelection = docChunks.slice(0, 6).join('\n\n');
-
-    const systemPromptEn = [
-      `You are Nyaya, an elite legal document analyzer for Indian law.`,
-      `Document Type: **${docClass.documentType}**`,
-      `Summary: ${docClass.summary}`,
-      `Parties: ${docClass.partiesInvolved.join(', ') || 'Unknown'}`,
-      ``,
-      `TASK: ${typeSpecificInstructions(docClass.documentType)}`,
-      ``,
-      `Produce a structured legal analysis report in Markdown.`,
-      `Cite applicable Indian laws. Note potential risks. End with a plain-language summary.`,
-      `Do NOT give binding legal advice.`,
-      ``,
-      `RELEVANT INDIAN LAWS:`,
-      relevantLawsContext || 'No specific laws retrieved. Apply general Indian legal principles.',
-    ].join('\n');
-
-    const systemPromptHi = [
-      `You are Nyaya, an elite legal document analyzer for Indian law.`,
-      `Document Type: **${docClass.documentType}**`,
-      `Parties: ${docClass.partiesInvolved.join(', ') || 'Unknown'}`,
-      ``,
-      `TASK: ${typeSpecificInstructions(docClass.documentType)}`,
-      ``,
-      `Produce a structured legal analysis report in Markdown. YOU MUST WRITE THE ENTIRE REPORT EXCLUSIVELY IN HINDI.`,
-      `Cite applicable Indian laws. Note potential risks. End with a plain-language summary. DO NOT give binding legal advice.`,
-      ``,
-      `RELEVANT INDIAN LAWS:`,
-      relevantLawsContext || 'No specific laws retrieved. Apply general Indian legal principles.',
-    ].join('\n');
-
-    const [responseEn, responseHi] = await Promise.all([
-      groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: 2048,
-        messages: [
-          { role: 'system', content: systemPromptEn },
-          { role: 'user', content: `Analyze this document:\n\n${docSelection}` },
-        ],
-      }),
-      groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: 2048,
-        messages: [
-          { role: 'system', content: systemPromptHi },
-          { role: 'user', content: `Analyze this document. Your output MUST be completely in Hindi:\n\n${docSelection}` },
-        ],
-      })
-    ]);
-
-    analysisReport = responseEn.choices[0]?.message?.content || 'Analysis could not be generated.';
-    analysisReportHi = responseHi.choices[0]?.message?.content || 'Hindi analysis could not be generated.';
-  } catch (err) {
-    console.warn(`[DocProcessor] Analysis failed for ${docId}:`, (err as Error).message);
-    analysisReport = `Analysis encountered an error: ${(err as Error).message}`;
-  }
-
-  // ── Step 5: Persist results ───────────────────────────────────────────────
+  // ── Step 3: Persist results ───────────────────────────────────────────────
   await prisma.userDocument.update({
     where: { id: docId },
     data: {
       status: 'READY',
-      documentType: docClass.documentType,
-      summary: docClass.summary,
-      summaryHi,
-      partiesInvolved: docClass.partiesInvolved,
-      extractedText, // Save the raw text for chat Q&A
-      analysisReport,
-      analysisReportHi,
+      documentType: pyData.documentType,
+      summary: pyData.summary,
+      summaryHi: pyData.summaryHi || pyData.summary,
+      partiesInvolved: pyData.partiesInvolved || [],
+      extractedText: pyData.extractedText,
+      analysisReport: pyData.analysisReport,
+      analysisReportHi: pyData.analysisReportHi,
     },
   });
 
-  console.log(`[DocProcessor] ✅ Document ${docId} processed successfully.`);
+  console.log(`[DocProcessor] Document ${docId} processed successfully.`);
 }
 
 // ─── Worker setup ─────────────────────────────────────────────────────────────
