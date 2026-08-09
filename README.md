@@ -5,7 +5,7 @@ Nyaya is a full-stack, AI-powered legal platform designed for Indian law. It uti
 ---
 
 ## ⚡ Quick Pitch
-> "Nyaya leverages hybrid semantic and keyword search against PostgreSQL with pgvector, reranks results using Cohere, and generates precise, confidence-scored legal answers via Groq's LLaMA 3.3 70B. It features full JWT-based role authentication, a verified lawyer marketplace, a subscription-based quota system powered by Razorpay, and comprehensive case and firm management."
+> "Nyaya uses a FastAPI RAG microservice backed by PostgreSQL full-text search and optional pgvector semantic search, reranks legal chunks using Cohere, and generates precise, confidence-scored legal answers via Groq's LLaMA 3.3 70B. It features full JWT-based role authentication, a verified lawyer marketplace, a subscription-based quota system powered by Razorpay, and comprehensive case and firm management."
 
 ---
 
@@ -16,10 +16,10 @@ User ──> Next.js (App Router) ──> Axios Interceptors ──> Express API
               ┌───────────────────────────────────────────────┼──────────────────────────────────┐
               │ Python RAG Microservice (FastAPI, port 8000)  │ Auth & Database                  │
               │                                               │                                  │
-              │ 1. SentenceTransformers (all-MiniLM-L6-v2)    │ 1. JWT Authentication            │
-              │    384-dim normalized vector embeddings        │ 2. Refresh Token Rotation (DB)   │
+              │ 1. FastEmbed ONNX all-MiniLM-L6-v2             │ 1. JWT Authentication            │
+              │    optional 384-dim vector embeddings          │ 2. Refresh Token Rotation (DB)   │
               │ 2. Hybrid Search:                             │ 3. Prisma ORM                    │
-              │    pgvector Cosine + BM25 tsvector GIN        │ 4. Neon serverless PostgreSQL     │
+              │    pgvector Cosine + Postgres FTS/BM25        │ 4. Neon serverless PostgreSQL     │
               │    Reciprocal Rank Fusion (RRF)               │ 5. BullMQ Queue Workers (Redis)  │
               │ 3. Cohere Cross-Encoder Reranking             │                                  │
               │ 4. Groq LLaMA 3.3 70B Generation              │                                  │
@@ -30,7 +30,7 @@ User ──> Next.js (App Router) ──> Axios Interceptors ──> Express API
 ---
 
 ## ✨ Key Features
-- **Context-Aware Legal RAG**: Conversational chat that expands queries using historical context, embeds text via SentenceTransformers, retrieves relevant clauses using hybrid pgvector + FTS search, reranks using Cohere, and generates responses with confidence scoring.
+- **Context-Aware Legal RAG**: Conversational chat that expands queries using historical context, retrieves relevant clauses using Postgres full-text search plus optional pgvector semantic search, reranks using Cohere, and generates responses with confidence scoring.
 - **Lawyer Marketplace & Verification**: A portal for lawyers to get verified, interact with clients, and manage legal consults.
 - **AI Document Analysis**: Upload legal documents (PDF/images) for automated OCR, classification, and AI-powered legal analysis with relevant law citations.
 - **Legal Document Generation**: AI-powered generation of legal documents (FIRs, Legal Notices, Contracts, NDAs, etc.) with automatic RAG-based law citation.
@@ -60,13 +60,14 @@ User ──> Next.js (App Router) ──> Axios Interceptors ──> Express API
 
 ### Python RAG Microservice
 - **Framework**: FastAPI with Uvicorn
-- **Embedding Model**: SentenceTransformers `all-MiniLM-L6-v2` (384-dim normalized vectors)
-- **Vector Database**: PostgreSQL pgvector (HNSW cosine index)
-- **Full-Text Search**: PostgreSQL tsvector with GIN index
-- **Fusion**: Reciprocal Rank Fusion (RRF) combining vector + keyword results
+- **Embedding Model**: FastEmbed ONNX `sentence-transformers/all-MiniLM-L6-v2` (384-dim normalized vectors) when `RAG_VECTOR_SEARCH=true`
+- **Vector Database**: PostgreSQL pgvector (HNSW cosine index) for full semantic mode
+- **Full-Text Search**: PostgreSQL `tsvector` / `websearch_to_tsquery`, with `ILIKE` fallback
+- **Fusion**: Reciprocal Rank Fusion (RRF) combining vector + keyword results in full semantic mode
+- **Render Low-Memory Mode**: `RAG_VECTOR_SEARCH=false` skips local model loading and uses Postgres text search + Cohere reranking to stay under 512MB
 - **Reranker**: Cohere `rerank-english-v3.0` cross-encoder
 - **LLM Inference**: Groq LLaMA 3.3 70B
-- **Document Processing**: PyPDF2, Tesseract OCR, Groq structured classification
+- **Document Processing**: pypdf extraction and Groq structured classification/analysis
 
 ---
 
@@ -86,9 +87,9 @@ Nyaya/
 │
 ├── rag/                      # Python RAG Microservice (FastAPI)
 │   ├── main.py               # FastAPI app — all AI/RAG endpoints (port 8000)
-│   ├── embeddings.py         # SentenceTransformers embedding engine (all-MiniLM-L6-v2)
-│   ├── retrieval.py          # Hybrid search (pgvector + FTS + RRF) & Cohere reranking
-│   ├── document_processor.py # PDF OCR, AI classification & legal analysis
+│   ├── embeddings.py         # Lazy FastEmbed ONNX embedding engine / mock fallback
+│   ├── retrieval.py          # pgvector + FTS retrieval, Render text-search fallback, Cohere reranking
+│   ├── document_processor.py # PDF extraction, AI classification & legal analysis
 │   ├── generate_embeddings.py# Batch embedding pipeline for LegalChunk table
 │   ├── ingest_legal_pdfs.py  # PDF ingestion into Act/Section/Clause tables
 │   ├── check_db.py           # Quick DB health check utility
@@ -110,10 +111,10 @@ Nyaya/
 
 ## 🧬 RAG Pipeline Walkthrough
 1. **Query Expansion**: The chat system passes the user query and recent conversation context to construct an expanded, search-friendly query string.
-2. **Vector Embedding**: The query is embedded using SentenceTransformers `all-MiniLM-L6-v2` (384-dim normalized vectors) running locally in the Python microservice — zero external API cost.
-3. **Hybrid PostgreSQL Search**:
-   - Performs a **Cosine Distance** match on pgvector embeddings (HNSW index).
-   - Performs a **Text Search (BM25)** match on `tsvector` indexed columns (GIN index).
+2. **Optional Vector Embedding**: When `RAG_VECTOR_SEARCH=true`, the query is embedded with FastEmbed ONNX `all-MiniLM-L6-v2` (384-dim normalized vectors). On 512MB Render services, this is disabled to avoid model memory pressure.
+3. **PostgreSQL Retrieval**:
+   - In full semantic mode, performs a **Cosine Distance** match on pgvector embeddings (HNSW index).
+   - Performs a **Text Search (BM25-style)** match using Postgres `tsvector` / `websearch_to_tsquery`, with `ILIKE` fallback if no FTS rows match.
    - Merges results using **Reciprocal Rank Fusion (RRF)**:
      $$\text{RRF Score} = \sum_{m \in M} \frac{1}{60 + \text{rank}_m(d)}$$
 4. **Cohere Reranking**: Filters candidates down to top 15, then feeds them to Cohere's cross-encoder Rerank API to select the top 8 high-relevance legal chunks.
@@ -127,8 +128,8 @@ Nyaya/
 | :--- | :---: | :--- |
 | `/health` | GET | Service health check |
 | `/embed` | POST | Generate embeddings for text array |
-| `/hybrid-search` | POST | Vector + FTS hybrid search with RRF fusion |
-| `/search` | POST | Full search pipeline (embed → hybrid → filter → rerank) |
+| `/hybrid-search` | POST | pgvector + FTS retrieval when vector mode is enabled; FTS fallback when disabled |
+| `/search` | POST | Full search pipeline (optional embed → retrieve → filter → rerank) |
 | `/rerank` | POST | Cohere cross-encoder reranking |
 | `/chat-rag` | POST | Full RAG chat (search → rerank → Groq LLM generation) |
 | `/case-intelligence` | POST | AI case analysis with legal provisions |
@@ -153,6 +154,9 @@ JWT_REFRESH_SECRET="your-jwt-refresh-secret"
 
 # Python RAG Microservice
 PYTHON_RAG_URL="http://127.0.0.1:8000"
+RAG_VECTOR_SEARCH="true"          # Set false on 512MB Render instances
+RAG_EMBEDDING_PROVIDER="fastembed" # Set mock/disabled with RAG_VECTOR_SEARCH=false
+PYTHON_VERSION="3.11.11"          # Render native Python runtime pin
 
 # LLM & AI Providers
 GROQ_API_KEY="gsk_..."
@@ -219,6 +223,14 @@ pip install -r requirements.txt
 python main.py
 ```
 
+For Render free/512MB deployments, keep the blueprint values in `render.yaml`:
+```bash
+PYTHON_VERSION=3.11.11
+RAG_VECTOR_SEARCH=false
+RAG_EMBEDDING_PROVIDER=mock
+```
+This starts the service without importing/loading the local embedding model. Retrieval still works through Postgres full-text search and Cohere reranking. Upgrade the instance memory and switch `RAG_VECTOR_SEARCH=true` to restore full pgvector semantic retrieval.
+
 #### 3. Ingest Legal Data & Generate Embeddings (First Time Only)
 ```bash
 cd backend
@@ -240,7 +252,7 @@ Open [http://localhost:3000](http://localhost:3000) in your web browser.
 ## 📊 Database Entities (Prisma)
 - **User profiles**: `User` 1-to-1 with `CitizenProfile` / `LawyerProfile` / `JudgeProfile` / `AdminProfile`.
 - **Auth metadata**: `RefreshToken` (for device management and tracking) and `Otp` (supporting Aadhaar verification, logins, email verification, etc.).
-- **Acts & Sections**: `Act` ──> `Section` ──> `Clause` ──> `LegalChunk` (contains 384-dim vector embeddings and tsvector FTS indexes).
+- **Acts & Sections**: `Act` ──> `Section` ──> `Clause` ──> `LegalChunk` (contains optional 384-dim vector embeddings and tsvector FTS indexes).
 - **Cases & Timeline**: `Case` ──> `Hearing` / `CaseTimeline` / `CaseParty` / `CaseAdvocate`.
 - **Firms**: `Firm` ──> `FirmMember` (with Owner, Partner, Associate, and Paralegal roles).
 - **Documents**: `UserDocument` (uploaded legal documents with AI classification, summary, and analysis reports).
@@ -251,5 +263,5 @@ Open [http://localhost:3000](http://localhost:3000) in your web browser.
 ## 📈 Current Database Stats
 - **Acts**: 2 (Constitution of India, Bharatiya Nyaya Sanhita)
 - **Sections**: 704 (346 Constitutional Articles + 358 BNS Sections)
-- **LegalChunks**: 3,917 (all with 384-dim vector embeddings + FTS tsvectors)
-- **Embedding Coverage**: 100% (3,917 / 3,917)
+- **LegalChunks**: 3,917 target chunks after ingestion/embedding generation
+- **Embedding Coverage**: 100% in full vector mode after `npm run rag:embed`; not required for Render low-memory text-search mode

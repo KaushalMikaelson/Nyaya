@@ -1,7 +1,7 @@
 # Nyaya — Quick Revision Sheet
 
 ## ⚡ 30-Second Pitch
-> "Nyaya is a full-stack AI-powered legal platform for Indian law. It uses RAG — Retrieval Augmented Generation — to let citizens ask legal questions and get answers grounded in real Indian Acts. The backend is Node.js/Express with PostgreSQL and pgvector for hybrid semantic + keyword search. LLM inference is via Groq's LLaMA 3.3 70B. The platform has 4 user roles with JWT-based auth, a verified lawyer marketplace, and a Razorpay freemium model."
+> "Nyaya is a full-stack AI-powered legal platform for Indian law. It uses a FastAPI RAG microservice to let citizens ask legal questions and get answers grounded in real Indian Acts. Retrieval uses PostgreSQL full-text search plus optional pgvector semantic search, Cohere reranking, and Groq's LLaMA 3.3 70B. The platform has 4 user roles with JWT-based auth, a verified lawyer marketplace, and a Razorpay freemium model."
 
 ---
 
@@ -23,9 +23,9 @@ User → Next.js (App Router) → Axios (with interceptors) → Express API
 | OTP max attempts | 5 |
 | bcrypt cost (citizen) | 12 |
 | bcrypt cost (admin) | 14 |
-| Embedding dimensions | 1024 |
+| Embedding dimensions | 384 in Python RAG vector mode |
 | RRF constant k | 60 |
-| Hybrid search candidates | 30 vector + 30 keyword → RRF top 20 |
+| Retrieval candidates | 30 vector + 30 keyword → RRF top 20 in vector mode; FTS top 20 on 512MB Render |
 | After reranking | Top 8 chunks (chat) / Top 10 (search) |
 | FREE plan limit | 100 API calls / 30 days |
 | PRO plan limit | 10,000 API calls / 30 days |
@@ -58,9 +58,11 @@ Silent Refresh (AuthContext mount) → POST /auth/refresh
 
 ```
 1. EXPAND query with last 2 user messages (context-aware)
-2. EMBED via Xenova/gte-large local model (1024-dim)
-3. HYBRID SEARCH: vector (pgvector HNSW <=> cosine) + BM25 (tsvector GIN)
-                  → Reciprocal Rank Fusion: 1/(60+rank)
+2. OPTIONAL EMBED via FastEmbed ONNX all-MiniLM-L6-v2 (384-dim)
+   → disabled on 512MB Render with RAG_VECTOR_SEARCH=false
+3. RETRIEVE:
+   → full mode: pgvector HNSW <=> cosine + Postgres FTS, fused by RRF
+   → Render low-memory mode: Postgres FTS + ILIKE fallback
 4. RERANK: Top 20 → Cohere rerank-english-v3.0 → Top 8
 5. GENERATE: LangChain ChatGroq(llama-3.3-70b, temp=0.1)
              → Structured output with confidence score
@@ -77,7 +79,7 @@ User → RefreshToken[] (1:many) — device tracking
 User → Otp[] (1:many) — type: EMAIL_VERIFY | LOGIN | PASSWORD_RESET | AADHAAR_LINK
 User → Conversation → Message[] (chat history)
 User → Subscription (1:1) — tier: FREE/BASIC/PRO/ENTERPRISE
-Act → Section → Clause → LegalChunk (embedding: vector(1024), fts: tsvector)
+Act → Section → Clause → LegalChunk (embedding: vector(384) optional, fts: tsvector)
 Case → Hearing[] / CaseTimeline[] / CaseParty[] / CaseAdvocate[]
 Firm → FirmMember[] (roles: OWNER/PARTNER/ASSOCIATE/PARALEGAL)
 ```
@@ -101,8 +103,8 @@ Firm → FirmMember[] (roles: OWNER/PARTNER/ASSOCIATE/PARALEGAL)
 
 | Decision | Why |
 |----------|-----|
-| Xenova local model in chat (not Voyage API) | Zero cost per chat query |
-| Voyage AI in search route | Better legal domain precision |
+| FastEmbed lazy import | Avoids loading the embedding runtime during startup |
+| Render text-search mode | Keeps the RAG service under the 512MB memory ceiling |
 | No LangChain ChatPromptTemplate in chat | Legal text has `{braces}` → breaks parser |
 | Redis workers = conditional import | Prevents `ioredis` crash in dev without Redis |
 | `router.replace()` not `router.push()` on auth guards | Back button can't return to protected pages |
@@ -119,8 +121,10 @@ Firm → FirmMember[] (roles: OWNER/PARTNER/ASSOCIATE/PARALEGAL)
 | `backend/src/index.ts` | Server bootstrap, all 16 route mounts, worker init |
 | `backend/src/services/token.service.ts` | JWT signing, issueTokenPair, rotateRefreshToken |
 | `backend/src/services/otp.service.ts` | crypto OTP, email/SMS send, verifyOtp with attempt tracking |
-| `backend/src/services/retrieval.ts` | hybridSearch (RRF) + rerankCandidates (Cohere) |
-| `backend/src/routes/chat.ts` | Full RAG pipeline implementation |
+| `backend/src/services/retrieval.ts` | Proxies backend calls to the Python RAG service |
+| `rag/main.py` | FastAPI RAG endpoints: search, chat-rag, document processing |
+| `rag/retrieval.py` | pgvector/FTS retrieval, Render fallback, Cohere reranking |
+| `rag/embeddings.py` | Lazy FastEmbed ONNX embeddings / mock fallback |
 | `backend/src/middleware/auth.ts` | authenticate, requireRole, role guard shortcuts |
 | `backend/src/middleware/planLimiter.ts` | Plan-tier API quota enforcement |
 | `backend/src/middleware/rateLimiter.ts` | All rate limit configs |
@@ -138,8 +142,11 @@ DATABASE_URL         # Neon PostgreSQL
 JWT_ACCESS_SECRET    # Signs 2h access tokens
 JWT_REFRESH_SECRET   # Signs 7d refresh tokens
 GROQ_API_KEY         # LLaMA 3.3 70B inference
-VOYAGE_API_KEY       # Legal embeddings (search route)
 COHERE_API_KEY       # Reranking
+PYTHON_RAG_URL       # Backend -> FastAPI RAG service
+RAG_VECTOR_SEARCH    # true locally/full mode, false on 512MB Render
+RAG_EMBEDDING_PROVIDER # fastembed normally, mock/disabled on Render fallback
+PYTHON_VERSION       # 3.11.11 on Render native Python
 RAZORPAY_KEY_ID / KEY_SECRET  # Payments
 SMTP_USER / SMTP_PASS         # Gmail OTP emails
 REDIS_URL            # BullMQ workers (optional in dev)
@@ -163,10 +170,11 @@ NEXT_PUBLIC_GOOGLE_CLIENT_ID   # Google OAuth
 
 ## 💡 One-Liners for Common Questions
 
-- **"Why PostgreSQL?"** → pgvector extension for native vector similarity, ACID, Prisma support
+- **"Why PostgreSQL?"** → One DB for relational legal data, FTS retrieval, and optional pgvector similarity
 - **"Why Groq?"** → Sub-100ms inference for LLaMA 70B — fastest free LLM API available
-- **"Why Voyage AI?"** → voyage-law-2 is domain-tuned for legal text; standard models miss legal nuances
+- **"Why FastEmbed?"** → ONNX embeddings are lighter than torch/SentenceTransformers and can be lazy-loaded
 - **"Why BullMQ?"** → Async email/WhatsApp jobs don't block HTTP response; retry on failure
 - **"Why Neon?"** → Serverless Postgres that scales to zero; perfect for dev/staging; pgvector supported
-- **"Why Cohere reranking?"** → Two-stage funnel: cheap vector retrieval narrows candidates, expensive cross-encoder picks the best
+- **"Why Cohere reranking?"** → Two-stage funnel: cheap retrieval narrows candidates, cross-encoder ranking picks the best
+- **"Why disable vectors on Render free?"** → 512MB is too tight for local embedding models; FTS + rerank keeps production alive
 - **"Why RRF over weighted sum?"** → RRF is rank-based, not score-based → immune to score scale differences between BM25 and cosine similarity

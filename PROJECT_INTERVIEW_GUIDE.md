@@ -19,7 +19,7 @@ Indian legal information is scattered, complex, and inaccessible to the average 
 ### USP (Unique Selling Proposition)
 - Only platform combining RAG-grounded AI answers with a verified Indian lawyer marketplace
 - Multi-role JWT auth with professional verification pipeline
-- Hybrid semantic + keyword legal search with Cohere reranking
+- PostgreSQL full-text legal retrieval with optional pgvector semantic search and Cohere reranking
 - Hindi language support in AI responses
 - Freemium model with Razorpay payments
 
@@ -60,13 +60,11 @@ Indian legal information is scattered, complex, and inaccessible to the average 
 | Technology | Purpose |
 |------------|---------|
 | **Groq (LLaMA 3.3 70B)** | LLM inference — ultra-low latency via Groq Cloud |
-| **Voyage AI (voyage-law-2)** | Legal-domain-tuned 1024-dim embeddings for search route |
-| **Xenova/gte-large** | Local embeddings (no API cost) for chat route |
+| **FastEmbed ONNX all-MiniLM-L6-v2** | Local 384-dim embeddings for full pgvector semantic mode |
 | **Cohere Rerank v3** | Cross-encoder reranking of hybrid search results |
-| **LangChain** | Orchestration: message history, output parsers, Groq integration |
 | **pgvector** | Native PostgreSQL vector similarity via HNSW index |
-| **pdf-parse** | PDF text extraction for document analysis |
-| **tesseract.js** | OCR for image-based legal documents |
+| **PostgreSQL FTS** | Low-memory retrieval path using `tsvector` / `websearch_to_tsquery` |
+| **pypdf** | PDF text extraction for document analysis |
 
 ### Infrastructure
 
@@ -77,6 +75,7 @@ Indian legal information is scattered, complex, and inaccessible to the average 
 | **Razorpay** | Indian payment gateway for PRO subscriptions |
 | **Twilio** | WhatsApp/SMS OTP delivery |
 | **Docker + Docker Compose** | Containerized local dev; two services: backend + frontend |
+| **Render Blueprint** | Production deploy; RAG runs text-search mode on 512MB instances |
 
 ---
 
@@ -210,8 +209,8 @@ seed_legal_data.ts:
   Acts (BNS, CrPC, Constitution...) 
     → Sections → Clauses → LegalChunks
   
-generate_embeddings.ts:
-  Each chunk → Voyage AI voyage-law-2 → 1024-dim vector
+generate_embeddings.py:
+  Each chunk → FastEmbed ONNX all-MiniLM-L6-v2 → 384-dim vector
   Stored in LegalChunk.embedding (pgvector type)
   PostgreSQL GIN index on fts (tsvector)
   HNSW index on embedding for O(log N) ANN search
@@ -224,13 +223,13 @@ Step A: Context-Aware Query Expansion
   priorUserMessages.slice(-2) + currentQuery joined with " | "
   Prevents "What does that mean?" from retrieving garbage chunks
 
-Step B: Embed expanded query
-  → Xenova/gte-large (local, lazy-loaded singleton via getPipeline())
-  → 1024-dim Float32Array
-  Fallback: generateMockEmbedding() if model fails
+Step B: Optional embed expanded query
+  → FastEmbed ONNX all-MiniLM-L6-v2 in full vector mode
+  → 384-dim vector
+  → skipped on 512MB Render with RAG_VECTOR_SEARCH=false
 
-Step C: Hybrid Search (retrieval.ts: hybridSearch())
-  Postgres Raw Query (pgvector + BM25 via RRF):
+Step C: Retrieval (rag/retrieval.py: hybrid_search())
+  Full mode Postgres raw query (pgvector + FTS via RRF):
   
   WITH vector_search AS (
     SELECT id, content, ROW_NUMBER() OVER(ORDER BY embedding <=> queryVec) as rnk
@@ -246,6 +245,11 @@ Step C: Hybrid Search (retrieval.ts: hybridSearch())
   ORDER BY rrf_score DESC LIMIT 20
   
   Then: Hydrate chunks with Act + Section relations
+
+  Render 512MB mode:
+    skip local embeddings
+    use Postgres FTS (`websearch_to_tsquery`) + ILIKE fallback
+    keep Cohere reranking and Groq generation unchanged
 
 Step D: Reranking (retrieval.ts: rerankCandidates())
   Top 20 → Cohere rerank-english-v3.0 → Top 8 "golden" chunks
@@ -274,7 +278,7 @@ score = 1/(60 + rank_vector) + 1/(60 + rank_keyword)
 k=60 is traditional constant preventing high ranks from dominating
 ```
 - **Time complexity**: O(log N) for HNSW vector search vs O(N) for naive cosine in JS
-- **Space complexity**: O(N × d) for the index where d=1024
+- **Space complexity**: O(N × d) for the index where d=384
 
 ---
 
@@ -296,7 +300,7 @@ User (1) ──→ (1) CitizenProfile
      (1) ──→ (many) UserDocument
 
 Act (1) ──→ (many) Section ──→ (many) Clause
-Act (1) ──→ (many) LegalChunk (embedding: vector(1024), fts: tsvector)
+Act (1) ──→ (many) LegalChunk (embedding: vector(384), fts: tsvector)
 
 Case (1) ──→ (many) Hearing
      (1) ──→ (many) CaseTimeline
@@ -313,7 +317,7 @@ Firm (1) ──→ (many) FirmMember (roles: OWNER, PARTNER, ASSOCIATE, PARALEGA
 - `RefreshToken` stores `userAgent` + `ipAddress` → device fingerprinting
 - `AdminInvite` has `expiresAt` + `used` → one-time invite tokens
 - `Otp.attempts` tracked → max 5 tries before lockout
-- `LegalChunk.embedding` uses `Unsupported("vector(1024)")` — Prisma doesn't natively support pgvector, raw SQL needed for inserts
+- `LegalChunk.embedding` uses `Unsupported("vector(384)")` — Prisma doesn't natively support pgvector, raw SQL needed for inserts
 - `Case.aiAnalysis` cached as JSON to avoid repeated LLM calls
 - `UserDocument` has `deletedAt` for soft-delete (DPDP Act compliance)
 - `CaseParty.aadhaarMasked` stores only last 4 digits after eKYC
@@ -470,10 +474,10 @@ services:
 
 ## 11. Major Design Decisions & Tradeoffs
 
-### 1. Local Embeddings (Xenova) vs API (Voyage AI)
-- **Chat route** uses Xenova/gte-large locally → zero cost per query, higher latency on first load
-- **Search route** uses Voyage AI voyage-law-2 → better legal domain accuracy, costs per call
-- **Tradeoff**: Cost vs quality. Chat gets local model, Search (more critical for precision) gets specialized model.
+### 1. Full Vector Mode vs Render Low-Memory Mode
+- **Full mode** uses FastEmbed ONNX all-MiniLM-L6-v2 locally → semantic search with 384-dim pgvector chunks and no per-query embedding API cost.
+- **Render 512MB mode** sets `RAG_VECTOR_SEARCH=false` and `RAG_EMBEDDING_PROVIDER=mock` → skips local model loading, uses Postgres FTS + Cohere reranking.
+- **Tradeoff**: Full vector mode has better semantic recall; low-memory mode is more deployable on free Render instances.
 
 ### 2. No LangChain Templates for Chat
 - Legal text contains `{braces}` in section references that break LangChain's template parser
@@ -513,13 +517,14 @@ services:
 | 6 | Login "Invalid credentials" | Email casing mismatch (`Email@` vs `email@`) | `.toLowerCase().trim()` on all auth email inputs |
 | 7 | Refresh token 401 cross-origin | `SameSite=Strict` blocked port-crossing cookies | Changed to `SameSite=None; Secure=true` |
 | 8 | `NEXT_PUBLIC_API_URL` 404 HTML | Missing `/api` suffix → receiving HTML 404 as JSON | Added `/api` suffix to env variable |
+| 9 | Render RAG out of memory | Local embedding stack/model exceeded 512MB at runtime | Switched Render to text-search mode, lazy-loaded FastEmbed, pinned Python 3.11.11 |
 
 ---
 
 ## 13. Scalability Considerations
 
 ### Current Bottlenecks
-1. **Xenova model**: ~2-3s cold start for first embedding in chat
+1. **Local embedding model**: first vector-mode query can cold-load FastEmbed/ONNX
 2. **Synchronous LLM call**: No streaming to browser (response waits for full LLM output)
 3. **N+1 on hydration**: `hybridSearch` runs raw SQL then second Prisma query to hydrate chunks
 
@@ -529,6 +534,7 @@ services:
 3. **Hierarchical chunking** with `RecursiveCharacterTextSplitter` (1200 char, 250 overlap)
 4. **Streaming responses** via `TextDecoderStream` / SSE
 5. **Redis caching** of embeddings and frequent query results
+6. **Hosted embeddings or larger RAG instance** to keep semantic search enabled in production
 
 ### Horizontal Scaling
 - Express is stateless → multiple instances behind load balancer
@@ -546,8 +552,8 @@ services:
 • Engineered a production RAG pipeline: Hybrid BM25 + vector search (Reciprocal Rank Fusion)
   + Cohere cross-encoder reranking achieving O(log N) retrieval via HNSW index
 
-• Designed a multi-model AI system using Groq LLaMA 3.3 70B, Voyage AI legal embeddings,
-  and Xenova local models with confidence scoring and hallucination guards
+• Designed a multi-model AI system using Groq LLaMA 3.3 70B, FastEmbed semantic retrieval,
+  Cohere reranking, and confidence scoring/hallucination guards
 
 • Implemented enterprise security: bcrypt adaptive hashing, refresh token rotation with reuse
   detection, Helmet.js headers, per-endpoint rate limiting (express-rate-limit)
@@ -566,7 +572,7 @@ Tech: Next.js • Node.js • PostgreSQL/pgvector • Groq LLaMA 3.3 70B • Lan
 
 Built a production-grade LegalTech platform democratizing access to Indian law through:
 - RAG-powered AI chat grounded in real Indian Acts (BNS, CrPC, Constitution)
-- Hybrid semantic + keyword search with cross-encoder reranking
+- PostgreSQL FTS + optional pgvector semantic search with cross-encoder reranking
 - Multi-role system: Citizens, Verified Lawyers, Judges, Admins
 - Secure multi-modal auth: JWT rotation, OTP (email+SMS), Google OAuth
 - Lawyer marketplace with Bar Council document verification

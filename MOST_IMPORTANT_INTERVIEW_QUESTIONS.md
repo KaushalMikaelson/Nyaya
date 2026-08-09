@@ -8,7 +8,7 @@
 
 > "I built Nyaya — an AI-powered legal platform for Indian law. The core problem I solved is that Indian legal information is complex and inaccessible. Most people don't know their rights, and lawyer consultations are expensive.
 >
-> Nyaya has three main layers. First, a **RAG-based AI chatbot** — when a user asks a legal question, the system retrieves relevant sections from a database of Indian Acts using hybrid search: vector similarity AND keyword search fused with a technique called Reciprocal Rank Fusion. Those results are then reranked by Cohere's cross-encoder model, and the top chunks are fed as context into Groq's LLaMA 3.3 70B model to generate a grounded, cited answer.
+> Nyaya has three main layers. First, a **RAG-based AI chatbot** — when a user asks a legal question, the system retrieves relevant sections from a database of Indian Acts using PostgreSQL full-text search and, when memory allows, pgvector semantic search fused with Reciprocal Rank Fusion. Those results are then reranked by Cohere's cross-encoder model, and the top chunks are fed as context into Groq's LLaMA 3.3 70B model to generate a grounded, cited answer.
 >
 > Second, a **multi-role auth system** — Citizens, Lawyers, Judges, and Admins each have different access levels. Lawyers must submit their Bar Council credentials, which admins manually verify. Third, a **Lawyer Marketplace** where verified lawyers can list their services.
 >
@@ -35,7 +35,7 @@
 >
 > The second challenge was prompt design. I initially used LangChain's `ChatPromptTemplate`, but legal text contains curly braces like `{resolvedLabel}` in section references, which LangChain's template parser mistook for unbound variables and threw errors. I switched to building a raw message array — `[SystemMessage, ...history, HumanMessage]` — and calling `.invoke()` directly.
 >
-> The third was embedding consistency. The chat route and search route needed to use the same embedding model (1024-dim) to ensure the query vector matched the stored chunk vectors. I chose Xenova's gte-large for chat (local, zero cost) and Voyage AI's voyage-law-2 for the search route (specialized legal embeddings)."
+> The third was production memory. The Python RAG service originally depended on a heavier embedding stack, and Render's 512MB instance ran out of memory. I switched to FastEmbed ONNX with lazy imports for full vector mode, and added a low-memory Render mode that disables local embeddings and uses Postgres full-text search plus Cohere reranking."
 
 ---
 
@@ -43,7 +43,7 @@
 
 > "Several improvements for production scale:
 >
-> **Database**: Move from Node.js cosine similarity to native pgvector HNSW index — O(log N) instead of O(N). Already documented in my rag_architecture.md. Also add Redis caching for frequent query embeddings.
+> **Database**: Use native pgvector HNSW index for full semantic retrieval — O(log N) instead of O(N) — while keeping Postgres FTS as a reliable low-memory fallback. Also add Redis caching for frequent query embeddings.
 >
 > **AI Pipeline**: Add response streaming via SSE or Server-Sent Events so the user sees tokens as they arrive instead of waiting for the full response. Add a query router (small fast model like llama-3.1-8b-instant) to classify query intent before hitting the expensive 70B model.
 >
@@ -61,7 +61,7 @@
 > - **Next.js 14 App Router**: SSR for SEO (legal information pages need to be indexed), file-based routing, and the ability to add API routes for BFF patterns later.
 > - **PostgreSQL + pgvector**: I needed a relational DB for the complex user/case schema AND vector storage for embeddings. pgvector lets me do both in one database without managing a separate vector store like Pinecone.
 > - **Groq**: Fastest LLM inference available — sub-100ms for LLaMA 70B. For a chat interface, latency matters more than raw accuracy.
-> - **Voyage AI**: Their `voyage-law-2` model is specifically trained on legal corpora. General-purpose embeddings miss legal term nuances like the difference between 'bail' and 'surety'.
+> - **FastEmbed ONNX**: It gives local 384-dim embeddings without the memory cost of torch/SentenceTransformers, and it can be lazy-loaded only when vector search is enabled.
 > - **Cohere reranking**: Cross-encoders are more accurate than bi-encoders for ranking but too slow for retrieval. Two-stage pipeline: fast retrieval with bi-encoders, accurate ranking with cross-encoder.
 > - **Neon**: Serverless Postgres scales to zero cost when not in use — perfect for a side project that may have variable traffic."
 
@@ -151,7 +151,7 @@
 >
 > **Phase 2 — Chunk**: Use `RecursiveCharacterTextSplitter` (LangChain) with `chunkSize=1200, chunkOverlap=250`. Legal-specific separators: `['\n\n[Clause', '\n\n', '\n', '.']` to prefer clause and paragraph boundaries over arbitrary character splits. Store as `LegalChunk` records.
 >
-> **Phase 3 — Embed** (`generate_embeddings.ts`): Batch chunks through Voyage AI `voyage-law-2` → 1024-dim vectors. Insert using raw SQL:
+> **Phase 3 — Embed** (`generate_embeddings.py`): Batch chunks through FastEmbed ONNX `all-MiniLM-L6-v2` → 384-dim vectors. Insert using raw SQL:
 > ```sql
 > INSERT INTO "LegalChunk" (id, actId, content, embedding)
 > VALUES (uuid(), $1, $2, $3::vector)
@@ -258,9 +258,9 @@
 >
 > **1. Query Expansion**: I take the last 2 user messages and join them with the current message. If someone asks 'What about minors?' after asking about IPC 302, the expanded query becomes 'IPC 302 murder | What about minors?' — this ensures the vector search retrieves contextually relevant chunks, not generic 'minor' chunks.
 >
-> **2. Embedding**: The expanded query is passed to Xenova's `gte-large` model running locally via `@xenova/transformers`. This generates a 1024-dimensional float vector. It's lazy-loaded on first request and cached as a singleton.
+> **2. Optional Embedding**: In full vector mode, the expanded query is passed to FastEmbed ONNX `all-MiniLM-L6-v2`, generating a 384-dimensional vector. On 512MB Render instances, `RAG_VECTOR_SEARCH=false` skips this step to avoid loading a local model.
 >
-> **3. Hybrid Search** (`retrieval.ts`): A single PostgreSQL raw query runs two CTEs — one using pgvector's cosine distance operator `<=>` on the HNSW index, another using `ts_rank_cd` on the full-text search GIN index. These 30+30 results are merged via a FULL OUTER JOIN and ranked by RRF scores. The top 20 are returned.
+> **3. Retrieval** (`rag/retrieval.py`): In full vector mode, a PostgreSQL raw query runs two CTEs — one using pgvector's cosine distance operator `<=>` on the HNSW index, another using `ts_rank_cd` on the full-text search GIN index. These 30+30 results are merged via a FULL OUTER JOIN and ranked by RRF scores. In Render low-memory mode, the service uses Postgres full-text search plus an `ILIKE` fallback instead.
 >
 > **4. Reranking** (`retrieval.ts`): The 20 candidates plus the original query are sent to Cohere's `rerank-english-v3.0`. This cross-encoder model reads each (query, document) pair jointly — much more accurate than bi-encoder similarity. Top 8 returned.
 >
