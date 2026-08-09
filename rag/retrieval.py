@@ -24,6 +24,7 @@ for p in env_paths:
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 COHERE_API_KEY = os.getenv("COHERE_API_KEY")
+RAG_VECTOR_SEARCH = os.getenv("RAG_VECTOR_SEARCH", "true").strip().lower() not in {"0", "false", "no", "off"}
 
 cohere_client: Optional[cohere.Client] = None
 if COHERE_API_KEY:
@@ -39,7 +40,7 @@ def get_db_connection():
 
 def hybrid_search(
     query: str,
-    query_embedding: List[float],
+    query_embedding: Optional[List[float]] = None,
     act_short_name: Optional[str] = None,
     top_k: int = 20
 ) -> List[Dict[str, Any]]:
@@ -50,7 +51,8 @@ def hybrid_search(
     """
     query_clean = re.sub(r'[^a-zA-Z0-9 ]', ' ', query).strip()
     query_str = ' '.join(query_clean.split()) or query.strip()[:200] or "law"
-    vector_str = f"[{','.join(map(str, query_embedding))}]"
+    vector_str = f"[{','.join(map(str, query_embedding))}]" if query_embedding and RAG_VECTOR_SEARCH else None
+    like_terms = [f"%{term}%" for term in query_str.split()[:5] if len(term) >= 3]
 
     # Extract explicit Section or Article numbers (e.g. "Section 103", "Sec 103", "Article 21", "103")
     sec_matches = re.findall(r'(?:section|sec|article|art|§)\.?\s*(\d+[A-Z]?)', query, re.IGNORECASE)
@@ -66,7 +68,7 @@ def hybrid_search(
                 if act_row:
                     act_id = act_row['id']
 
-            if act_id:
+            if vector_str and act_id:
                 sql = """
                 WITH vector_search AS (
                   SELECT id, content, "actId", "sectionId", "clauseId",
@@ -97,7 +99,7 @@ def hybrid_search(
                 LIMIT %s;
                 """
                 query_params = (vector_str, act_id, vector_str, query_str, query_str, act_id, query_str, top_k)
-            else:
+            elif vector_str:
                 sql = """
                 WITH vector_search AS (
                   SELECT id, content, "actId", "sectionId", "clauseId",
@@ -127,9 +129,47 @@ def hybrid_search(
                 LIMIT %s;
                 """
                 query_params = (vector_str, vector_str, query_str, query_str, query_str, top_k)
+            elif act_id:
+                sql = """
+                SELECT id, content, "actId", "sectionId", "clauseId",
+                       ts_rank_cd(COALESCE(fts, to_tsvector('english', content)), websearch_to_tsquery('english', %s)) as rrf_score
+                FROM "LegalChunk"
+                WHERE COALESCE(fts, to_tsvector('english', content)) @@ websearch_to_tsquery('english', %s)
+                  AND "actId" = %s
+                ORDER BY rrf_score DESC
+                LIMIT %s;
+                """
+                query_params = (query_str, query_str, act_id, top_k)
+            else:
+                sql = """
+                SELECT id, content, "actId", "sectionId", "clauseId",
+                       ts_rank_cd(COALESCE(fts, to_tsvector('english', content)), websearch_to_tsquery('english', %s)) as rrf_score
+                FROM "LegalChunk"
+                WHERE COALESCE(fts, to_tsvector('english', content)) @@ websearch_to_tsquery('english', %s)
+                ORDER BY rrf_score DESC
+                LIMIT %s;
+                """
+                query_params = (query_str, query_str, top_k)
 
             cur.execute(sql, query_params)
             rows = cur.fetchall()
+
+            if not rows and not vector_str and like_terms:
+                like_predicate = " OR ".join(["content ILIKE %s"] * len(like_terms))
+                like_params: list[Any] = []
+                like_params.extend(like_terms)
+                if act_id:
+                    like_predicate = f"({like_predicate}) AND \"actId\" = %s"
+                    like_params.append(act_id)
+                like_params.append(top_k)
+                cur.execute(f"""
+                    SELECT id, content, "actId", "sectionId", "clauseId", 0.01 as rrf_score
+                    FROM "LegalChunk"
+                    WHERE {like_predicate}
+                    ORDER BY "createdAt" DESC
+                    LIMIT %s;
+                """, tuple(like_params))
+                rows = cur.fetchall()
 
             # Exact section match query if explicit section number was extracted
             exact_rows = []

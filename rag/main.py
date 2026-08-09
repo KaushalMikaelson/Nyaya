@@ -41,6 +41,7 @@ app.add_middleware(
 )
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+RAG_VECTOR_SEARCH = os.getenv("RAG_VECTOR_SEARCH", "true").strip().lower() not in {"0", "false", "no", "off"}
 
 def infer_act_short_name(query: str) -> Optional[str]:
     """Infer a narrow Act filter from explicit user wording."""
@@ -97,7 +98,7 @@ def hybrid_search_endpoint(req: HybridSearchRequest):
         raise HTTPException(status_code=400, detail="Query is required")
     
     act_name = req.act or infer_act_short_name(req.query)
-    query_emb = embed_query(req.query)
+    query_emb = embed_query(req.query) if RAG_VECTOR_SEARCH else None
     results = hybrid_search(
         query=req.query,
         query_embedding=query_emb,
@@ -120,7 +121,7 @@ def search_endpoint(req: SearchRequest):
     if not act_name:
         act_name = infer_act_short_name(req.query)
 
-    query_emb = embed_query(req.query)
+    query_emb = embed_query(req.query) if RAG_VECTOR_SEARCH else None
     candidates = hybrid_search(
         query=req.query,
         query_embedding=query_emb,
@@ -177,7 +178,7 @@ def chat_rag_endpoint(req: ChatRagRequest):
     expanded_query = f"{' | '.join(prior[-2:])} | {content}" if prior else content
 
     # 2. Python Embedding
-    query_emb = embed_query(expanded_query)
+    query_emb = embed_query(expanded_query) if RAG_VECTOR_SEARCH else None
 
     # 3. Hybrid Search & Reranking
     act_name = infer_act_short_name(expanded_query)
@@ -300,7 +301,7 @@ def case_intelligence_endpoint(req: CaseIntelligenceRequest):
         raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured")
 
     # Embed and retrieve relevant laws
-    query_emb = embed_query(req.caseDetails)
+    query_emb = embed_query(req.caseDetails) if RAG_VECTOR_SEARCH else None
     top_chunks = hybrid_search(req.caseDetails, query_emb, top_k=20)
     top_laws = top_chunks[:5]
 

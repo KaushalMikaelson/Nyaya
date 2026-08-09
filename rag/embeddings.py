@@ -1,23 +1,27 @@
 """
 rag/embeddings.py
 ──────────────────────────────────────────────────────────────
-Embedding engine using SentenceTransformers (all-MiniLM-L6-v2).
-Outputs 384-dimensional normalized float vectors.
+Lightweight ONNX Embedding engine using fastembed (all-MiniLM-L6-v2).
+Outputs 384-dimensional normalized float vectors with sub-100MB RAM footprint.
 ──────────────────────────────────────────────────────────────
 """
 
 import math
-from typing import List
-from sentence_transformers import SentenceTransformer
+import os
+from typing import Any, List
 
-_model: SentenceTransformer | None = None
+_model: Any = None
 
-def get_model() -> SentenceTransformer:
+EMBEDDING_PROVIDER = os.getenv("RAG_EMBEDDING_PROVIDER", "fastembed").strip().lower()
+
+def get_model() -> Any:
     global _model
     if _model is None:
-        print("[MODEL] Loading Python SentenceTransformer model: sentence-transformers/all-MiniLM-L6-v2...")
-        _model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
-        print("[OK] SentenceTransformer model loaded successfully.")
+        from fastembed import TextEmbedding
+
+        print("[MODEL] Loading ONNX TextEmbedding model: sentence-transformers/all-MiniLM-L6-v2...")
+        _model = TextEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        print("[OK] ONNX TextEmbedding model loaded successfully.")
     return _model
 
 def generate_mock_embedding(text: str, dim: int = 384) -> List[float]:
@@ -31,12 +35,14 @@ def embed_texts(texts: List[str], batch_size: int = 32) -> List[List[float]]:
     """Embed a list of texts into 384-dim normalized float vectors."""
     if not texts:
         return []
+    if EMBEDDING_PROVIDER in {"mock", "hash", "disabled", "none"}:
+        return [generate_mock_embedding(t) for t in texts]
     try:
         model = get_model()
-        embeddings = model.encode(texts, batch_size=batch_size, normalize_embeddings=True, show_progress_bar=False)
+        embeddings = list(model.embed(texts, batch_size=batch_size))
         return [e.tolist() for e in embeddings]
     except Exception as e:
-        print(f"[WARN] SentenceTransformer embedding failed: {e}. Falling back to mock embeddings.")
+        print(f"[WARN] Embedding failed: {e}. Falling back to mock embeddings.")
         return [generate_mock_embedding(t) for t in texts]
 
 def embed_query(query: str) -> List[float]:
