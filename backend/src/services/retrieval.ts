@@ -1,3 +1,14 @@
+export function cleanErrorText(rawText: string, status?: number): string {
+  if (!rawText) return status ? `HTTP ${status}` : 'Unknown error';
+  const trimmed = rawText.trim();
+  if (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html') || trimmed.startsWith('<head') || trimmed.includes('<body')) {
+    return status
+      ? `HTTP ${status}: Microservice returned an HTML error page (service may be waking up or temporarily unavailable).`
+      : 'Microservice returned an HTML error page (service may be waking up or temporarily unavailable).';
+  }
+  return trimmed.length > 300 ? `${trimmed.substring(0, 300)}...` : trimmed;
+}
+
 export function getPythonRagUrl(): string {
   let url = (process.env.PYTHON_RAG_URL || 'http://127.0.0.1:8000').trim().replace(/\/$/, '');
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
@@ -15,8 +26,8 @@ export async function hybridSearch(query: string, queryEmbedding: number[], topK
   });
 
   if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Python RAG /hybrid-search returned ${res.status}: ${errText}`);
+    const errText = await res.text().catch(() => res.statusText);
+    throw new Error(`Python RAG /hybrid-search returned ${res.status}: ${cleanErrorText(errText, res.status)}`);
   }
 
   const data: any = await res.json();
@@ -54,8 +65,8 @@ export async function rerankCandidates(query: string, candidates: any[], limit =
   });
 
   if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Python RAG /rerank returned ${res.status}: ${errText}`);
+    const errText = await res.text().catch(() => res.statusText);
+    throw new Error(`Python RAG /rerank returned ${res.status}: ${cleanErrorText(errText, res.status)}`);
   }
 
   const data: any = await res.json();

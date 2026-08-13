@@ -14,7 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import https from 'https';
 import http from 'http';
-import { getPythonRagUrl } from '../services/retrieval';
+import { getPythonRagUrl, cleanErrorText } from '../services/retrieval';
 
 // ─── Redis connection ────────────────────────────────────────────────────────
 
@@ -100,8 +100,8 @@ async function processDocument(docId: string): Promise<void> {
   });
 
   if (!pyRes.ok) {
-    const errText = await pyRes.text();
-    throw new Error(`Python RAG /process-document returned ${pyRes.status}: ${errText}`);
+    const errText = await pyRes.text().catch(() => pyRes.statusText);
+    throw new Error(`Python RAG /process-document returned ${pyRes.status}: ${cleanErrorText(errText, pyRes.status)}`);
   }
 
   const pyData: any = await pyRes.json();

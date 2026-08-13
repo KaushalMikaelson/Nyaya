@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../prisma';
 
-import { getPythonRagUrl } from '../services/retrieval';
+import { getPythonRagUrl, cleanErrorText } from '../services/retrieval';
 
 const router = Router();
 
@@ -34,9 +34,10 @@ router.post('/', async (req: AuthRequest, res): Promise<void> => {
     });
 
     if (!pyRes.ok) {
-      const errText = await pyRes.text();
-      console.error('[Intelligence] Python RAG error:', errText);
-      res.status(502).json({ error: 'Case intelligence service failed', detail: errText });
+      const errText = await pyRes.text().catch(() => pyRes.statusText);
+      const cleaned = cleanErrorText(errText, pyRes.status);
+      console.error('[Intelligence] Python RAG error:', cleaned);
+      res.status(502).json({ error: 'Case intelligence service failed', detail: cleaned });
       return;
     }
 

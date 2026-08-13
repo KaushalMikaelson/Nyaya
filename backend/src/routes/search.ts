@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
-import { getPythonRagUrl } from '../services/retrieval';
+import { getPythonRagUrl, cleanErrorText } from '../services/retrieval';
 
 const router = Router();
 
@@ -25,9 +25,10 @@ router.post('/', async (req: AuthRequest, res): Promise<void> => {
     });
 
     if (!pyRes.ok) {
-      const errText = await pyRes.text();
-      console.error('[Search] Python RAG /search error:', errText);
-      res.status(502).json({ error: 'Search service failed', detail: errText });
+      const errText = await pyRes.text().catch(() => pyRes.statusText);
+      const cleaned = cleanErrorText(errText, pyRes.status);
+      console.error('[Search] Python RAG /search error:', cleaned);
+      res.status(502).json({ error: 'Search service failed', detail: cleaned });
       return;
     }
 

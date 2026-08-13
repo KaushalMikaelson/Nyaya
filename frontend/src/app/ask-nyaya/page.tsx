@@ -305,9 +305,13 @@ export default function AskNyayaPage() {
       }
 
       if (!res.ok || !res.body) {
-        const errText = await res.text().catch(() => 'Unknown error');
+        let errText = await res.text().catch(() => 'Unknown error');
+        try {
+          const parsed = JSON.parse(errText);
+          if (parsed.error) errText = parsed.error;
+        } catch {}
         setMessages(prev => prev.map(m =>
-          m.id === assistantId ? { ...m, content: `Error: ${errText}` } : m
+          m.id === assistantId ? { ...m, content: `[[NYAYA_CONFIDENCE:0]] ${errText}` } : m
         ));
         return;
       }

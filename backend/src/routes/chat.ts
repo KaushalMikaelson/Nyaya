@@ -1,9 +1,10 @@
 import { Router } from 'express';
+import Groq from 'groq-sdk';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { planLimiter } from '../middleware/planLimiter';
 import { prisma } from '../prisma';
 
-import { getPythonRagUrl } from '../services/retrieval';
+import { getPythonRagUrl, cleanErrorText } from '../services/retrieval';
 
 const router = Router();
 
@@ -113,7 +114,7 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
 
       if (!pyRes.ok) {
         const errText = await pyRes.text().catch(() => pyRes.statusText);
-        throw new Error(`Python RAG /chat-rag returned ${pyRes.status}: ${errText}`);
+        throw new Error(`Python RAG /chat-rag returned ${pyRes.status}: ${cleanErrorText(errText, pyRes.status)}`);
       }
 
       const pyData = (await pyRes.json()) as PythonChatRagResponse;
@@ -125,7 +126,69 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
       console.log(`[Chat] Python RAG response received (confidence=${pyData.confidenceScore ?? 'unknown'})`);
     } catch (e) {
       console.error('[Chat] Python RAG generation error:', e);
-      aiResponseContent = `[[NYAYA_CONFIDENCE:0]] I could not reach the Python RAG engine. Please make sure it is running at ${pyUrl}.\n\nError: ${e instanceof Error ? e.message : String(e)}`;
+      const cleanErrStr = cleanErrorText(e instanceof Error ? e.message : String(e));
+
+      if (process.env.GROQ_API_KEY) {
+        try {
+          console.log('[Chat] Attempting direct Groq LLM fallback...');
+          const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+          const hindiInst = language === 'hindi' ? '\nCRITICAL RULE: YOU MUST RESPOND ENTIRELY IN HINDI USING DEVANAGARI SCRIPT.\n' : '';
+          const systemPrompt = `You are Nyaya, an expert legal assistant for Indian Law (Constitution of India, BNS, IPC, CrPC, CPC, IT Act, etc.).
+Answer the user's legal question directly, thoroughly, and precisely.
+
+CONFIDENCE SCORING GUIDE:
+- 90-100: Question is directly covered by standard statutory provisions.
+- 70-89:  Answer covers legal concepts well but statutory details may be general.
+- 50-69:  Uncertain or required broad inference.
+
+OUTPUT FORMAT (MANDATORY):
+
+🔹 Confidence:
+<integer 0–100>
+
+🔹 Act:
+<Full Act Name>
+
+🔹 Section / Article:
+<Number, e.g. "Section 103" or "Article 21">
+
+🔹 Explanation:
+<Clear, concise legal explanation>
+
+🔹 Punishment / Key Provision (if applicable):
+- <point 1>
+- <point 2>
+
+🔹 Source:
+<Statutory reference, e.g. "Constitution of India, Article 21">
+${hindiInst}`;
+
+          const completion = await groq.chat.completions.create({
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.1,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: content }
+            ]
+          });
+
+          const rawAns = completion.choices[0]?.message?.content || '';
+          if (rawAns) {
+            const confMatch = rawAns.match(/🔹\s*Confidence:\s*(\d+)/);
+            const confScore = confMatch ? Math.min(100, Math.max(0, parseInt(confMatch[1], 10))) : 80;
+            const cleanAns = rawAns.replace(/🔹\s*Confidence:\s*\d+\s*\n?/g, '').trim();
+            aiResponseContent = `[[NYAYA_CONFIDENCE:${confScore}]]\n${cleanAns}`;
+            console.log(`[Chat] Direct Groq LLM fallback succeeded (confidence=${confScore}).`);
+          } else {
+            throw new Error('Groq direct fallback returned empty content');
+          }
+        } catch (fallbackErr) {
+          console.error('[Chat] Direct Groq LLM fallback failed:', fallbackErr);
+          aiResponseContent = `[[NYAYA_CONFIDENCE:0]] The Python RAG engine at ${pyUrl} is currently waking up or unreachable (HTTP 502/Service Error). Please wait ~15-30 seconds and try again.\n\nDetails: ${cleanErrStr}`;
+        }
+      } else {
+        aiResponseContent = `[[NYAYA_CONFIDENCE:0]] The Python RAG engine at ${pyUrl} is currently waking up or unreachable (HTTP 502/Service Error). Please wait ~15-30 seconds and try again.\n\nDetails: ${cleanErrStr}`;
+      }
     }
 
     const assistantMessage = await prisma.message.create({
