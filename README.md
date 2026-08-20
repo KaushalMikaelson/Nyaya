@@ -3,34 +3,33 @@
 Nyaya is a full-stack, AI-powered legal platform designed for Indian law. It utilizes Retrieval-Augmented Generation (RAG) to provide citizens, lawyers, and judges with legal query responses grounded in real Indian Acts. 
 
 ---
-
 ## ⚡ Quick Pitch
-> "Nyaya uses a FastAPI RAG microservice backed by PostgreSQL full-text search and optional pgvector semantic search, reranks legal chunks using Cohere, and generates precise, confidence-scored legal answers via Groq's LLaMA 3.3 70B. It features full JWT-based role authentication, a verified lawyer marketplace, a subscription-based quota system powered by Razorpay, and comprehensive case and firm management."
+> "Nyaya uses a FastAPI RAG microservice backed by PostgreSQL full-text search and pgvector semantic search, reranks legal chunks using Cohere, and generates precise, confidence-scored legal answers via Groq Cloud (`groq/compound` & `qwen/qwen3.6-27b`). It features full JWT-based role authentication, a verified lawyer marketplace, a subscription-based quota system powered by Razorpay, and comprehensive case and firm management."
 
 ---
 
 ## 🏗️ System Architecture
 ```
-User ──> Next.js (App Router) ──> Axios Interceptors ──> Express API (Node/TS, port 3001)
-                                                              │
-              ┌───────────────────────────────────────────────┼──────────────────────────────────┐
-              │ Python RAG Microservice (FastAPI, port 8000)  │ Auth & Database                  │
-              │                                               │                                  │
-              │ 1. FastEmbed ONNX all-MiniLM-L6-v2             │ 1. JWT Authentication            │
-              │    optional 384-dim vector embeddings          │ 2. Refresh Token Rotation (DB)   │
-              │ 2. Hybrid Search:                             │ 3. Prisma ORM                    │
-              │    pgvector Cosine + Postgres FTS/BM25        │ 4. Neon serverless PostgreSQL     │
-              │    Reciprocal Rank Fusion (RRF)               │ 5. BullMQ Queue Workers (Redis)  │
-              │ 3. Cohere Cross-Encoder Reranking             │                                  │
-              │ 4. Groq LLaMA 3.3 70B Generation              │                                  │
-              │ 5. Document OCR, Classification & Analysis    │                                  │
-              └───────────────────────────────────────────────┴──────────────────────────────────┘
+User ──> Next.js (App Router, port 3000) ──> Axios Interceptors ──> Express API (Node/TS, port 3001)
+                                                                             │
+              ┌──────────────────────────────────────────────────────────────┼──────────────────────────────────┐
+              │ Python RAG Microservice (FastAPI, port 8000)                 │ Auth & Database                  │
+              │                                                              │                                  │
+              │ 1. FastEmbed ONNX all-MiniLM-L6-v2                            │ 1. JWT Authentication            │
+              │    384-dim vector embeddings (8,166 chunks embedded)         │ 2. Refresh Token Rotation (DB)   │
+              │ 2. Hybrid Search:                                            │ 3. Prisma ORM                    │
+              │    pgvector Cosine + Postgres FTS/BM25                       │ 4. Neon serverless PostgreSQL     │
+              │    Reciprocal Rank Fusion (RRF)                              │ 5. BullMQ Queue Workers (Redis)  │
+              │ 3. Cohere Cross-Encoder Reranking                            │                                  │
+              │ 4. Groq Generation (`groq/compound` & `qwen/qwen3.6-27b`)     │                                  │
+              │ 5. Document OCR, Classification & Analysis                   │                                  │
+              └──────────────────────────────────────────────────────────────┴──────────────────────────────────┘
 ```
 
 ---
 
 ## ✨ Key Features
-- **Context-Aware Legal RAG**: Conversational chat that expands queries using historical context, retrieves relevant clauses using Postgres full-text search plus optional pgvector semantic search, reranks using Cohere, and generates responses with confidence scoring.
+- **Context-Aware Legal RAG**: Conversational chat that expands queries using historical context, retrieves relevant clauses across 17 Indian Legal Acts using Postgres full-text search plus pgvector semantic search, reranks using Cohere, and generates responses with confidence scoring.
 - **Lawyer Marketplace & Verification**: A portal for lawyers to get verified, interact with clients, and manage legal consults.
 - **AI Document Analysis**: Upload legal documents (PDF/images) for automated OCR, classification, and AI-powered legal analysis with relevant law citations.
 - **Legal Document Generation**: AI-powered generation of legal documents (FIRs, Legal Notices, Contracts, NDAs, etc.) with automatic RAG-based law citation.
@@ -53,20 +52,20 @@ User ──> Next.js (App Router) ──> Axios Interceptors ──> Express API
 - **Icons**: Lucide React
 
 ### Backend (API Gateway)
-- **Runtime & Language**: Node.js, Express, TypeScript (run via nodemon/ts-node)
+- **Runtime & Language**: Node.js, Express, TypeScript (run via nodemon/ts-node, port 3001)
 - **Database & ORM**: PostgreSQL (Neon Serverless) with `pgvector` & Prisma ORM
 - **Task Queue**: BullMQ & Redis for async emails, SMS OTPs, and background processing
 - **Role**: Proxies all RAG/AI requests to the Python microservice
 
 ### Python RAG Microservice
-- **Framework**: FastAPI with Uvicorn
+- **Framework**: FastAPI with Uvicorn (isolated on port 8000)
 - **Embedding Model**: FastEmbed ONNX `sentence-transformers/all-MiniLM-L6-v2` (384-dim normalized vectors) when `RAG_VECTOR_SEARCH=true`
 - **Vector Database**: PostgreSQL pgvector (HNSW cosine index) for full semantic mode
 - **Full-Text Search**: PostgreSQL `tsvector` / `websearch_to_tsquery`, with `ILIKE` fallback
 - **Fusion**: Reciprocal Rank Fusion (RRF) combining vector + keyword results in full semantic mode
 - **Render Low-Memory Mode**: `RAG_VECTOR_SEARCH=false` skips local model loading and uses Postgres text search + Cohere reranking to stay under 512MB
 - **Reranker**: Cohere `rerank-english-v3.0` cross-encoder
-- **LLM Inference**: Groq LLaMA 3.3 70B
+- **LLM Inference**: Groq Cloud (`groq/compound` for RAG response generation & case intelligence; `qwen/qwen3.6-27b` for fast document classification & translation)
 - **Document Processing**: pypdf extraction and Groq structured classification/analysis
 
 ---
@@ -74,7 +73,7 @@ User ──> Next.js (App Router) ──> Axios Interceptors ──> Express API
 ## 📁 Repository Structure
 ```
 Nyaya/
-├── backend/                  # Node.js/Express API Gateway (TypeScript)
+├── backend/                  # Node.js/Express API Gateway (TypeScript, port 3001)
 │   ├── prisma/               # Prisma Schema & Migrations
 │   ├── src/
 │   │   ├── index.ts          # Server bootstrap (port 3001)
@@ -82,16 +81,16 @@ Nyaya/
 │   │   ├── middleware/       # Auth, role check, rate limiting, plan quota check
 │   │   ├── services/         # Token, OTP, RAG retrieval proxy
 │   │   └── workers/          # BullMQ document processor, notification workers
-│   ├── data/                 # Source legal PDFs (Constitution, BNS)
+│   ├── data/                 # Source legal PDFs (Constitution, BNS, BNSS, BSA, etc.)
 │   └── package.json
 │
-├── rag/                      # Python RAG Microservice (FastAPI)
+├── rag/                      # Python RAG Microservice (FastAPI, port 8000)
 │   ├── main.py               # FastAPI app — all AI/RAG endpoints (port 8000)
 │   ├── embeddings.py         # Lazy FastEmbed ONNX embedding engine / mock fallback
 │   ├── retrieval.py          # pgvector + FTS retrieval, Render text-search fallback, Cohere reranking
 │   ├── document_processor.py # PDF extraction, AI classification & legal analysis
 │   ├── generate_embeddings.py# Batch embedding pipeline for LegalChunk table
-│   ├── ingest_legal_pdfs.py  # PDF ingestion into Act/Section/Clause tables
+│   ├── ingest_legal_pdfs.py  # PDF ingestion into Act/Section/Clause tables (17 Legal Acts)
 │   ├── check_db.py           # Quick DB health check utility
 │   ├── requirements.txt      # Python dependencies
 │   └── Dockerfile            # Container definition
@@ -118,7 +117,7 @@ Nyaya/
    - Merges results using **Reciprocal Rank Fusion (RRF)**:
      $$\text{RRF Score} = \sum_{m \in M} \frac{1}{60 + \text{rank}_m(d)}$$
 4. **Cohere Reranking**: Filters candidates down to top 15, then feeds them to Cohere's cross-encoder Rerank API to select the top 8 high-relevance legal chunks.
-5. **Generation**: Groq's LLaMA 3.3 70B model parses the context, structures the answer citing specific sections/articles, assigns a confidence rating (0–100), and returns the response with source citations.
+5. **Generation**: Groq (`groq/compound`) parses the context, structures the answer citing specific sections/articles, assigns a confidence rating (0–100), and returns the response with source citations.
 
 ---
 
@@ -154,12 +153,15 @@ JWT_REFRESH_SECRET="your-jwt-refresh-secret"
 
 # Python RAG Microservice
 PYTHON_RAG_URL="http://127.0.0.1:8000"
+RAG_PORT="8000"                    # Explicit port for Python FastAPI
 RAG_VECTOR_SEARCH="true"          # Set false on 512MB Render instances
 RAG_EMBEDDING_PROVIDER="fastembed" # Set mock/disabled with RAG_VECTOR_SEARCH=false
 PYTHON_VERSION="3.11.11"          # Render native Python runtime pin
 
 # LLM & AI Providers
 GROQ_API_KEY="gsk_..."
+GROQ_MODEL="groq/compound"        # Primary LLM for RAG synthesis & reasoning
+GROQ_FAST_MODEL="qwen/qwen3.6-27b" # Fast LLM for classification & translation
 COHERE_API_KEY="..."
 
 # Payment Integration
@@ -233,9 +235,9 @@ This starts the service without importing/loading the local embedding model. Ret
 
 #### 3. Ingest Legal Data & Generate Embeddings (First Time Only)
 ```bash
-cd backend
-npm run rag:ingest    # Ingest legal PDFs into Act/Section/Clause tables
-npm run rag:embed     # Generate 384-dim vector embeddings for all LegalChunks
+python rag/ingest_legal_pdfs.py  # Ingest 17 legal PDFs into Act/Section/Clause tables
+python rag/generate_embeddings.py # Generate 384-dim vector embeddings for all LegalChunks
+python rag/check_db.py            # Verify DB chunk counts & embedding coverage
 ```
 
 #### 4. Start the Frontend
@@ -252,8 +254,19 @@ Open [http://localhost:3000](http://localhost:3000) in your web browser.
 ## 📊 Database Entities (Prisma)
 - **User profiles**: `User` 1-to-1 with `CitizenProfile` / `LawyerProfile` / `JudgeProfile` / `AdminProfile`.
 - **Auth metadata**: `RefreshToken` (for device management and tracking) and `Otp` (supporting Aadhaar verification, logins, email verification, etc.).
-- **Acts & Sections**: `Act` ──> `Section` ──> `Clause` ──> `LegalChunk` (contains optional 384-dim vector embeddings and tsvector FTS indexes).
+- **Acts & Sections**: `Act` ──> `Section` ──> `Clause` ──> `LegalChunk` (contains 384-dim vector embeddings and tsvector FTS indexes).
 - **Cases & Timeline**: `Case` ──> `Hearing` / `CaseTimeline` / `CaseParty` / `CaseAdvocate`.
+- **Firms**: `Firm` ──> `FirmMember` (with Owner, Partner, Associate, and Paralegal roles).
+- **Documents**: `UserDocument` (uploaded legal documents with AI classification, summary, and analysis reports).
+- **Conversations**: `Conversation` ──> `Message` (chat history with RAG-powered AI responses).
+
+---
+
+## 📈 Current Database Stats
+- **Legal Acts**: 17 Indian Acts (BNSS, BNS, BSA, Constitution, CPC, Contract Act, IBC, POCSO, DPDP, Hindu Marriage Act, Hindu Succession Act, Domestic Violence Act, Limitation Act, Specific Relief Act, Delhi Apartment Act, Repealing & Amending Act, Constitution Preamble)
+- **LegalChunks**: **8,166** total chunks populated
+- **Full-Text Search Coverage**: **8,166 / 8,166 (100%)**
+- **Vector Embedding Coverage**: **8,166 / 8,166 (100%)** in pgvector (384-dim FastEmbed ONNX `all-MiniLM-L6-v2`)line` / `CaseParty` / `CaseAdvocate`.
 - **Firms**: `Firm` ──> `FirmMember` (with Owner, Partner, Associate, and Paralegal roles).
 - **Documents**: `UserDocument` (uploaded legal documents with AI classification, summary, and analysis reports).
 - **Conversations**: `Conversation` ──> `Message` (chat history with RAG-powered AI responses).

@@ -50,8 +50,9 @@ def type_specific_instructions(doc_type: str) -> str:
 def translate_to_hindi(text: str, groq: Groq) -> str:
     """Translates a single sentence to Hindi using Groq (llama-3.1-8b-instant)."""
     try:
+        fast_model = os.getenv("GROQ_FAST_MODEL", "qwen/qwen3.6-27b")
         res = groq.chat.completions.create(
-            model='llama-3.1-8b-instant',
+            model=fast_model,
             messages=[{
                 'role': 'user',
                 'content': f'Translate this single sentence strictly into plain Hindi, returning only the translation without quotes: "{text}"'
@@ -98,8 +99,9 @@ def classify_document(text: str) -> Dict[str, Any]:
     )
 
     try:
+        fast_model = os.getenv("GROQ_FAST_MODEL", "qwen/qwen3.6-27b")
         res = groq.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model=fast_model,
             temperature=0,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -191,8 +193,9 @@ RELEVANT INDIAN LAWS:
 {legal_context}"""
 
     try:
+        groq_model = os.getenv("GROQ_MODEL", "groq/compound")
         res_en = groq.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=groq_model,
             max_tokens=2048,
             messages=[
                 {"role": "system", "content": system_prompt_en},
@@ -200,7 +203,7 @@ RELEVANT INDIAN LAWS:
             ]
         )
         res_hi = groq.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=groq_model,
             max_tokens=2048,
             messages=[
                 {"role": "system", "content": system_prompt_hi},

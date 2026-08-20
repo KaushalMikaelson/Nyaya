@@ -7,9 +7,13 @@ Port: 8000
 """
 
 import os
+import sys
 import re
 import json
 import base64
+
+sys.path.insert(0, os.path.dirname(__file__))
+
 from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -252,9 +256,10 @@ CONTEXT:
 
     final_prompt = f"[TRANSLATE AND RESPOND TO THE FOLLOWING STRICTLY IN HINDI USING DEVANAGARI SCRIPT]:\n\n{content}" if req.language == "hindi" else content
 
+    groq_model = os.getenv("GROQ_MODEL", "groq/compound")
     try:
         completion = groq.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=groq_model,
             temperature=0.1,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -327,9 +332,10 @@ You MUST output your response strictly as a valid JSON object without any markdo
 """
 
     groq = Groq(api_key=GROQ_API_KEY)
+    groq_model = os.getenv("GROQ_MODEL", "groq/compound")
     try:
         completion = groq.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=groq_model,
             max_tokens=2000,
             temperature=0.2,
             messages=[
@@ -392,5 +398,10 @@ def process_document_endpoint(req: ProcessDocumentRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))
+    # Use RAG_PORT if set; otherwise use 8000 for Python microservice (ignoring backend's PORT=3001)
+    rag_port_env = os.getenv("RAG_PORT")
+    if rag_port_env:
+        port = int(rag_port_env)
+    else:
+        port = 8000
     uvicorn.run(app, host="0.0.0.0", port=port)

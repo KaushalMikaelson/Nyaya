@@ -59,12 +59,12 @@ Indian legal information is scattered, complex, and inaccessible to the average 
 
 | Technology | Purpose |
 |------------|---------|
-| **Groq (LLaMA 3.3 70B)** | LLM inference — ultra-low latency via Groq Cloud |
-| **FastEmbed ONNX all-MiniLM-L6-v2** | Local 384-dim embeddings for full pgvector semantic mode |
+| **Groq Cloud (`groq/compound` & `qwen/qwen3.6-27b`)** | Ultra-low latency LLM inference via Groq Cloud (`groq/compound` for reasoning/RAG; `qwen/qwen3.6-27b` for fast classification/translation) |
+| **FastEmbed ONNX all-MiniLM-L6-v2** | Local 384-dim embeddings for full pgvector semantic mode (8,166 chunks populated) |
 | **Cohere Rerank v3** | Cross-encoder reranking of hybrid search results |
-| **pgvector** | Native PostgreSQL vector similarity via HNSW index |
-| **PostgreSQL FTS** | Low-memory retrieval path using `tsvector` / `websearch_to_tsquery` |
-| **pypdf** | PDF text extraction for document analysis |
+| **pgvector** | Native PostgreSQL vector similarity via HNSW index (100% coverage across 8,166 chunks) |
+| **PostgreSQL FTS** | Full-text retrieval path using `tsvector` / `websearch_to_tsquery` across 17 Legal Acts |
+| **pypdf** | PDF text extraction for 17 Legal PDF Acts and document analysis |
 
 ### Infrastructure
 
@@ -74,7 +74,7 @@ Indian legal information is scattered, complex, and inaccessible to the average 
 | **Redis** | BullMQ job queue backend |
 | **Razorpay** | Indian payment gateway for PRO subscriptions |
 | **Twilio** | WhatsApp/SMS OTP delivery |
-| **Docker + Docker Compose** | Containerized local dev; two services: backend + frontend |
+| **Docker + Docker Compose** | Containerized local dev; three services: backend (3001), frontend (3000), RAG (8000) |
 | **Render Blueprint** | Production deploy; RAG runs text-search mode on 512MB instances |
 
 ---
