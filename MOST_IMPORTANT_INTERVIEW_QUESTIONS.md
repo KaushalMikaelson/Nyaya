@@ -8,7 +8,7 @@
 
 > "I built Nyaya — an AI-powered legal platform for Indian law. The core problem I solved is that Indian legal information is complex and inaccessible. Most people don't know their rights, and lawyer consultations are expensive.
 >
-> Nyaya has three main layers. First, a **RAG-based AI chatbot** — when a user asks a legal question, the system retrieves relevant sections from a database of Indian Acts using PostgreSQL full-text search and, when memory allows, pgvector semantic search fused with Reciprocal Rank Fusion. Those results are then reranked by Cohere's cross-encoder model, and the top chunks are fed as context into Groq's LLaMA 3.3 70B model to generate a grounded, cited answer.
+> Nyaya has three main layers. First, a **RAG-based AI chatbot** — when a user asks a legal question, the system retrieves relevant sections from a database of 17 Indian Legal Acts (8,166 embedded chunks) using PostgreSQL full-text search and, when memory allows, pgvector semantic search fused with Reciprocal Rank Fusion. Those results are then reranked by Cohere's cross-encoder model, and the top chunks are fed as context into Groq's `groq/compound` reasoning model (with `qwen/qwen3.6-27b` for fast classification/translation) to generate a grounded, cited answer.
 >
 > Second, a **multi-role auth system** — Citizens, Lawyers, Judges, and Admins each have different access levels. Lawyers must submit their Bar Council credentials, which admins manually verify. Third, a **Lawyer Marketplace** where verified lawyers can list their services.
 >
@@ -145,26 +145,21 @@
 
 ### Q12: "Design the legal knowledge ingestion pipeline."
 
-> "The ingestion pipeline has three phases:
+> "The ingestion pipeline has four phases:
 >
-> **Phase 1 — Seed** (`seed_legal_data.ts`): Parse raw Indian Act JSON files. Create DB records: `Act → Section → Clause` hierarchy.
+> **Phase 1 — PDF Ingestion** (`rag/ingest_legal_pdfs.py`): Parse raw PDF files for 17 major Indian Acts (BNS, BNSS, BSA, CPC, Constitution, DPDP, Hindu Marriage Act, Indian Contract Act, IBC, etc.) using `pypdf`. Extract section numbers, titles, and body content, then insert or update `Act` and `Section` records in PostgreSQL.
 >
-> **Phase 2 — Chunk**: Use `RecursiveCharacterTextSplitter` (LangChain) with `chunkSize=1200, chunkOverlap=250`. Legal-specific separators: `['\n\n[Clause', '\n\n', '\n', '.']` to prefer clause and paragraph boundaries over arbitrary character splits. Store as `LegalChunk` records.
+> **Phase 2 — Metadata-Rich Chunking** (`rag/generate_embeddings.py`): Query all Sections and split their content using `RecursiveCharacterTextSplitter` with `chunkSize=600, chunkOverlap=100`. Each chunk is prefixed with a rich metadata header: `[Act: <Title>] [Year: <Year>] [<Section/Article>: <Num>] [Title: <SecTitle>]\nContent:\n...` to ensure context is never lost across chunk boundaries.
 >
-> **Phase 3 — Embed** (`generate_embeddings.py`): Batch chunks through FastEmbed ONNX `all-MiniLM-L6-v2` → 384-dim vectors. Insert using raw SQL:
-> ```sql
-> INSERT INTO "LegalChunk" (id, actId, content, embedding)
-> VALUES (uuid(), $1, $2, $3::vector)
-> ```
-> (Prisma can't handle the `vector` type in writes — must use raw SQL.)
+> **Phase 3 — Batch Embedding & Database Insertion**: Process chunk batches through `SentenceTransformers` / FastEmbed ONNX `all-MiniLM-L6-v2` → 384-dimensional normalized vectors. Execute bulk `INSERT INTO "LegalChunk"` using `psycopg2.extras.execute_values` with raw SQL vector casting (`%s::vector`) and auto-reconnecting DB retry logic (8,166 total chunks populated across 17 Acts).
 >
-> **Phase 4 — Index** (raw SQL migration):
+> **Phase 4 — Hybrid Indexing**:
 > ```sql
 > CREATE INDEX USING hnsw (embedding vector_cosine_ops);
 > CREATE INDEX USING GIN (fts);
 > CREATE TRIGGER tsvectorupdate ... tsvector_update_trigger(fts, 'pg_catalog.english', content);
 > ```
-> The trigger auto-populates `fts` on insert/update."
+> The trigger auto-populates the GIN-indexed `fts` (`tsvector`) column on insert/update."
 
 ---
 
@@ -266,7 +261,7 @@
 >
 > **5. Prompt**: I build the system prompt as a plain string (not LangChain template) interpolating the retrieved context directly. The prompt enforces structured output: Confidence score, Act name, Section number, Explanation, Punishment, Source citation.
 >
-> **6. Generation**: `ChatGroq(llama-3.3-70b-versatile, temperature=0.1).pipe(StringOutputParser()).invoke(messages)`. The response is parsed with regex to extract confidence, then prepended as `[[NYAYA_CONFIDENCE:85]]` sentinel.
+> **6. Generation**: `ChatGroq(groq/compound, temperature=0.1).pipe(StringOutputParser()).invoke(messages)`. The response is parsed with regex to extract confidence, then prepended as `[[NYAYA_CONFIDENCE:85]]` sentinel.
 >
 > **7. Persistence**: User message + assistant message saved to DB. User's `queriesCount` incremented."
 
@@ -275,9 +270,9 @@
 ### "What would you do differently if you built this again?"
 
 > "Three things:
->
-> 1. **Implement streaming from day one.** The non-streaming approach was a shortcut. Building streaming into the architecture from the start is cleaner than retrofitting it.
->
-> 2. **Use a proper query router.** Before hitting the expensive 70B model, a small fast model (8B parameters) should classify: Is this query about Indian law? Does it need RAG? Is it a simple factual question answerable from metadata? This reduces LLM costs significantly.
->
-> 3. **Separate the ingestion pipeline.** Currently, the ingestion scripts live in the backend directory as TypeScript files. A production system should have a dedicated ingestion service with its own versioning, observability, and ability to run incremental updates when new Acts are published — without touching the main API server."
+
+> 1. **Implement streaming from day one.** Building streaming into the architecture from the start via SSE/ReadableStream is cleaner than retrofitting non-streaming endpoints.
+
+> 2. **Use a proper query router.** Before hitting the primary `groq/compound` reasoning model, a fast model like `qwen/qwen3.6-27b` or small 8B model should classify: Is this query about Indian law? Does it need full RAG? Is it a simple factual query answerable from metadata? This optimizes latency and token usage.
+
+> 3. **Automate incremental ingestion.** Although PDF ingestion and embedding generation are now isolated in dedicated Python scripts (`rag/ingest_legal_pdfs.py` and `rag/generate_embeddings.py`), a production system should add event-driven triggers to automatically ingest new legal Gazette notifications or amendments as soon as published."

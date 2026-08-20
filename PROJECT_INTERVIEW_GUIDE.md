@@ -205,13 +205,15 @@ AuthContext useEffect on mount:
 
 ### Ingestion (Offline)
 ```
-seed_legal_data.ts:
-  Acts (BNS, CrPC, Constitution...) 
-    → Sections → Clauses → LegalChunks
+ingest_legal_pdfs.py:
+  Parses 17 raw Indian Legal PDF Acts (BNS, BNSS, BSA, Constitution, CPC, etc.)
+    → Sections → Inserts/Updates Act & Section DB tables
   
 generate_embeddings.py:
-  Each chunk → FastEmbed ONNX all-MiniLM-L6-v2 → 384-dim vector
-  Stored in LegalChunk.embedding (pgvector type)
+  Splits Sections into 8,166 LegalChunks (chunkSize 600, overlap 100)
+  Adds metadata headers: [Act: ...] [Year: ...] [Section/Article: ...] [Title: ...]
+  SentenceTransformers / FastEmbed ONNX (all-MiniLM-L6-v2) → 384-dim normalized vector
+  Bulk inserts into LegalChunk.embedding (pgvector type) with DB reconnect retries
   PostgreSQL GIN index on fts (tsvector)
   HNSW index on embedding for O(log N) ANN search
 ```
@@ -229,7 +231,7 @@ Step B: Optional embed expanded query
   → skipped on 512MB Render with RAG_VECTOR_SEARCH=false
 
 Step C: Retrieval (rag/retrieval.py: hybrid_search())
-  Full mode Postgres raw query (pgvector + FTS via RRF):
+  Full mode Postgres raw query (pgvector + FTS via RRF over 8,166 chunks):
   
   WITH vector_search AS (
     SELECT id, content, ROW_NUMBER() OVER(ORDER BY embedding <=> queryVec) as rnk
@@ -261,7 +263,7 @@ Step E: Prompt Construction
   Structured output format enforced: Confidence, Act, Section, Explanation, Punishment, Source
   
 Step F: LLM Call
-  ChatGroq(llama-3.3-70b-versatile, temperature=0.1)
+  ChatGroq(groq/compound, temperature=0.1)
   .pipe(StringOutputParser()).invoke(messages)
   Confidence score extracted via regex: /🔹\s*Confidence:\s*(\d+)/
   Prepended as sentinel: [[NYAYA_CONFIDENCE:85]] (stripped before display)
