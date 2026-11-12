@@ -30,6 +30,9 @@ GROQ_MODEL_PRICING = {
     "llama-3.1-8b-instant":    {"input_per_m": 0.05, "output_per_m": 0.08},
     "mixtral-8x7b-32768":      {"input_per_m": 0.24, "output_per_m": 0.24},
     "qwen/qwen3.6-27b":        {"input_per_m": 0.20, "output_per_m": 0.20},
+    "qwen/qwen3.8-27b":        {"input_per_m": 0.20, "output_per_m": 0.20},
+    "openai/gpt-oss-120b":     {"input_per_m": 0.59, "output_per_m": 0.79},
+    "openai/gpt-oss-20b":      {"input_per_m": 0.15, "output_per_m": 0.20},
     "groq/compound":           {"input_per_m": 0.59, "output_per_m": 0.79},
     "default":                 {"input_per_m": 0.59, "output_per_m": 0.79},
 }

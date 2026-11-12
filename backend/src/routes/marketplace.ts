@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticate } from '../middleware/auth';
 import Groq from 'groq-sdk';
+import { createGroqCompletion } from '../services/groq';
 import 'dotenv/config';
 
 const router = express.Router();
@@ -114,9 +115,8 @@ Each object should have:
 - "reason": A brief 1-2 sentence convincing reason why this lawyer is a good fit for this specific case.
 `;
 
-    const completion = await groq.chat.completions.create({
+    const completion = await createGroqCompletion(groq, {
       messages: [{ role: "user", content: prompt }],
-      model: "llama-3.3-70b-versatile",
       temperature: 0.2,
       response_format: { type: "json_object" } // Using json object to enforce format
     });

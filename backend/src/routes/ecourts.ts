@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import Groq from 'groq-sdk';
+import { createGroqCompletion } from '../services/groq';
 
 const router = Router();
 const getGroq = () => new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -46,8 +47,7 @@ Schema:
 
 Ensure the history has 2-4 entries leading up to the nextHearingDate.`;
 
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+    const completion = await createGroqCompletion(groq, {
       max_tokens: 800,
       temperature: 0.2,
       messages: [

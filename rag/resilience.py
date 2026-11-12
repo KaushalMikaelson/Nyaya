@@ -10,6 +10,7 @@ Resilience utilities:
 ──────────────────────────────────────────────────────────────
 """
 
+import os
 import time
 import random
 import logging
@@ -186,3 +187,53 @@ def safe_call(func: Callable[..., Any], default: Any = None, *args: Any, **kwarg
     except Exception as e:
         logger.warning(f"[RESILIENCE] Safe call for {getattr(func, '__name__', 'anonymous')} caught exception: {e}")
         return default
+
+
+DEFAULT_GROQ_FALLBACK_MODELS = [
+    "qwen/qwen3.8-27b",
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "llama-3.3-70b-versatile",
+]
+
+
+def _is_model_not_found_error(exc: Exception) -> bool:
+    status = getattr(exc, "status_code", None) or getattr(exc, "status", None)
+    msg = str(exc).lower()
+    return (
+        status == 404
+        or "model_not_found" in msg
+        or "does not exist or you do not have access" in msg
+    )
+
+
+def groq_chat_completion(client: Any, model: Optional[str] = None, **kwargs: Any) -> Any:
+    """
+    Call Groq chat.completions.create with automatic fallback when a configured
+    model returns 404 model_not_found on the current API key.
+    """
+    raw_candidates = [
+        model,
+        os.getenv("GROQ_MODEL"),
+        os.getenv("GROQ_FAST_MODEL"),
+        *DEFAULT_GROQ_FALLBACK_MODELS,
+    ]
+    candidates: list[str] = []
+    for c in raw_candidates:
+        if c and c.strip() and c.strip() not in candidates:
+            candidates.append(c.strip())
+
+    last_exc: Optional[Exception] = None
+    for candidate in candidates:
+        try:
+            return client.chat.completions.create(model=candidate, **kwargs)
+        except Exception as exc:
+            last_exc = exc
+            if _is_model_not_found_error(exc):
+                logger.warning(f"[RESILIENCE] Groq model '{candidate}' unavailable (404). Trying fallback...")
+                continue
+            raise
+
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("No Groq models available")

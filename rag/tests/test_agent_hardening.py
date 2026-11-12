@@ -153,7 +153,7 @@ class TestCostBudgetCutoff(unittest.TestCase):
 
         mock_groq.chat.completions.create.return_value = mock_resp1
 
-        agent = LegalResearchAgent(api_key="mock_key")
+        agent = LegalResearchAgent(api_key="mock_key", model="llama-3.3-70b-versatile")
         agent.client = mock_groq
 
         result = agent.run("What is the penalty for cyber fraud?", max_steps=8)

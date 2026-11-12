@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../prisma';
 import { z } from 'zod';
+import { createGroqCompletion } from '../services/groq';
 
 const router = Router();
 router.use(authenticate);
@@ -331,8 +332,7 @@ Respond with a valid JSON object with these exact keys:
     const { default: Groq } = await import('groq-sdk');
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+    const completion = await createGroqCompletion(groq, {
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },

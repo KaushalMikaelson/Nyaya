@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../prisma';
 import Groq from 'groq-sdk';
+import { createGroqCompletion } from '../services/groq';
 
 const router = Router();
 const getGroq = () => new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -90,8 +91,7 @@ Platform historical context:
 • Closed cases ratio: ${historicalCases.length > 0 ? ((closedCases.length / historicalCases.length) * 100).toFixed(0) : 0}%`;
 
     const groq = getGroq();
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+    const completion = await createGroqCompletion(groq, {
       max_tokens: 1200,
       temperature: 0.15,
       messages: [

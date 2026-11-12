@@ -3,6 +3,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { planLimiter } from '../middleware/planLimiter';
 import { prisma } from '../prisma';
 import Groq from 'groq-sdk';
+import { createGroqCompletion } from '../services/groq';
 
 import { hybridSearch } from '../services/retrieval';
 
@@ -94,8 +95,7 @@ Core Issues/Specifics: ${specifics || 'Not provided'}
 General Instructions: ${prompt}`;
 
     const groq = getGroq();
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+    const completion = await createGroqCompletion(groq, {
       max_tokens: 3000,
       temperature: 0.3,
       messages: [

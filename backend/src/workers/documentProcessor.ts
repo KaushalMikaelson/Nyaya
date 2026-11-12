@@ -14,7 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import https from 'https';
 import http from 'http';
-import { getPythonRagUrl, cleanErrorText, getInternalRagHeaders } from '../services/retrieval';
+import { cleanErrorText, fetchPythonRag } from '../services/retrieval';
 
 // ─── Redis connection ────────────────────────────────────────────────────────
 
@@ -92,10 +92,8 @@ async function processDocument(docId: string): Promise<void> {
 
   // ── Step 2: Delegate to Python RAG /process-document ─────────────────────
   console.log(`[DocProcessor] Sending document ${docId} to Python RAG service...`);
-  const pyUrl = getPythonRagUrl();
-  const pyRes = await fetch(`${pyUrl}/process-document`, {
+  const pyRes = await fetchPythonRag('/process-document', {
     method: 'POST',
-    headers: getInternalRagHeaders(),
     body: JSON.stringify({ pdfBase64: fileBuffer.toString('base64') }),
   });
 

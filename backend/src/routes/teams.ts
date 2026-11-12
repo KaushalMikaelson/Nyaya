@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../prisma';
-import { getPythonRagUrl, getInternalRagHeaders } from '../services/retrieval';
+import { fetchPythonRag } from '../services/retrieval';
 
 const router = Router();
 
@@ -104,10 +104,8 @@ router.post('/:teamId/permissions', authenticate, async (req: AuthRequest, res: 
 
     // Invalidate search cache so old permissions don't serve cached results
     try {
-      const pyUrl = getPythonRagUrl();
-      fetch(`${pyUrl}/cache/invalidate`, {
+      fetchPythonRag('/cache/invalidate', {
         method: 'POST',
-        headers: getInternalRagHeaders(),
       }).catch((e) =>
         console.warn('[Cache] Non-fatal error invalidating search cache:', e.message)
       );
@@ -140,10 +138,8 @@ router.delete('/:teamId/permissions/:permissionId', authenticate, async (req: Au
 
     // Invalidate search cache so revoked permissions immediately drop cached search results
     try {
-      const pyUrl = getPythonRagUrl();
-      fetch(`${pyUrl}/cache/invalidate`, {
+      fetchPythonRag('/cache/invalidate', {
         method: 'POST',
-        headers: getInternalRagHeaders(),
       }).catch((e) =>
         console.warn('[Cache] Non-fatal error invalidating search cache on perm delete:', e.message)
       );

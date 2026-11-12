@@ -23,6 +23,7 @@ import predictRoutes from './routes/predict';
 import ecourtsRoutes from './routes/ecourts';
 import analyticsRoutes from './routes/analytics';
 import teamRoutes from './routes/teams';
+import { ensureLocalRagRunning } from './services/localRagSupervisor';
 
 // ─── Safety net for Node.js 25+ (unhandled rejections = fatal by default) ───
 process.on('unhandledRejection', (reason: any) => {
@@ -34,7 +35,11 @@ process.on('uncaughtException', (err: any) => {
 
 // ─── Conditionally start background workers (only if Redis is reachable) ────
 const REDIS_URL = process.env.REDIS_URL || '';
-const hasExternalRedis = REDIS_URL && !REDIS_URL.includes('localhost') && !REDIS_URL.includes('127.0.0.1');
+const hasExternalRedis =
+  REDIS_URL &&
+  !REDIS_URL.includes('localhost') &&
+  !REDIS_URL.includes('127.0.0.1') &&
+  !REDIS_URL.includes('YOUR_PASSWORD');
 
 if (hasExternalRedis) {
   // Only import workers when Redis is actually configured (production)
@@ -120,6 +125,7 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Nyaya server running on port ${PORT}`);
+  void ensureLocalRagRunning();
 });
 
 server.on('error', (err: any) => {

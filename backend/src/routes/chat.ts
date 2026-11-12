@@ -4,7 +4,8 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { planLimiter } from '../middleware/planLimiter';
 import { prisma } from '../prisma';
 
-import { getPythonRagUrl, cleanErrorText, getInternalRagHeaders } from '../services/retrieval';
+import { getPythonRagUrl, cleanErrorText, fetchPythonRag } from '../services/retrieval';
+import { createGroqCompletion } from '../services/groq';
 
 const router = Router();
 
@@ -102,9 +103,8 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
     const pyUrl = getPythonRagUrl();
     try {
       console.log('[Chat] Delegating full response to Python RAG /chat-rag...');
-      const pyRes = await fetch(`${pyUrl}/chat-rag`, {
+      const pyRes = await fetchPythonRag('/chat-rag', {
         method: 'POST',
-        headers: getInternalRagHeaders(),
         body: JSON.stringify({
           content,
           priorMessages: priorUserMessages,
@@ -163,8 +163,7 @@ OUTPUT FORMAT (MANDATORY):
 <Statutory reference, e.g. "Constitution of India, Article 21">
 ${hindiInst}`;
 
-          const completion = await groq.chat.completions.create({
-            model: 'llama-3.3-70b-versatile',
+          const completion = await createGroqCompletion(groq, {
             temperature: 0.1,
             messages: [
               { role: 'system', content: systemPrompt },

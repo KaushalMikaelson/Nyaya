@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../prisma';
 import { authenticate } from '../middleware/auth';
 import { loadUserTeams, RBACRequest } from '../middleware/documentAccess';
-import { getPythonRagUrl, cleanErrorText, getInternalRagHeaders } from '../services/retrieval';
+import { cleanErrorText, fetchPythonRag } from '../services/retrieval';
 
 const router = Router();
 
@@ -25,10 +25,8 @@ router.post('/', async (req: RBACRequest, res): Promise<void> => {
     };
 
     // Delegate to Python RAG /search
-    const pyUrl = getPythonRagUrl();
-    const pyRes = await fetch(`${pyUrl}/search`, {
+    const pyRes = await fetchPythonRag('/search', {
       method: 'POST',
-      headers: getInternalRagHeaders(),
       body: JSON.stringify({ query, filters: searchFilters }),
     });
 

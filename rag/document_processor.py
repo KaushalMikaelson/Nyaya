@@ -24,6 +24,7 @@ for p in env_paths:
         load_dotenv(p)
 
 from retrieval import get_db_connection
+from resilience import groq_chat_completion
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -50,8 +51,9 @@ def type_specific_instructions(doc_type: str) -> str:
 def translate_to_hindi(text: str, groq: Groq) -> str:
     """Translates a single sentence to Hindi using Groq (llama-3.1-8b-instant)."""
     try:
-        fast_model = os.getenv("GROQ_FAST_MODEL", "qwen/qwen3.6-27b")
-        res = groq.chat.completions.create(
+        fast_model = os.getenv("GROQ_FAST_MODEL", "qwen/qwen3.8-27b")
+        res = groq_chat_completion(
+            groq,
             model=fast_model,
             messages=[{
                 'role': 'user',
@@ -99,8 +101,9 @@ def classify_document(text: str) -> Dict[str, Any]:
     )
 
     try:
-        fast_model = os.getenv("GROQ_FAST_MODEL", "qwen/qwen3.6-27b")
-        res = groq.chat.completions.create(
+        fast_model = os.getenv("GROQ_FAST_MODEL", "qwen/qwen3.8-27b")
+        res = groq_chat_completion(
+            groq,
             model=fast_model,
             temperature=0,
             messages=[
@@ -193,8 +196,9 @@ RELEVANT INDIAN LAWS:
 {legal_context}"""
 
     try:
-        groq_model = os.getenv("GROQ_MODEL", "groq/compound")
-        res_en = groq.chat.completions.create(
+        groq_model = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+        res_en = groq_chat_completion(
+            groq,
             model=groq_model,
             max_tokens=2048,
             messages=[
@@ -202,7 +206,8 @@ RELEVANT INDIAN LAWS:
                 {"role": "user", "content": f"Analyze this document:\n\n{doc_selection}"}
             ]
         )
-        res_hi = groq.chat.completions.create(
+        res_hi = groq_chat_completion(
+            groq,
             model=groq_model,
             max_tokens=2048,
             messages=[

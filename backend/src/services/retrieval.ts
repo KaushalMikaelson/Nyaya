@@ -1,3 +1,9 @@
+import {
+  getConfiguredPythonRagUrl,
+  isLocalRagUrl,
+  ensureLocalRagRunning,
+} from './localRagSupervisor';
+
 export function cleanErrorText(rawText: string, status?: number): string {
   if (!rawText) return status ? `HTTP ${status}` : 'Unknown error';
   const trimmed = rawText.trim();
@@ -10,11 +16,7 @@ export function cleanErrorText(rawText: string, status?: number): string {
 }
 
 export function getPythonRagUrl(): string {
-  let url = (process.env.PYTHON_RAG_URL || 'http://127.0.0.1:8000').trim().replace(/\/$/, '');
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = `http://${url}`;
-  }
-  return url;
+  return getConfiguredPythonRagUrl();
 }
 
 export function getInternalRagHeaders(): Record<string, string> {
@@ -25,11 +27,36 @@ export function getInternalRagHeaders(): Record<string, string> {
   };
 }
 
-export async function hybridSearch(query: string, queryEmbedding: number[], topK = 15) {
+/**
+ * Calls the Python RAG microservice with internal auth headers.
+ * If targeting a local instance (127.0.0.1/localhost) that is not yet reachable,
+ * automatically starts or waits for the local Python RAG process and retries once.
+ */
+export async function fetchPythonRag(endpointPath: string, init: RequestInit = {}): Promise<Response> {
   const pyUrl = getPythonRagUrl();
-  const res = await fetch(`${pyUrl}/hybrid-search`, {
+  const normalizedPath = endpointPath.startsWith('/') ? endpointPath : `/${endpointPath}`;
+  const targetUrl = `${pyUrl}${normalizedPath}`;
+  const headers = {
+    ...getInternalRagHeaders(),
+    ...(init.headers as Record<string, string> | undefined),
+  };
+
+  try {
+    return await fetch(targetUrl, { ...init, headers });
+  } catch (err) {
+    if (isLocalRagUrl(pyUrl)) {
+      const started = await ensureLocalRagRunning();
+      if (started) {
+        return await fetch(targetUrl, { ...init, headers });
+      }
+    }
+    throw err;
+  }
+}
+
+export async function hybridSearch(query: string, queryEmbedding: number[], topK = 15) {
+  const res = await fetchPythonRag('/hybrid-search', {
     method: 'POST',
-    headers: getInternalRagHeaders(),
     body: JSON.stringify({ query, topK }),
   });
 
@@ -56,10 +83,8 @@ export async function hybridSearch(query: string, queryEmbedding: number[], topK
 }
 
 export async function rerankCandidates(query: string, candidates: any[], limit = 5) {
-  const pyUrl = getPythonRagUrl();
-  const res = await fetch(`${pyUrl}/rerank`, {
+  const res = await fetchPythonRag('/rerank', {
     method: 'POST',
-    headers: getInternalRagHeaders(),
     body: JSON.stringify({
       query,
       candidates: candidates.map(c => ({

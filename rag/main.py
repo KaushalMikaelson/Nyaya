@@ -28,6 +28,7 @@ from document_processor import extract_text_from_pdf, classify_document, generat
 from cache import get_cached, set_cached, generate_cache_key, invalidate_search_cache
 from tracing import RequestTracer
 from health import get_system_health
+from resilience import groq_chat_completion
 from agent.schemas import ResearchRequest, ResearchResult
 from agent.agent import LegalResearchAgent
 
@@ -345,10 +346,11 @@ CONTEXT:
 
     final_prompt = f"[TRANSLATE AND RESPOND TO THE FOLLOWING STRICTLY IN HINDI USING DEVANAGARI SCRIPT]:\n\n{content}" if req.language == "hindi" else content
 
-    groq_model = os.getenv("GROQ_MODEL", "groq/compound")
+    groq_model = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
     with tracer.stage("generate") as stg:
         try:
-            completion = groq.chat.completions.create(
+            completion = groq_chat_completion(
+                groq,
                 model=groq_model,
                 temperature=0.1,
                 messages=[
@@ -431,9 +433,10 @@ You MUST output your response strictly as a valid JSON object without any markdo
 """
 
     groq = Groq(api_key=GROQ_API_KEY)
-    groq_model = os.getenv("GROQ_MODEL", "groq/compound")
+    groq_model = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
     try:
-        completion = groq.chat.completions.create(
+        completion = groq_chat_completion(
+            groq,
             model=groq_model,
             max_tokens=2000,
             temperature=0.2,

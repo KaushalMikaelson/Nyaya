@@ -21,6 +21,7 @@ import crypto from 'crypto';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../prisma';
 import Groq from 'groq-sdk';
+import { createGroqCompletion } from '../services/groq';
 import { ChatGroq } from '@langchain/groq';
 import { z } from 'zod';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
@@ -504,8 +505,7 @@ router.post('/analyze', upload.single('file'), async (req: AuthRequest, res): Pr
     ].join('\n');
 
     const docSelection = docChunks.slice(0, 6).join('\n\n');
-    const groqResponse = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+    const groqResponse = await createGroqCompletion(groq, {
       max_tokens: 2048,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -639,8 +639,7 @@ ${textChunk}
       content: msg.content,
     }));
 
-    const response = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+    const response = await createGroqCompletion(groq, {
       max_tokens: 1024,
       temperature: 0.2,
       messages: [

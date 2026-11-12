@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../prisma';
 
-import { getPythonRagUrl, cleanErrorText, getInternalRagHeaders } from '../services/retrieval';
+import { cleanErrorText, fetchPythonRag } from '../services/retrieval';
 
 const router = Router();
 
@@ -26,10 +26,8 @@ router.post('/', async (req: AuthRequest, res): Promise<void> => {
     }
 
     // Delegate to Python RAG /case-intelligence
-    const pyUrl = getPythonRagUrl();
-    const pyRes = await fetch(`${pyUrl}/case-intelligence`, {
+    const pyRes = await fetchPythonRag('/case-intelligence', {
       method: 'POST',
-      headers: getInternalRagHeaders(),
       body: JSON.stringify({ caseDetails }),
     });
 

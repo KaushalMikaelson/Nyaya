@@ -102,6 +102,8 @@ def get_redis_client() -> Optional[Any]:
     global _client, _client_initialized
     if not _REDIS_AVAILABLE:
         return None
+    if not REDIS_URL or "YOUR_PASSWORD" in REDIS_URL:
+        return None
     if is_circuit_open():
         return None
     if _client_initialized and _client is not None:
