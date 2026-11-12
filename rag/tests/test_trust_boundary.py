@@ -72,6 +72,21 @@ class TestTrustBoundary(unittest.TestCase):
         resp = self.client.post("/research", json={"query": "remedies under Article 32"})
         self.assertEqual(resp.status_code, 403)
 
+    def test_chat_rag_rejected_without_token(self):
+        """POST /chat-rag without X-Internal-Token must be rejected with 403."""
+        resp = self.client.post("/chat-rag", json={"content": "article 21"})
+        self.assertEqual(resp.status_code, 403)
+
+    @patch("main.get_cached", return_value={"aiResponse": "test", "confidenceScore": 90})
+    def test_chat_rag_accepted_with_valid_token(self, mock_cache):
+        """POST /chat-rag with valid X-Internal-Token succeeds."""
+        resp = self.client.post(
+            "/chat-rag",
+            headers={"X-Internal-Token": RAG_INTERNAL_TOKEN},
+            json={"content": "article 21"}
+        )
+        self.assertEqual(resp.status_code, 200)
+
 
 if __name__ == "__main__":
     unittest.main()

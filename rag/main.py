@@ -52,7 +52,7 @@ app.add_middleware(
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 RAG_VECTOR_SEARCH = os.getenv("RAG_VECTOR_SEARCH", "true").strip().lower() not in {"0", "false", "no", "off"}
-RAG_INTERNAL_TOKEN = os.getenv("RAG_INTERNAL_TOKEN", "nyaay_internal_rag_secret")
+RAG_INTERNAL_TOKEN = (os.getenv("RAG_INTERNAL_TOKEN") or "nyaay_internal_rag_secret").strip()
 
 def verify_internal_token(x_internal_token: Optional[str] = Header(None, alias="X-Internal-Token")):
     """Constant-time comparison for internal token verification to protect the trust boundary."""
@@ -248,13 +248,13 @@ def chat_rag_endpoint(req: ChatRagRequest, response: Response, no_cache: bool = 
     if not no_cache:
         cached = get_cached(content, filters=cache_filters)
         if cached is not None:
-            tracer.record_cache(hit=True, key=generate_cache_key(content, cache_filters))
+            tracer.record_cache(hit=True, key=generate_cache_key(content, filters=cache_filters))
             tracer.log_summary()
             response.headers["X-Cache"] = "HIT"
             response.headers["X-Request-Id"] = tracer.request_id
             return cached
 
-    tracer.record_cache(hit=False, key=generate_cache_key(content, cache_filters))
+    tracer.record_cache(hit=False, key=generate_cache_key(content, filters=cache_filters))
     response.headers["X-Cache"] = "MISS"
     response.headers["X-Request-Id"] = tracer.request_id
 

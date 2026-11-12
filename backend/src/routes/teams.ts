@@ -1,6 +1,5 @@
 import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import prisma from '../prisma';
 import { prisma } from '../prisma';
 import { getPythonRagUrl, getInternalRagHeaders } from '../services/retrieval';
 

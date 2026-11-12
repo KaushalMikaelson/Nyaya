@@ -18,7 +18,7 @@ export function getPythonRagUrl(): string {
 }
 
 export function getInternalRagHeaders(): Record<string, string> {
-  const token = process.env.RAG_INTERNAL_TOKEN || 'nyaay_internal_rag_secret';
+  const token = (process.env.RAG_INTERNAL_TOKEN || 'nyaay_internal_rag_secret').trim();
   return {
     'Content-Type': 'application/json',
     'X-Internal-Token': token,

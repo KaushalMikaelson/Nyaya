@@ -1,6 +1,5 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth';
-import prisma from '../prisma';
 import { prisma } from '../prisma';
 
 export interface RBACRequest extends AuthRequest {

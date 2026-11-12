@@ -174,7 +174,7 @@ def hybrid_search(
                 else:
                     sql = """
                     WITH permitted_chunks AS MATERIALIZED (
-                        SELECT id, content, "actId", "sectionId", "clauseId", fts, content
+                        SELECT id, content, "actId", "sectionId", "clauseId", fts
                         FROM "LegalChunk"
                         WHERE "sectionId" = ANY(%s)
                     )
