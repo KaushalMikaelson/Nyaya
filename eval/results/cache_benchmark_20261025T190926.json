@@ -1,0 +1,47 @@
+{
+  "timestamp": "20261025T190926",
+  "results": [
+    {
+      "mode": "off",
+      "query_count": 5,
+      "successful_requests": 5,
+      "errors": 0,
+      "hit_count": 0,
+      "hit_rate_pct": 0.0,
+      "total_elapsed_s": 37.49,
+      "latency_min_ms": 6209.95,
+      "latency_mean_ms": 7496.14,
+      "latency_p50_ms": 6998.01,
+      "latency_p95_ms": 9961.2,
+      "latency_max_ms": 9961.2
+    },
+    {
+      "mode": "cold",
+      "query_count": 5,
+      "successful_requests": 5,
+      "errors": 0,
+      "hit_count": 0,
+      "hit_rate_pct": 0.0,
+      "total_elapsed_s": 37.71,
+      "latency_min_ms": 6250.52,
+      "latency_mean_ms": 7540.43,
+      "latency_p50_ms": 7677.23,
+      "latency_p95_ms": 8713.29,
+      "latency_max_ms": 8713.29
+    },
+    {
+      "mode": "warm",
+      "query_count": 5,
+      "successful_requests": 5,
+      "errors": 0,
+      "hit_count": 0,
+      "hit_rate_pct": 0.0,
+      "total_elapsed_s": 42.82,
+      "latency_min_ms": 6628.56,
+      "latency_mean_ms": 8562.65,
+      "latency_p50_ms": 8003.64,
+      "latency_p95_ms": 11282.71,
+      "latency_max_ms": 11282.71
+    }
+  ]
+}

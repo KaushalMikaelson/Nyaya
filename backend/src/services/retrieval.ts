@@ -17,11 +17,19 @@ export function getPythonRagUrl(): string {
   return url;
 }
 
+export function getInternalRagHeaders(): Record<string, string> {
+  const token = process.env.RAG_INTERNAL_TOKEN || 'nyaay_internal_rag_secret';
+  return {
+    'Content-Type': 'application/json',
+    'X-Internal-Token': token,
+  };
+}
+
 export async function hybridSearch(query: string, queryEmbedding: number[], topK = 15) {
   const pyUrl = getPythonRagUrl();
   const res = await fetch(`${pyUrl}/hybrid-search`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getInternalRagHeaders(),
     body: JSON.stringify({ query, topK }),
   });
 
@@ -51,7 +59,7 @@ export async function rerankCandidates(query: string, candidates: any[], limit =
   const pyUrl = getPythonRagUrl();
   const res = await fetch(`${pyUrl}/rerank`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getInternalRagHeaders(),
     body: JSON.stringify({
       query,
       candidates: candidates.map(c => ({

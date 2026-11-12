@@ -1,0 +1,104 @@
+{
+  "summary": {
+    "timestamp": "20261025T191116",
+    "total_tasks": 5,
+    "success_rate_pct": 0.0,
+    "mean_steps": 1,
+    "mean_latency_s": 0.19,
+    "mean_cost_usd": 0.0,
+    "mean_citation_accuracy_pct": 0.0,
+    "mean_verification_rate_pct": 100.0
+  },
+  "traces": [
+    {
+      "task_id": "task_001",
+      "task": "Determine the punishment for murder under Bharatiya Nyaya Sanhita and explain exceptions.",
+      "success": false,
+      "result": {
+        "query": "Determine the punishment for murder under Bharatiya Nyaya Sanhita and explain exceptions.",
+        "answer": "Legal Research Request:\nDetermine the punishment for murder under Bharatiya Nyaya Sanhita and explain exceptions.",
+        "claims": [],
+        "confidence": 70,
+        "steps_taken": 1,
+        "tool_calls_count": 0,
+        "cost_est_usd": 0.0,
+        "citations": []
+      },
+      "elapsed_seconds": 0.72,
+      "citation_accuracy": 0.0,
+      "quote_verification_rate": 1.0
+    },
+    {
+      "task_id": "task_002",
+      "task": "What are the remedies available for violation of Fundamental Rights under Article 32 of Constitution?",
+      "success": false,
+      "result": {
+        "query": "What are the remedies available for violation of Fundamental Rights under Article 32 of Constitution?",
+        "answer": "Legal Research Request:\nWhat are the remedies available for violation of Fundamental Rights under Article 32 of Constitution?",
+        "claims": [],
+        "confidence": 70,
+        "steps_taken": 1,
+        "tool_calls_count": 0,
+        "cost_est_usd": 0.0,
+        "citations": []
+      },
+      "elapsed_seconds": 0.06,
+      "citation_accuracy": 0.0,
+      "quote_verification_rate": 1.0
+    },
+    {
+      "task_id": "task_003",
+      "task": "Analyze the statutory provisions governing bail in non-bailable offenses under BNSS.",
+      "success": false,
+      "result": {
+        "query": "Analyze the statutory provisions governing bail in non-bailable offenses under BNSS.",
+        "answer": "Legal Research Request:\nAnalyze the statutory provisions governing bail in non-bailable offenses under BNSS.",
+        "claims": [],
+        "confidence": 70,
+        "steps_taken": 1,
+        "tool_calls_count": 0,
+        "cost_est_usd": 0.0,
+        "citations": []
+      },
+      "elapsed_seconds": 0.05,
+      "citation_accuracy": 0.0,
+      "quote_verification_rate": 1.0
+    },
+    {
+      "task_id": "task_004",
+      "task": "What constitutes cheating and dishonestly inducing delivery of property under BNS?",
+      "success": false,
+      "result": {
+        "query": "What constitutes cheating and dishonestly inducing delivery of property under BNS?",
+        "answer": "Legal Research Request:\nWhat constitutes cheating and dishonestly inducing delivery of property under BNS?",
+        "claims": [],
+        "confidence": 70,
+        "steps_taken": 1,
+        "tool_calls_count": 0,
+        "cost_est_usd": 0.0,
+        "citations": []
+      },
+      "elapsed_seconds": 0.05,
+      "citation_accuracy": 0.0,
+      "quote_verification_rate": 1.0
+    },
+    {
+      "task_id": "task_005",
+      "task": "Explain the prohibition of discrimination on grounds of religion, race, caste, sex or place of birth under Article 15.",
+      "success": false,
+      "result": {
+        "query": "Explain the prohibition of discrimination on grounds of religion, race, caste, sex or place of birth under Article 15.",
+        "answer": "Legal Research Request:\nExplain the prohibition of discrimination on grounds of religion, race, caste, sex or place of birth under Article 15.",
+        "claims": [],
+        "confidence": 70,
+        "steps_taken": 1,
+        "tool_calls_count": 0,
+        "cost_est_usd": 0.0,
+        "citations": []
+      },
+      "elapsed_seconds": 0.05,
+      "citation_accuracy": 0.0,
+      "quote_verification_rate": 1.0
+    }
+  ]
+}

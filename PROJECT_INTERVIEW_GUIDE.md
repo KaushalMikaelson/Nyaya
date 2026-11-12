@@ -321,7 +321,7 @@ Firm (1) ──→ (many) FirmMember (roles: OWNER, PARTNER, ASSOCIATE, PARALEGA
 - `Otp.attempts` tracked → max 5 tries before lockout
 - `LegalChunk.embedding` uses `Unsupported("vector(384)")` — Prisma doesn't natively support pgvector, raw SQL needed for inserts
 - `Case.aiAnalysis` cached as JSON to avoid repeated LLM calls
-- `UserDocument` has `deletedAt` for soft-delete (DPDP Act compliance)
+- `UserDocument` has `deletedAt` for soft-delete (supports auditability requirements)
 - `CaseParty.aadhaarMasked` stores only last 4 digits after eKYC
 
 ---
@@ -572,7 +572,7 @@ services:
 Nyaya | AI Legal Platform for Indian Law
 Tech: Next.js • Node.js • PostgreSQL/pgvector • Groq LLaMA 3.3 70B • LangChain • Cohere
 
-Built a production-grade LegalTech platform democratizing access to Indian law through:
+Built a production-oriented LegalTech platform democratizing access to Indian law through:
 - RAG-powered AI chat grounded in real Indian Acts (BNS, CrPC, Constitution)
 - PostgreSQL FTS + optional pgvector semantic search with cross-encoder reranking
 - Multi-role system: Citizens, Verified Lawyers, Judges, Admins

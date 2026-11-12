@@ -1,0 +1,44 @@
+{
+  "timestamp": "2026-10-25T13-35-37",
+  "git_commit": "04ed4e9",
+  "split": "dev",
+  "config_name": "hybrid_rrf_rerank",
+  "sweep_results": [
+    {
+      "rrf_k": 30,
+      "top_k": 20,
+      "rerank_top_n": 8,
+      "recall_at_5": 0.13333333333333333,
+      "recall_at_10": 0.13333333333333333,
+      "mrr": 0.24,
+      "ndcg_at_10": 0.13016410371202183,
+      "latency_p50_ms": 4122.93,
+      "latency_p95_ms": 6372.89,
+      "latency_mean_ms": 4731.68
+    },
+    {
+      "rrf_k": 60,
+      "top_k": 20,
+      "rerank_top_n": 8,
+      "recall_at_5": 0.13333333333333333,
+      "recall_at_10": 0.13333333333333333,
+      "mrr": 0.24,
+      "ndcg_at_10": 0.13016410371202183,
+      "latency_p50_ms": 4054.52,
+      "latency_p95_ms": 4950.4,
+      "latency_mean_ms": 4286.17
+    },
+    {
+      "rrf_k": 90,
+      "top_k": 20,
+      "rerank_top_n": 8,
+      "recall_at_5": 0.13333333333333333,
+      "recall_at_10": 0.13333333333333333,
+      "mrr": 0.24,
+      "ndcg_at_10": 0.13016410371202183,
+      "latency_p50_ms": 4596.41,
+      "latency_p95_ms": 11488.11,
+      "latency_mean_ms": 5985.56
+    }
+  ]
+}

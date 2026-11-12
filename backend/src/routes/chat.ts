@@ -4,7 +4,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { planLimiter } from '../middleware/planLimiter';
 import { prisma } from '../prisma';
 
-import { getPythonRagUrl, cleanErrorText } from '../services/retrieval';
+import { getPythonRagUrl, cleanErrorText, getInternalRagHeaders } from '../services/retrieval';
 
 const router = Router();
 
@@ -104,7 +104,7 @@ router.post('/conversations/:id/messages', planLimiter, async (req: AuthRequest,
       console.log('[Chat] Delegating full response to Python RAG /chat-rag...');
       const pyRes = await fetch(`${pyUrl}/chat-rag`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getInternalRagHeaders(),
         body: JSON.stringify({
           content,
           priorMessages: priorUserMessages,

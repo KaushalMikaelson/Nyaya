@@ -476,7 +476,7 @@ model CaseParty {
 
   // Aadhaar — only last 4 digits stored after masking
   aadhaarMasked       String?   // Stored as "XXXX XXXX 1234"
-  aadhaarConsentAt    DateTime? // DPDP Act compliance — consent timestamp
+  aadhaarConsentAt    DateTime? // Supports auditability requirements — consent timestamp
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -617,7 +617,7 @@ model UserDocument {
   caseId          String?
   case            Case?     @relation(fields: [caseId], references: [id], onDelete: SetNull)
 
-  // Consent & DPDP Act compliance
+  // Consent & supports auditability requirements
   consentGrantedAt DateTime? // Timestamp of user consent for AI processing
   deletedAt        DateTime? // Soft-delete for right-to-erasure
 
@@ -629,4 +629,52 @@ model UserDocument {
   @@index([status])
   @@index([deletedAt])
 }
+
+// ─────────────────────────────────────────
+// RBAC & ACCESS CONTROL
+// ─────────────────────────────────────────
+
+model Team {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  members     TeamMember[]
+  permissions DocumentPermission[]
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  role      String   @default("MEMBER") // ADMIN, MEMBER, VIEWER
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, userId])
+}
+
+model DocumentPermission {
+  id          String   @id @default(uuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  actId       String?
+  sectionId   String?
+  canRead     Boolean  @default(true)
+  canWrite    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model SearchAuditLog {
+  id           String   @id @default(uuid())
+  userId       String?
+  query        String
+  actFilter    String?
+  returnedDocs String[] // Array of doc/chunk IDs
+  timestamp    DateTime @default(now())
+  latencyMs    Float?
+}
+
 

@@ -1,0 +1,72 @@
+[
+  {
+    "id": "fix_001",
+    "act": "BNS",
+    "section": "101",
+    "title": "Murder",
+    "content": "Whoever commits murder shall be punished with death or imprisonment for life, and shall also be liable to fine."
+  },
+  {
+    "id": "fix_002",
+    "act": "BNS",
+    "section": "103",
+    "title": "Punishment for murder",
+    "content": "Whoever commits murder shall be punished with death or imprisonment for life, and shall also be liable to fine."
+  },
+  {
+    "id": "fix_003",
+    "act": "BNS",
+    "section": "303",
+    "title": "Theft",
+    "content": "Whoever, intending to take dishonestly any movable property out of the possession of any person without that person's consent, moves that property in order to such taking, is said to commit theft."
+  },
+  {
+    "id": "fix_004",
+    "act": "BNS",
+    "section": "318",
+    "title": "Cheating",
+    "content": "Whoever, by deceiving any person, fraudulently or dishonestly induces the person so deceived to deliver any property to any person, or to consent that any person shall retain any property, commits cheating."
+  },
+  {
+    "id": "fix_005",
+    "act": "Constitution",
+    "section": "14",
+    "title": "Equality before law",
+    "content": "The State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India."
+  },
+  {
+    "id": "fix_006",
+    "act": "Constitution",
+    "section": "15",
+    "title": "Prohibition of discrimination",
+    "content": "The State shall not discriminate against any citizen on grounds only of religion, race, caste, sex, place of birth or any of them."
+  },
+  {
+    "id": "fix_007",
+    "act": "Constitution",
+    "section": "19",
+    "title": "Protection of certain rights regarding freedom of speech",
+    "content": "All citizens shall have the right to freedom of speech and expression, to assemble peaceably and without arms, to form associations or unions."
+  },
+  {
+    "id": "fix_008",
+    "act": "Constitution",
+    "section": "21",
+    "title": "Protection of life and personal liberty",
+    "content": "No person shall be deprived of his life or personal liberty except according to procedure established by law."
+  },
+  {
+    "id": "fix_009",
+    "act": "Constitution",
+    "section": "32",
+    "title": "Remedies for enforcement of rights",
+    "content": "The right to move the Supreme Court by appropriate proceedings for the enforcement of the rights conferred by this Part is guaranteed."
+  },
+  {
+    "id": "fix_010",
+    "act": "BNSS",
+    "section": "482",
+    "title": "Anticipatory Bail",
+    "content": "Direction for grant of bail to person apprehending arrest. When any person has reason to believe that he may be arrested on an accusation of having committed a non-bailable offence, he may apply to the High Court or the Court of Session."
+  }
+]

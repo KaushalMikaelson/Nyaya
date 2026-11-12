@@ -1,0 +1,5 @@
+{"id": "task_001", "task": "Determine the punishment for murder under Bharatiya Nyaya Sanhita and explain exceptions.", "expected_act": "BNS", "expected_sections": ["101", "103"], "split": "dev"}
+{"id": "task_002", "task": "What are the remedies available for violation of Fundamental Rights under Article 32 of Constitution?", "expected_act": "Constitution", "expected_sections": ["32"], "split": "dev"}
+{"id": "task_003", "task": "Analyze the statutory provisions governing bail in non-bailable offenses under BNSS.", "expected_act": "BNSS", "expected_sections": ["480", "482"], "split": "dev"}
+{"id": "task_004", "task": "What constitutes cheating and dishonestly inducing delivery of property under BNS?", "expected_act": "BNS", "expected_sections": ["318"], "split": "dev"}
+{"id": "task_005", "task": "Explain the prohibition of discrimination on grounds of religion, race, caste, sex or place of birth under Article 15.", "expected_act": "Constitution", "expected_sections": ["15"], "split": "dev"}

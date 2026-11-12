@@ -1,0 +1,291 @@
+{
+  "timestamp": "2026-10-25T13-33-46",
+  "git_commit": "04ed4e9",
+  "split": "dev",
+  "results": [
+    {
+      "config_name": "bm25_only",
+      "config": {
+        "use_vector": false,
+        "use_fts": true,
+        "rerank": false,
+        "description": "Keyword search only (Postgres FTS / BM25-style)"
+      },
+      "params": {
+        "rrf_k": 60,
+        "top_k": 20,
+        "rerank_top_n": 8
+      },
+      "num_queries": 5,
+      "aggregated": {
+        "recall_at_5": 0.13333333333333333,
+        "recall_at_10": 0.13333333333333333,
+        "mrr": 0.16666666666666666,
+        "ndcg_at_10": 0.10614425479544869,
+        "latency_p50_ms": 3407.1,
+        "latency_p95_ms": 3855.8,
+        "latency_mean_ms": 3467.6
+      },
+      "per_query": [
+        {
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "mrr": 0.0,
+          "ndcg_at_10": 0.0,
+          "query_id": "q001",
+          "latency_ms": 3061.66,
+          "retrieved_count": 11
+        },
+        {
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "mrr": 0.0,
+          "ndcg_at_10": 0.0,
+          "query_id": "q002",
+          "latency_ms": 3855.8,
+          "retrieved_count": 20
+        },
+        {
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "mrr": 0.0,
+          "ndcg_at_10": 0.0,
+          "query_id": "q003",
+          "latency_ms": 3407.1,
+          "retrieved_count": 20
+        },
+        {
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "mrr": 0.5,
+          "ndcg_at_10": 0.2960819109658652,
+          "query_id": "q004",
+          "latency_ms": 3238.05,
+          "retrieved_count": 20
+        },
+        {
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "mrr": 0.3333333333333333,
+          "ndcg_at_10": 0.23463936301137822,
+          "query_id": "q005",
+          "latency_ms": 3775.4,
+          "retrieved_count": 20
+        }
+      ]
+    },
+    {
+      "config_name": "semantic_only",
+      "config": {
+        "use_vector": true,
+        "use_fts": false,
+        "rerank": false,
+        "description": "Vector search only (pgvector cosine distance)"
+      },
+      "params": {
+        "rrf_k": 60,
+        "top_k": 20,
+        "rerank_top_n": 8
+      },
+      "num_queries": 5,
+      "aggregated": {
+        "recall_at_5": 0.2,
+        "recall_at_10": 0.2,
+        "mrr": 0.26666666666666666,
+        "ndcg_at_10": 0.16536063698862175,
+        "latency_p50_ms": 3466.84,
+        "latency_p95_ms": 5181.76,
+        "latency_mean_ms": 3967.02
+      },
+      "per_query": [
+        {
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "mrr": 0.0,
+          "ndcg_at_10": 0.0,
+          "query_id": "q001",
+          "latency_ms": 5181.76,
+          "retrieved_count": 20
+        },
+        {
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "mrr": 0.0,
+          "ndcg_at_10": 0.0,
+          "query_id": "q002",
+          "latency_ms": 4255.9,
+          "retrieved_count": 20
+        },
+        {
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "mrr": 0.5,
+          "ndcg_at_10": 0.2960819109658652,
+          "query_id": "q003",
+          "latency_ms": 3464.0,
+          "retrieved_count": 20
+        },
+        {
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "mrr": 0.5,
+          "ndcg_at_10": 0.2960819109658652,
+          "query_id": "q004",
+          "latency_ms": 3466.84,
+          "retrieved_count": 20
+        },
+        {
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "mrr": 0.3333333333333333,
+          "ndcg_at_10": 0.23463936301137822,
+          "query_id": "q005",
+          "latency_ms": 3466.6,
+          "retrieved_count": 20
+        }
+      ]
+    },
+    {
+      "config_name": "hybrid_rrf",
+      "config": {
+        "use_vector": true,
+        "use_fts": true,
+        "rerank": false,
+        "description": "Hybrid BM25 + vector fused with Reciprocal Rank Fusion"
+      },
+      "params": {
+        "rrf_k": 60,
+        "top_k": 20,
+        "rerank_top_n": 8
+      },
+      "num_queries": 5,
+      "aggregated": {
+        "recall_at_5": 0.2,
+        "recall_at_10": 0.2,
+        "mrr": 0.26666666666666666,
+        "ndcg_at_10": 0.16536063698862175,
+        "latency_p50_ms": 4468.17,
+        "latency_p95_ms": 5003.55,
+        "latency_mean_ms": 4393.3
+      },
+      "per_query": [
+        {
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "mrr": 0.0,
+          "ndcg_at_10": 0.0,
+          "query_id": "q001",
+          "latency_ms": 3370.93,
+          "retrieved_count": 20
+        },
+        {
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "mrr": 0.0,
+          "ndcg_at_10": 0.0,
+          "query_id": "q002",
+          "latency_ms": 4468.17,
+          "retrieved_count": 20
+        },
+        {
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "mrr": 0.5,
+          "ndcg_at_10": 0.2960819109658652,
+          "query_id": "q003",
+          "latency_ms": 4179.41,
+          "retrieved_count": 20
+        },
+        {
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "mrr": 0.5,
+          "ndcg_at_10": 0.2960819109658652,
+          "query_id": "q004",
+          "latency_ms": 4944.43,
+          "retrieved_count": 20
+        },
+        {
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "mrr": 0.3333333333333333,
+          "ndcg_at_10": 0.23463936301137822,
+          "query_id": "q005",
+          "latency_ms": 5003.55,
+          "retrieved_count": 20
+        }
+      ]
+    },
+    {
+      "config_name": "hybrid_rrf_rerank",
+      "config": {
+        "use_vector": true,
+        "use_fts": true,
+        "rerank": true,
+        "description": "Hybrid RRF + Cohere cross-encoder reranking"
+      },
+      "params": {
+        "rrf_k": 60,
+        "top_k": 20,
+        "rerank_top_n": 8
+      },
+      "num_queries": 5,
+      "aggregated": {
+        "recall_at_5": 0.13333333333333333,
+        "recall_at_10": 0.13333333333333333,
+        "mrr": 0.24,
+        "ndcg_at_10": 0.13016410371202183,
+        "latency_p50_ms": 5186.01,
+        "latency_p95_ms": 5804.49,
+        "latency_mean_ms": 4921.55
+      },
+      "per_query": [
+        {
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "mrr": 0.0,
+          "ndcg_at_10": 0.0,
+          "query_id": "q001",
+          "latency_ms": 3892.53,
+          "retrieved_count": 8
+        },
+        {
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "mrr": 0.0,
+          "ndcg_at_10": 0.0,
+          "query_id": "q002",
+          "latency_ms": 5804.49,
+          "retrieved_count": 8
+        },
+        {
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "mrr": 0.2,
+          "ndcg_at_10": 0.18154179253735267,
+          "query_id": "q003",
+          "latency_ms": 5186.01,
+          "retrieved_count": 8
+        },
+        {
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "mrr": 1.0,
+          "ndcg_at_10": 0.46927872602275644,
+          "query_id": "q004",
+          "latency_ms": 4516.1,
+          "retrieved_count": 8
+        },
+        {
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "mrr": 0.0,
+          "ndcg_at_10": 0.0,
+          "query_id": "q005",
+          "latency_ms": 5208.64,
+          "retrieved_count": 8
+        }
+      ]
+    }
+  ]
+}

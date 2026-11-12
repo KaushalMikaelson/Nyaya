@@ -11,11 +11,12 @@ import sys
 import re
 import json
 import base64
+import hmac
 
 sys.path.insert(0, os.path.dirname(__file__))
 
 from typing import List, Dict, Any, Optional
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response, Query, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -24,6 +25,11 @@ from groq import Groq
 from embeddings import embed_texts, embed_query
 from retrieval import hybrid_search, rerank_candidates
 from document_processor import extract_text_from_pdf, classify_document, generate_rag_reports
+from cache import get_cached, set_cached, generate_cache_key, invalidate_search_cache
+from tracing import RequestTracer
+from health import get_system_health
+from agent.schemas import ResearchRequest, ResearchResult
+from agent.agent import LegalResearchAgent
 
 env_paths = [
     os.path.join(os.path.dirname(__file__), "..", "backend", ".env"),
@@ -46,6 +52,13 @@ app.add_middleware(
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 RAG_VECTOR_SEARCH = os.getenv("RAG_VECTOR_SEARCH", "true").strip().lower() not in {"0", "false", "no", "off"}
+RAG_INTERNAL_TOKEN = os.getenv("RAG_INTERNAL_TOKEN", "nyaay_internal_rag_secret")
+
+def verify_internal_token(x_internal_token: Optional[str] = Header(None, alias="X-Internal-Token")):
+    """Constant-time comparison for internal token verification to protect the trust boundary."""
+    if not x_internal_token or not hmac.compare_digest(x_internal_token.strip(), RAG_INTERNAL_TOKEN):
+        raise HTTPException(status_code=403, detail="Forbidden: Invalid or missing X-Internal-Token")
+
 
 def infer_act_short_name(query: str) -> Optional[str]:
     """Infer a narrow Act filter from explicit user wording."""
@@ -89,14 +102,24 @@ class ProcessDocumentRequest(BaseModel):
 def health():
     return {"status": "ok", "service": "Python RAG Engine"}
 
-@app.post("/embed")
+@app.get("/health/detailed")
+def health_detailed():
+    return get_system_health()
+
+@app.post("/cache/invalidate", dependencies=[Depends(verify_internal_token)])
+def cache_invalidate_endpoint():
+    """Flush search cache keys and bump CACHE_VERSION."""
+    res = invalidate_search_cache()
+    return {"status": "ok", "invalidated": res}
+
+@app.post("/embed", dependencies=[Depends(verify_internal_token)])
 def embed_endpoint(req: EmbedRequest):
     if not req.texts:
         return {"embeddings": []}
     embeddings = embed_texts(req.texts)
     return {"embeddings": embeddings}
 
-@app.post("/hybrid-search")
+@app.post("/hybrid-search", dependencies=[Depends(verify_internal_token)])
 def hybrid_search_endpoint(req: HybridSearchRequest):
     if not req.query.strip():
         raise HTTPException(status_code=400, detail="Query is required")
@@ -111,29 +134,64 @@ def hybrid_search_endpoint(req: HybridSearchRequest):
     )
     return {"results": results}
 
-@app.post("/search")
-def search_endpoint(req: SearchRequest):
+@app.post("/search", dependencies=[Depends(verify_internal_token)])
+def search_endpoint(req: SearchRequest, response: Response, no_cache: bool = Query(False)):
     """
-    Full search pipeline matching search.ts:
-    embed -> RRF hybrid search (with optional act filter) -> content sub-filter -> Cohere rerank -> payload.
+    Full search pipeline matching search.ts with Redis caching and stage tracing:
+    cache check -> embed -> RRF hybrid search (with optional act filter) -> content sub-filter -> Cohere rerank -> cache set.
     """
     if not req.query or not req.query.strip():
         raise HTTPException(status_code=400, detail="Query is required")
 
+    tracer = RequestTracer(query=req.query)
     filters = req.filters or {}
+    team_ids = filters.get("teamIds") or filters.get("team_ids")
     act_name = filters.get("act") if filters.get("act") != "All Acts" else None
     if not act_name:
         act_name = infer_act_short_name(req.query)
 
-    query_emb = embed_query(req.query) if RAG_VECTOR_SEARCH else None
-    candidates = hybrid_search(
-        query=req.query,
-        query_embedding=query_emb,
-        act_short_name=act_name,
-        top_k=20
-    )
+    cache_kwargs = {
+        "query": req.query,
+        "team_ids": team_ids,
+        "act_filter": act_name,
+        "top_k": 20,
+        "rrf_k": 60,
+        "use_vector": RAG_VECTOR_SEARCH,
+        "use_fts": True,
+        "rerank": True,
+        "filters": filters,
+    }
+
+    if not no_cache:
+        cached = get_cached(**cache_kwargs)
+        if cached is not None:
+            cache_key = generate_cache_key(**cache_kwargs)
+            tracer.record_cache(hit=True, key=cache_key)
+            tracer.log_summary()
+            response.headers["X-Cache"] = "HIT"
+            response.headers["X-Request-Id"] = tracer.request_id
+            return cached
+
+    cache_key = generate_cache_key(**cache_kwargs)
+    tracer.record_cache(hit=False, key=cache_key)
+    response.headers["X-Cache"] = "MISS"
+    response.headers["X-Request-Id"] = tracer.request_id
+
+    with tracer.stage("embed"):
+        query_emb = embed_query(req.query) if RAG_VECTOR_SEARCH else None
+
+    with tracer.stage("hybrid_search") as stg:
+        candidates = hybrid_search(
+            query=req.query,
+            query_embedding=query_emb,
+            act_short_name=act_name,
+            top_k=20,
+            team_ids=team_ids,
+        )
+        stg["candidates"] = len(candidates)
 
     if not candidates:
+        tracer.log_summary()
         return {"results": []}
 
     # Content sub-filtering (category / court)
@@ -151,7 +209,10 @@ def search_endpoint(req: SearchRequest):
     top15 = candidates[:15]
 
     # Cohere reranking
-    reranked = rerank_candidates(req.query, top15, top_n=10)
+    with tracer.stage("rerank") as stg:
+        stg["candidates_in"] = len(top15)
+        reranked = rerank_candidates(req.query, top15, top_n=10)
+        stg["candidates_out"] = len(reranked)
 
     # Clean payload (strip embedding/fts fields, match TS response shape)
     payload = []
@@ -160,9 +221,13 @@ def search_endpoint(req: SearchRequest):
         entry["score"] = c.get("score") or c.get("rrf_score") or 0
         payload.append(entry)
 
-    return {"results": payload}
+    res_data = {"results": payload}
+    if not no_cache:
+        set_cached(payload=res_data, **cache_kwargs)
+    tracer.log_summary()
+    return res_data
 
-@app.post("/rerank")
+@app.post("/rerank", dependencies=[Depends(verify_internal_token)])
 def rerank_endpoint(req: RerankRequest):
     results = rerank_candidates(
         query=req.query,
@@ -171,23 +236,46 @@ def rerank_endpoint(req: RerankRequest):
     )
     return {"results": results}
 
-@app.post("/chat-rag")
-def chat_rag_endpoint(req: ChatRagRequest):
+@app.post("/chat-rag", dependencies=[Depends(verify_internal_token)])
+def chat_rag_endpoint(req: ChatRagRequest, response: Response, no_cache: bool = Query(False)):
     content = req.content.strip()
     if not content:
         raise HTTPException(status_code=400, detail="Content is required")
+
+    tracer = RequestTracer(query=content)
+    cache_filters = {"priorMessages": req.priorMessages or [], "language": req.language or "english"}
+
+    if not no_cache:
+        cached = get_cached(content, filters=cache_filters)
+        if cached is not None:
+            tracer.record_cache(hit=True, key=generate_cache_key(content, cache_filters))
+            tracer.log_summary()
+            response.headers["X-Cache"] = "HIT"
+            response.headers["X-Request-Id"] = tracer.request_id
+            return cached
+
+    tracer.record_cache(hit=False, key=generate_cache_key(content, cache_filters))
+    response.headers["X-Cache"] = "MISS"
+    response.headers["X-Request-Id"] = tracer.request_id
 
     # 1. Expanded RAG Query from context
     prior = req.priorMessages or []
     expanded_query = f"{' | '.join(prior[-2:])} | {content}" if prior else content
 
     # 2. Python Embedding
-    query_emb = embed_query(expanded_query) if RAG_VECTOR_SEARCH else None
+    with tracer.stage("embed"):
+        query_emb = embed_query(expanded_query) if RAG_VECTOR_SEARCH else None
 
     # 3. Hybrid Search & Reranking
     act_name = infer_act_short_name(expanded_query)
-    hybrid_candidates = hybrid_search(expanded_query, query_emb, act_short_name=act_name, top_k=20)
-    final_docs = rerank_candidates(content, hybrid_candidates, top_n=8)
+    with tracer.stage("hybrid_search") as stg:
+        hybrid_candidates = hybrid_search(expanded_query, query_emb, act_short_name=act_name, top_k=20)
+        stg["candidates"] = len(hybrid_candidates)
+
+    with tracer.stage("rerank") as stg:
+        stg["candidates_in"] = len(hybrid_candidates)
+        final_docs = rerank_candidates(content, hybrid_candidates, top_n=8)
+        stg["candidates_out"] = len(final_docs)
 
     if final_docs:
         retrieved_context = "\n\n---\n\n".join([
@@ -199,6 +287,7 @@ def chat_rag_endpoint(req: ChatRagRequest):
 
     # 4. Groq LLM Generation
     if not GROQ_API_KEY:
+        tracer.log_summary()
         return {
             "aiResponse": "[[NYAYA_CONFIDENCE:0]] Groq API Key is not configured.",
             "retrievedContext": retrieved_context,
@@ -257,43 +346,53 @@ CONTEXT:
     final_prompt = f"[TRANSLATE AND RESPOND TO THE FOLLOWING STRICTLY IN HINDI USING DEVANAGARI SCRIPT]:\n\n{content}" if req.language == "hindi" else content
 
     groq_model = os.getenv("GROQ_MODEL", "groq/compound")
-    try:
-        completion = groq.chat.completions.create(
-            model=groq_model,
-            temperature=0.1,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": final_prompt}
-            ]
-        )
-        raw_ans = completion.choices[0].message.content or ""
+    with tracer.stage("generate") as stg:
+        try:
+            completion = groq.chat.completions.create(
+                model=groq_model,
+                temperature=0.1,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": final_prompt}
+                ]
+            )
+            raw_ans = completion.choices[0].message.content or ""
+            usage = getattr(completion, "usage", None)
+            if usage:
+                stg["tokens_in"] = getattr(usage, "prompt_tokens", None)
+                stg["tokens_out"] = getattr(usage, "completion_tokens", None)
 
-        conf_match = re.search(r'🔹\s*Confidence:\s*(\d+)', raw_ans)
-        if conf_match:
-            conf_score = min(100, max(0, int(conf_match.group(1))))
-            clean_ans = re.sub(r'🔹\s*Confidence:\s*\d+\s*\n?', '', raw_ans).strip()
-        elif "insufficient legal context" in raw_ans.lower():
-            conf_score = 0
-            clean_ans = raw_ans
-        else:
-            conf_score = 75
-            clean_ans = raw_ans
+            conf_match = re.search(r'🔹\s*Confidence:\s*(\d+)', raw_ans)
+            if conf_match:
+                conf_score = min(100, max(0, int(conf_match.group(1))))
+                clean_ans = re.sub(r'🔹\s*Confidence:\s*\d+\s*\n?', '', raw_ans).strip()
+            elif "insufficient legal context" in raw_ans.lower():
+                conf_score = 0
+                clean_ans = raw_ans
+            else:
+                conf_score = 75
+                clean_ans = raw_ans
 
-        formatted_ans = f"[[NYAYA_CONFIDENCE:{conf_score}]]\n{clean_ans}"
-        return {
-            "aiResponse": formatted_ans,
-            "retrievedContext": retrieved_context,
-            "confidenceScore": conf_score,
-            "documents": final_docs
-        }
-    except Exception as e:
-        return {
-            "aiResponse": f"[[NYAYA_CONFIDENCE:0]] Error generating legal response: {e}",
-            "retrievedContext": retrieved_context,
-            "confidenceScore": 0
-        }
+            formatted_ans = f"[[NYAYA_CONFIDENCE:{conf_score}]]\n{clean_ans}"
+            result_payload = {
+                "aiResponse": formatted_ans,
+                "retrievedContext": retrieved_context,
+                "confidenceScore": conf_score,
+                "documents": final_docs
+            }
+            if not no_cache:
+                set_cached(content, result_payload, filters=cache_filters)
+            tracer.log_summary()
+            return result_payload
+        except Exception as e:
+            tracer.log_summary()
+            return {
+                "aiResponse": f"[[NYAYA_CONFIDENCE:0]] Error generating legal response: {e}",
+                "retrievedContext": retrieved_context,
+                "confidenceScore": 0
+            }
 
-@app.post("/case-intelligence")
+@app.post("/case-intelligence", dependencies=[Depends(verify_internal_token)])
 def case_intelligence_endpoint(req: CaseIntelligenceRequest):
     """
     Matches intelligence.ts:
@@ -359,7 +458,7 @@ You MUST output your response strictly as a valid JSON object without any markdo
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Case intelligence failed: {e}")
 
-@app.post("/process-document")
+@app.post("/process-document", dependencies=[Depends(verify_internal_token)])
 def process_document_endpoint(req: ProcessDocumentRequest):
     extracted_text = ""
     if req.pdfBase64:
@@ -395,6 +494,17 @@ def process_document_endpoint(req: ProcessDocumentRequest):
         "analysisReport": reports["analysisReport"],
         "analysisReportHi": reports["analysisReportHi"]
     }
+
+@app.post("/research", dependencies=[Depends(verify_internal_token)], response_model=ResearchResult)
+def research_endpoint(req: ResearchRequest):
+    """
+    Autonomous multi-step research agent:
+    plan -> search_cases -> get_document -> get_citations -> verify_quote -> structured response.
+    """
+    if not req.query or not req.query.strip():
+        raise HTTPException(status_code=400, detail="Query is required")
+    agent = LegalResearchAgent()
+    return agent.run(query=req.query, max_steps=req.max_steps or 8, act_filter=req.act_filter)
 
 if __name__ == "__main__":
     import uvicorn

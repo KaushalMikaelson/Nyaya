@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../prisma';
 
-import { getPythonRagUrl, cleanErrorText } from '../services/retrieval';
+import { getPythonRagUrl, cleanErrorText, getInternalRagHeaders } from '../services/retrieval';
 
 const router = Router();
 
@@ -29,7 +29,7 @@ router.post('/', async (req: AuthRequest, res): Promise<void> => {
     const pyUrl = getPythonRagUrl();
     const pyRes = await fetch(`${pyUrl}/case-intelligence`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getInternalRagHeaders(),
       body: JSON.stringify({ caseDetails }),
     });
 

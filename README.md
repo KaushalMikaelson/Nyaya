@@ -38,6 +38,7 @@ User ──> Next.js (App Router, port 3000) ──> Axios Interceptors ──> 
   - OTP-based registration and password resets (Email & SMS).
   - Silent Refresh Token Rotation with Reuse Detection (revokes all device sessions if reuse is detected).
   - Rate limiting, Helmet, CORS protection, and plan quota limiting.
+  - **Trust Boundary & Internal Token Security**: The Python RAG microservice (`rag/main.py`) **must not be publicly exposed** to the internet. It is an internal service that strictly requires constant-time verified `X-Internal-Token` headers. All client requests and tenant permissions (`teamIds`) must route through the authenticated Node.js API Gateway. Deploy the RAG service within a private VPC/subnet or bind strictly to loopback (`127.0.0.1`).
 - **Case & Firm Management**: Dynamic portals tracking cases (Hearings, Timelines, Parties, Advocates) and law firm teams (Owner, Partner, Associate, Paralegal).
 - **Freemium Payments**: Multi-tier API rate limiting and plan subscriptions integrated with Razorpay.
 
@@ -125,12 +126,14 @@ Nyaya/
 
 | Endpoint | Method | Description |
 | :--- | :---: | :--- |
-| `/health` | GET | Service health check |
+| `/health` | GET | Basic service liveness check |
+| `/health/detailed` | GET | Detailed dependency status (Postgres, Redis, Cohere, Groq) with latency |
 | `/embed` | POST | Generate embeddings for text array |
-| `/hybrid-search` | POST | pgvector + FTS retrieval when vector mode is enabled; FTS fallback when disabled |
-| `/search` | POST | Full search pipeline (optional embed → retrieve → filter → rerank) |
+| `/hybrid-search` | POST | pgvector + FTS retrieval with Reciprocal Rank Fusion (RRF) |
+| `/search` | POST | Full search pipeline with Redis caching (`X-Cache`), tracing, and RBAC |
 | `/rerank` | POST | Cohere cross-encoder reranking |
 | `/chat-rag` | POST | Full RAG chat (search → rerank → Groq LLM generation) |
+| `/research` | POST | Autonomous multi-step research agent with statutory quote verification |
 | `/case-intelligence` | POST | AI case analysis with legal provisions |
 | `/process-document` | POST | PDF OCR, classification & AI legal analysis |
 
@@ -154,9 +157,14 @@ JWT_REFRESH_SECRET="your-jwt-refresh-secret"
 # Python RAG Microservice
 PYTHON_RAG_URL="http://127.0.0.1:8000"
 RAG_PORT="8000"                    # Explicit port for Python FastAPI
+RAG_INTERNAL_TOKEN="your-secure-internal-rag-secret" # Secret shared only between Node and Python
 RAG_VECTOR_SEARCH="true"          # Set false on 512MB Render instances
 RAG_EMBEDDING_PROVIDER="fastembed" # Set mock/disabled with RAG_VECTOR_SEARCH=false
 PYTHON_VERSION="3.11.11"          # Render native Python runtime pin
+
+# Security Warning:
+# The Python RAG microservice MUST NOT be publicly exposed. It requires the X-Internal-Token header.
+# Deploy it in a private VPC/subnet or bind strictly to localhost (127.0.0.1).
 
 # LLM & AI Providers
 GROQ_API_KEY="gsk_..."
@@ -256,8 +264,9 @@ Open [http://localhost:3000](http://localhost:3000) in your web browser.
 - **Auth metadata**: `RefreshToken` (for device management and tracking) and `Otp` (supporting Aadhaar verification, logins, email verification, etc.).
 - **Acts & Sections**: `Act` ──> `Section` ──> `Clause` ──> `LegalChunk` (contains 384-dim vector embeddings and tsvector FTS indexes).
 - **Cases & Timeline**: `Case` ──> `Hearing` / `CaseTimeline` / `CaseParty` / `CaseAdvocate`.
-- **Firms**: `Firm` ──> `FirmMember` (with Owner, Partner, Associate, and Paralegal roles).
-- **Documents**: `UserDocument` (uploaded legal documents with AI classification, summary, and analysis reports).
+- **RBAC & Teams**: `Team` ──> `TeamMember` and `DocumentPermission` (SQL-level pre-filtering by team).
+- **Audit Logging**: `SearchAuditLog` (append-only audit table with PostgreSQL trigger-level prevention of UPDATE and DELETE; supports auditability requirements by logging user queries, timestamp, latency, and returned chunk IDs. Access to logged query text is strictly restricted to authorized audit administrators with automated retention rotation capped at 90 days).
+- **Documents**: `UserDocument` (uploaded legal documents with AI classification, summary, and analysis reports; supports auditability requirements with soft-delete controls).
 - **Conversations**: `Conversation` ──> `Message` (chat history with RAG-powered AI responses).
 
 ---
@@ -266,15 +275,60 @@ Open [http://localhost:3000](http://localhost:3000) in your web browser.
 - **Legal Acts**: 17 Indian Acts (BNSS, BNS, BSA, Constitution, CPC, Contract Act, IBC, POCSO, DPDP, Hindu Marriage Act, Hindu Succession Act, Domestic Violence Act, Limitation Act, Specific Relief Act, Delhi Apartment Act, Repealing & Amending Act, Constitution Preamble)
 - **LegalChunks**: **8,166** total chunks populated
 - **Full-Text Search Coverage**: **8,166 / 8,166 (100%)**
-- **Vector Embedding Coverage**: **8,166 / 8,166 (100%)** in pgvector (384-dim FastEmbed ONNX `all-MiniLM-L6-v2`)line` / `CaseParty` / `CaseAdvocate`.
-- **Firms**: `Firm` ──> `FirmMember` (with Owner, Partner, Associate, and Paralegal roles).
-- **Documents**: `UserDocument` (uploaded legal documents with AI classification, summary, and analysis reports).
-- **Conversations**: `Conversation` ──> `Message` (chat history with RAG-powered AI responses).
+- **Vector Embedding Coverage**: **8,166 / 8,166 (100%)** in pgvector (384-dim FastEmbed ONNX `all-MiniLM-L6-v2`)
 
 ---
 
-## 📈 Current Database Stats
-- **Acts**: 2 (Constitution of India, Bharatiya Nyaya Sanhita)
-- **Sections**: 704 (346 Constitutional Articles + 358 BNS Sections)
-- **LegalChunks**: 3,917 target chunks after ingestion/embedding generation
-- **Embedding Coverage**: 100% in full vector mode after `npm run rag:embed`; not required for Render low-memory text-search mode
+## 🔬 Evaluation & Benchmarking Harness
+
+Nyaya features an automated evaluation and benchmarking framework located in [`/eval`](file:///e:/Projects/Nyaya/eval). Every retrieval claim is backed by empirical metrics.
+
+### 1. Retrieval Performance Evaluation (Recall@k, MRR, nDCG)
+Compare **BM25**, **Semantic**, **Hybrid RRF**, and **Cohere Rerank** across identical queries:
+
+```bash
+# Step 1: Bootstrap real chunk IDs from your database into queries.jsonl (if running for the first time)
+python eval/bootstrap_labels.py
+
+# Step 2: Validate dataset integrity
+python eval/validate_dataset.py
+
+# Step 3: Run the full comparison runner
+python eval/runner.py --all --split dev
+```
+*Results are printed in a Markdown table and saved to `eval/results/<timestamp>.json`.*
+
+### 2. Parameter Sweep (Finding Optimal RRF $k$)
+Sweeps RRF $k \in \{30, 60, 90\} \times \text{top\_k} \in \{10, 20, 30\}$ to identify optimal parameters:
+```bash
+python eval/sweep.py --split dev
+```
+
+### 3. Redis Cache Latency Benchmarking
+Measures p50 and p95 latency drops across `off`, `cold`, and `warm` cache modes:
+```bash
+# Ensure RAG service is running on port 8000
+python eval/benchmark_cache.py --mode all
+```
+
+### 4. Locust Load Testing (Concurrency & Throughput)
+Simulate 50 concurrent legal researchers:
+```bash
+locust -f eval/loadtest/locustfile.py --host http://localhost:8000 --users 50 --spawn-rate 10 --run-time 2m --headless
+```
+
+### 5. Autonomous Research Agent Evaluation
+Evaluate multi-step reasoning, citation accuracy, and verbatim statutory quote verification:
+```bash
+python eval/agent/runner.py --split dev
+```
+
+### 6. Zero-Dependency Unit & Resilience Tests
+```bash
+# Verify pure mathematical metric calculations (Recall, MRR, nDCG)
+python eval/test_metrics.py
+
+# Verify fault tolerance & graceful degradation under Cohere/Redis/Postgres outages
+python eval/test_resilience.py
+```
+

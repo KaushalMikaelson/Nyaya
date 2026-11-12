@@ -14,7 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import https from 'https';
 import http from 'http';
-import { getPythonRagUrl, cleanErrorText } from '../services/retrieval';
+import { getPythonRagUrl, cleanErrorText, getInternalRagHeaders } from '../services/retrieval';
 
 // ─── Redis connection ────────────────────────────────────────────────────────
 
@@ -95,7 +95,7 @@ async function processDocument(docId: string): Promise<void> {
   const pyUrl = getPythonRagUrl();
   const pyRes = await fetch(`${pyUrl}/process-document`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getInternalRagHeaders(),
     body: JSON.stringify({ pdfBase64: fileBuffer.toString('base64') }),
   });
 

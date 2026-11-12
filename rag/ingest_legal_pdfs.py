@@ -1,10 +1,14 @@
 import os
 import re
 import sys
+import argparse
 import pypdf
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
+
+sys.path.insert(0, os.path.dirname(__file__))
+from ingestion_log import record_ingestion_failure
 
 env_paths = [
     os.path.join(os.path.dirname(__file__), "..", "backend", ".env"),
@@ -226,6 +230,10 @@ def insert_sections(cur, act_id: str, sections: list[dict], label: str):
             sys.stdout.write(f"   -> [{label}] Inserted {idx}/{len(sections)} sections\n")
 
 def main():
+    parser = argparse.ArgumentParser(description="Nyaay Legal PDF Ingestion Pipeline")
+    parser.add_argument("--clean", action="store_true", help="Force clean database before re-ingestion (destructive)")
+    args = parser.parse_args()
+
     print("[START] Python Legal PDF Ingestion Pipeline (17 Legal Acts Support)")
     if not os.path.exists(DATA_DIR):
         print(f"[ERROR] Data directory not found at: {DATA_DIR}")
@@ -240,15 +248,19 @@ def main():
     conn = get_db()
     try:
         with conn.cursor() as cur:
-            print("\n [CLEAN] Resetting database tables for fresh re-ingestion...")
-            cur.execute('DELETE FROM "LegalChunk";')
-            cur.execute('DELETE FROM "Clause";')
-            cur.execute('DELETE FROM "Section";')
-            cur.execute('DELETE FROM "Act";')
-            conn.commit()
-            print("   Database cleared successfully.\n")
+            if args.clean:
+                print("\n [CLEAN] Resetting database tables for fresh re-ingestion (--clean flag active)...")
+                cur.execute('DELETE FROM "LegalChunk";')
+                cur.execute('DELETE FROM "Clause";')
+                cur.execute('DELETE FROM "Section";')
+                cur.execute('DELETE FROM "Act";')
+                conn.commit()
+                print("   Database cleared successfully.\n")
+            else:
+                print("\n [IDEMPOTENT] Ingesting without table wipe (use --clean for fresh reset).\n")
 
             total_sections = 0
+            failures = 0
 
             for file in sorted(files):
                 file_path = os.path.join(DATA_DIR, file)
@@ -259,31 +271,43 @@ def main():
                 })
 
                 print(f"[FILE] Ingesting: {file} ({meta['title']})")
-                act_id = get_or_create_act(cur, meta['shortName'], meta['title'], meta['year'])
-                conn.commit()
+                try:
+                    act_id = get_or_create_act(cur, meta['shortName'], meta['title'], meta['year'])
+                    conn.commit()
 
-                reader = pypdf.PdfReader(file_path)
-                if "constitution" in file.lower():
-                    sections = parse_constitution(reader)
-                else:
-                    sections = parse_generic_act(reader)
+                    reader = pypdf.PdfReader(file_path)
+                    if "constitution" in file.lower():
+                        sections = parse_constitution(reader)
+                    else:
+                        sections = parse_generic_act(reader)
 
-                if not sections:
-                    pages_text = [p.extract_text() or "" for p in reader.pages]
-                    full_text = "\n".join(pages_text).strip()
-                    sections = [{"number": "1", "title": meta['title'], "content": full_text[:4000]}]
+                    if not sections:
+                        pages_text = [p.extract_text() or "" for p in reader.pages]
+                        full_text = "\n".join(pages_text).strip()
+                        sections = [{"number": "1", "title": meta['title'], "content": full_text[:4000]}]
 
-                print(f"   Parsed {len(sections)} section(s)")
-                insert_sections(cur, act_id, sections, meta['shortName'])
-                conn.commit()
-                total_sections += len(sections)
+                    print(f"   Parsed {len(sections)} section(s)")
+                    insert_sections(cur, act_id, sections, meta['shortName'])
+                    conn.commit()
+                    total_sections += len(sections)
+                except Exception as file_err:
+                    conn.rollback()
+                    failures += 1
+                    record_ingestion_failure(file, "parse_or_insert", file_err, {"meta": meta})
+                    print(f"   [WARN] Failed to process {file}: {file_err}. Continuing with remaining files.")
 
         print("\n" + "=" * 60)
-        print(f"[SUCCESS] All 17 Legal PDF Acts ingested into database! Total Sections: {total_sections}")
+        print(f"[SUCCESS] Ingestion completed! Total Sections: {total_sections}, Failures: {failures}")
+        try:
+            from cache import invalidate_search_cache
+            inval = invalidate_search_cache()
+            print(f"   [CACHE] Flushed search cache on ingestion completion: {inval}")
+        except Exception as cache_err:
+            print(f"   [WARN] Could not flush cache: {cache_err}")
         print("Next step: Run 'python rag/generate_embeddings.py' to generate vector embeddings.\n")
     except Exception as e:
         conn.rollback()
-        print(f"[ERROR] Ingestion failed: {e}")
+        print(f"[ERROR] Fatal ingestion pipeline error: {e}")
         raise e
     finally:
         conn.close()
