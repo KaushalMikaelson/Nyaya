@@ -164,12 +164,36 @@ def parse_generic_act(reader: pypdf.PdfReader) -> list[dict]:
     return list(dedup.values())
 
 def parse_constitution(reader: pypdf.PdfReader) -> list[dict]:
-    pages_text = [p.extract_text() or "" for p in reader.pages]
+    # Detect body page boundaries to skip Table of Contents and trailing Schedules/Appendices
+    start_page = 0
+    end_page = len(reader.pages)
+
+    for i, page in enumerate(reader.pages):
+        txt = page.extract_text() or ""
+        if "PART I" in txt and "THE UNION AND ITS TERRITORY" in txt and "1. Name and territory" in txt:
+            if "CONTENTS" not in txt and "Contents" not in txt:
+                start_page = i
+                break
+
+    for i in range(start_page, len(reader.pages)):
+        txt = reader.pages[i].extract_text() or ""
+        if "FIRST SCHEDULE" in txt and ("[Articles 1 and 4]" in txt or "I. THE STATES" in txt):
+            end_page = i
+            break
+
+    pages_text = []
+    for p in reader.pages[start_page:end_page]:
+        raw_p = p.extract_text() or ""
+        # Strip footnote blocks starting with 5+ underscores at the bottom of pages
+        p_no_fn = re.sub(r'_{5,}[\s\S]*$', '', raw_p)
+        pages_text.append(p_no_fn)
+
     full_text = "\n".join(pages_text)
     clean_txt = re.sub(r'\d+\[', '', full_text)
+    clean_txt = re.sub(r'THE CONSTITUTION OF\s+INDIA\s*\([^\n)]+\)\s*\d*', ' ', clean_txt)
     
     art_pattern = re.compile(
-        r'(?<!\d)(\d{1,3}[A-Z]?)\.\s*([A-Z][^.\ufffd\r\n]+?)\.(?:\ufffd|[\u2014—\-]|(?=\s*[A-Z(]))'
+        r'(?<!\d)(\d{1,3}(?:[A-Z]{1,2}|[A-Z]-[A-Z])?)\.\s*([A-Z][^.\ufffd\r\n]{2,180}?)\.(?:\ufffd|[\u2014—\-]|(?=\s*[A-Z(]))'
     )
     matches = list(art_pattern.finditer(clean_txt))
     articles = []
@@ -180,6 +204,9 @@ def parse_constitution(reader: pypdf.PdfReader) -> list[dict]:
 
         num_val = int(re.sub(r'\D', '', art_num))
         if not (1 <= num_val <= 395):
+            continue
+
+        if title.startswith(("Cl", "Subs", "Ins", "Omitted", "See", "The words", "Paragraph")):
             continue
 
         start_pos = m.start()
@@ -202,7 +229,7 @@ def parse_constitution(reader: pypdf.PdfReader) -> list[dict]:
     dedup = {}
     for a in articles:
         num = a["number"]
-        if num not in dedup or len(a["content"]) > len(dedup[num]["content"]):
+        if num not in dedup:
             dedup[num] = a
     return list(dedup.values())
 
